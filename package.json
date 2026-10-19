@@ -1,6 +1,6 @@
 {
   "name": "@guanzhu.me/xbot-cli",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Agent-friendly CLI for ShadowBot RPA applications, flows, tasks and browser automation",
   "license": "MIT",
   "author": "wn0x00",
@@ -9,13 +9,33 @@
     "url": "git+https://github.com/wn0x00/xbot-cli.git"
   },
   "homepage": "https://github.com/wn0x00/xbot-cli#readme",
-  "bugs": { "url": "https://github.com/wn0x00/xbot-cli/issues" },
-  "keywords": ["xbot", "shadowbot", "rpa", "cli", "agent", "automation"],
-  "bin": { "xbot-cli": "bin/xbot-cli.cjs" },
-  "files": ["bin/xbot-cli.cjs", "native/win32-x64/xbot-cli.exe"],
-  "os": ["win32"],
-  "cpu": ["x64"],
-  "engines": { "node": ">=22" },
+  "bugs": {
+    "url": "https://github.com/wn0x00/xbot-cli/issues"
+  },
+  "keywords": [
+    "xbot",
+    "shadowbot",
+    "rpa",
+    "cli",
+    "agent",
+    "automation"
+  ],
+  "bin": {
+    "xbot-cli": "bin/xbot-cli.cjs"
+  },
+  "files": [
+    "bin/xbot-cli.cjs",
+    "native/win32-x64/xbot-cli.exe"
+  ],
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "node scripts/build.cjs",
     "check": "cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings",
@@ -25,5 +45,8 @@
     "test:package": "node scripts/test-package.cjs",
     "prepack": "npm run build && node scripts/check-package.cjs"
   },
-  "publishConfig": { "registry": "https://registry.npmjs.org/", "access": "public" }
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
 }
