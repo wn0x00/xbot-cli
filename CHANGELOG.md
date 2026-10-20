@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/wn0x00/xbot-cli/compare/v0.7.1...v0.7.2) (2026-10-20)
+
+- Ship Agent Skill v9 with exploration, development, acceptance and maintenance modes; add task contracts, locator records, business evidence, action risk guidance, bounded waits and a minimal repair/regression workflow.
+- Prefer verified XPath in VisualFlow and CodeFlow. Document element-library naming, configuration/business/test flow organization, English snake_case code variables, and compatibility checks for old and new elements that coexist.
+- Install all 14 Skill resources, including the new references and descriptive templates. Verify complete content, isolated local/global installs, repeat installation and conflict-before-write behavior; validate the same resources through the packaged Windows executable.
+- Browser automation still uses the shared active-page context; this release does not add multi-session isolation or an automatic template executor.
+
 ## [0.7.1](https://github.com/wn0x00/xbot-cli/compare/v0.7.0...v0.7.1) (2026-10-19)
 
 - Show the actual backend error when a browser action fails; selector-storage messages no longer hide fill failures. Keep the complete response and call log in JSON while showing a concise error and snapshot guidance in text.

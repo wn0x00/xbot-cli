@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { mkdirSync, mkdtempSync, existsSync, readFileSync, rmSync } = require('node:fs');
+const { mkdirSync, mkdtempSync, existsSync, readFileSync, readdirSync, rmSync } = require('node:fs');
 const { join, resolve, relative } = require('node:path');
 const { tmpdir } = require('node:os');
 const { createHash } = require('node:crypto');
@@ -85,7 +85,23 @@ try {
   assert.equal(JSON.parse(preview.stdout).data.dry_run, true);
   const skill = invoke(['install', '--skills', '--json']);
   assert.equal(skill.status, 0, skill.stderr);
-  assert.ok(existsSync(join(workdir, '.agents', 'skills', 'xbot-app-dev', 'SKILL.md')));
+  const skillRoot = join(workdir, '.agents', 'skills', 'xbot-app-dev');
+  const sourceSkillRoot = join(root, 'skills', 'xbot-app-dev');
+  function skillFiles(directory, prefix = '') {
+    return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+      const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+      return entry.isDirectory() ? skillFiles(join(directory, entry.name), path) : [path];
+    }).sort();
+  }
+  const expectedSkillFiles = skillFiles(sourceSkillRoot);
+  assert.equal(expectedSkillFiles.length, 14, 'Skill v9 must ship its complete resource set');
+  assert.deepEqual(skillFiles(skillRoot), expectedSkillFiles);
+  assert.deepEqual(JSON.parse(skill.stdout).data.files.map(path =>
+    relative(skillRoot, path).replaceAll('\\', '/')).sort(), expectedSkillFiles);
+  for (const file of expectedSkillFiles) {
+    assert.deepEqual(readFileSync(join(skillRoot, file)), readFileSync(join(sourceSkillRoot, file)),
+      `Installed Skill resource differs: ${file}`);
+  }
   assert.match(invoke(['guide', 'cli-contract']).stdout, /^# /);
   const digest = createHash('sha256').update(readFileSync(tarball)).digest('hex');
   console.log(`Package installation verified: ${relative(root, tarball)}`);

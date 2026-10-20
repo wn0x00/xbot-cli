@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "template_kind": "agent_description",
+  "note": "定位说明模板，无自动执行器。XPath须从实时页面获得；null表示尚未采集。verified=false的候选不得执行。selector_name仅在实际使用元素库时填写，遵循平台名_业务含义_类型。",
+  "preferred_strategy": "xpath",
+  "locators": {
+    "search_input": {
+      "name": "百度_搜索_输入框",
+      "intent": "搜索输入框",
+      "strategy": "xpath",
+      "selector_name": null,
+      "role": "textbox",
+      "text_hint": "搜索",
+      "purpose": "input",
+      "scope": {"page_condition": "百度搜索页", "frame": null, "parent_xpath": null},
+      "variants": [
+        {"version": "legacy", "page_condition": null, "xpath": null, "verified": false, "match_count": null, "last_verified": null},
+        {"version": "current", "page_condition": null, "xpath": null, "verified": false, "match_count": null, "last_verified": null}
+      ],
+      "coexistence": {"verified": false, "same_dom_element": null, "active_target_condition": null, "on_ambiguity": "stop_without_action"}
+    },
+    "search_button": {
+      "name": "百度_搜索_按钮",
+      "intent": "执行搜索",
+      "strategy": "xpath",
+      "selector_name": null,
+      "role": "button",
+      "text_hint": "搜索",
+      "purpose": "click",
+      "scope": {"page_condition": "百度搜索页且搜索词已填写", "frame": null, "parent_xpath": null},
+      "variants": [{"version": "current", "page_condition": null, "xpath": null, "verified": false, "match_count": null, "last_verified": null}]
+    },
+    "result_ready": {
+      "name": "百度_搜索结果就绪_标志",
+      "intent": "等待并判断搜索结果区域存在",
+      "strategy": "xpath",
+      "selector_name": null,
+      "purpose": "wait_or_exists",
+      "scope": {"page_condition": "百度搜索结果页", "frame": null, "parent_xpath": null},
+      "variants": [{"version": "current", "page_condition": null, "xpath": null, "verified": false, "match_count": null, "last_verified": null}]
+    }
+  }
+}

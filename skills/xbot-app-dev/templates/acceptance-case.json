@@ -1,0 +1,27 @@
+{
+  "case_id": "happy-path",
+  "description": "正常输入得到预期业务结果",
+  "input": {},
+  "steps": [
+    {
+      "action": "snapshot",
+      "expect": "页面包含任务起始元素"
+    },
+    {
+      "action": "web_action",
+      "expect": "动作返回 applied=true 或成功结果"
+    },
+    {
+      "action": "business_assertion",
+      "expect": "页面、Out 或任务结果满足任务契约"
+    }
+  ],
+  "evidence": [
+    "current_url",
+    "page_title",
+    "snapshot_or_key_text",
+    "run_id_or_task_id",
+    "outputs"
+  ],
+  "expected_conclusion": "business_pass"
+}

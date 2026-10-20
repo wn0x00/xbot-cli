@@ -14,6 +14,16 @@ const CODEFLOW: &str = include_str!("../skills/xbot-app-dev/references/codeflow.
 const VISUALFLOW: &str = include_str!("../skills/xbot-app-dev/references/visualflow.md");
 const BROWSER: &str = include_str!("../skills/xbot-app-dev/references/browser.md");
 const RECOVERY: &str = include_str!("../skills/xbot-app-dev/references/recovery.md");
+const PROJECT_CONVENTIONS: &str =
+    include_str!("../skills/xbot-app-dev/references/project-conventions.md");
+const WEB_LIFECYCLE: &str = include_str!("../skills/xbot-app-dev/references/web-lifecycle.md");
+const WEB_MAINTENANCE: &str = include_str!("../skills/xbot-app-dev/references/web-maintenance.md");
+const WEB_ACCEPTANCE: &str = include_str!("../skills/xbot-app-dev/references/web-acceptance.md");
+const WEB_RISK: &str = include_str!("../skills/xbot-app-dev/references/web-risk.md");
+const TASK_SPEC: &str = include_str!("../skills/xbot-app-dev/templates/task-spec.md");
+const LOCATOR_REGISTRY: &str =
+    include_str!("../skills/xbot-app-dev/templates/locator-registry.json");
+const ACCEPTANCE_CASE: &str = include_str!("../skills/xbot-app-dev/templates/acceptance-case.json");
 
 const TOPICS: &[(&str, &str, &str)] = &[
     (
@@ -91,6 +101,32 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
         (root.join("references").join("visualflow.md"), VISUALFLOW),
         (root.join("references").join("browser.md"), BROWSER),
         (root.join("references").join("recovery.md"), RECOVERY),
+        (
+            root.join("references").join("project-conventions.md"),
+            PROJECT_CONVENTIONS,
+        ),
+        (
+            root.join("references").join("web-lifecycle.md"),
+            WEB_LIFECYCLE,
+        ),
+        (
+            root.join("references").join("web-maintenance.md"),
+            WEB_MAINTENANCE,
+        ),
+        (
+            root.join("references").join("web-acceptance.md"),
+            WEB_ACCEPTANCE,
+        ),
+        (root.join("references").join("web-risk.md"), WEB_RISK),
+        (root.join("templates").join("task-spec.md"), TASK_SPEC),
+        (
+            root.join("templates").join("locator-registry.json"),
+            LOCATOR_REGISTRY,
+        ),
+        (
+            root.join("templates").join("acceptance-case.json"),
+            ACCEPTANCE_CASE,
+        ),
     ]
 }
 
