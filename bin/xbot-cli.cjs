@@ -24,8 +24,8 @@ function compareVersions(a, b) {
 
 function notifierEnabled() {
   if (process.env.XBOT_NO_UPDATE_NOTIFIER) return false;
-  if (process.env.CI) return false;
   if (process.env.XBOT_UPDATE_NOTIFIER === '1') return true;
+  if (process.env.CI) return false;
   return Boolean(process.stderr.isTTY);
 }
 

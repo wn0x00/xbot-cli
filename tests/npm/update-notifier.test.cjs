@@ -22,8 +22,14 @@ test('compareVersions orders release versions and ignores pre-release suffix', (
 
 test('notifier is opt-in under piped stderr and honors env switches', () => {
   assert.equal(notifierEnabled(), false); // node:test 的 stderr 不是 TTY
+  process.env.CI = 'true';
+  assert.equal(notifierEnabled(), false); // CI 环境默认关闭
+  delete process.env.CI;
   process.env.XBOT_UPDATE_NOTIFIER = '1';
   assert.equal(notifierEnabled(), true);
+  process.env.CI = 'true';
+  assert.equal(notifierEnabled(), true); // 显式开关优先于 CI
+  delete process.env.CI;
   process.env.XBOT_NO_UPDATE_NOTIFIER = '1';
   assert.equal(notifierEnabled(), false);
   delete process.env.XBOT_NO_UPDATE_NOTIFIER;
