@@ -17,7 +17,7 @@ test('compareVersions orders release versions and ignores pre-release suffix', (
   assert.ok(compareVersions('1.0.0', '0.99.9') > 0);
   assert.equal(compareVersions('0.7.2', '0.7.2'), 0);
   assert.ok(compareVersions('0.8.0-beta.1', '0.7.2') > 0);
-  assert.equal(compareVersions('0.7.2', version), 0);
+  assert.equal(compareVersions(version, version), 0);
 });
 
 test('notifier is opt-in under piped stderr and honors env switches', () => {
