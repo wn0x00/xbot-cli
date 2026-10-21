@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.3](https://github.com/wn0x00/xbot-cli/compare/v0.7.2...v0.7.3) (2026-10-21)
+
+- The npm launcher now reminds interactive users when a newer release is available, printing a one-line upgrade hint to stderr without touching stdout or JSON output.
+- The registry check runs at most once every 24 hours with a local cache, reminds at most once per new version, times out silently after one second, and stays off in CI. Set `XBOT_NO_UPDATE_NOTIFIER=1` to disable it completely.
+
 ## [0.7.2](https://github.com/wn0x00/xbot-cli/compare/v0.7.1...v0.7.2) (2026-10-20)
 
 - Ship Agent Skill v9 with exploration, development, acceptance and maintenance modes; add task contracts, locator records, business evidence, action risk guidance, bounded waits and a minimal repair/regression workflow.
