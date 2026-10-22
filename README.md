@@ -142,9 +142,18 @@ xbot-cli install --skills --global --json
 
 请使用支持 `.agents/skills` 的 Agent，或明确让 Agent 阅读生成的 `SKILL.md`。不支持自动加载 Skill 的工具也可以直接阅读下方完整指令。已有 Skill 内容不同时，CLI 会返回冲突；先查看差异，确认覆盖后再追加 `--yes`。
 
-随包提供的 Skill v9 包含 14 个文件，覆盖探索、开发、验收和维护模式，并提供业务任务、定位资产与验收证据模板。网页流程优先使用经过验证的 XPath；元素失效修复同时考虑有效的新旧定位和共存歧义。元素库名称采用“平台名_业务含义_按钮/输入框/标志”，流程按配置、业务、测试及根级主流程组织，编码变量优先使用英文 `snake_case`。
+当前源码内置 **Skill v10，共 38 个文件**，包含 Web/Windows 模块、12 个脚本及业务任务、用途分析、定位和修复提议模板。已安装的旧 CLI 不会因本仓库文档更新而获得新 Skill；可从当前源码构建后安装，或等待包含这些改动的后续版本。
 
-风险分级、等待与状态确认、最小修复和回归要求属于 Agent 工作规范。当前浏览器接口仍共享活动页上下文，不提供独立多会话隔离；描述模板也不是自动执行器。新规范通过安装后的 `references/` 和 `templates/` 按需读取，`guide` 继续提供其已列出的内置主题。工作区的 `AGENTS.md` 和用户当前授权仍需遵守。
+| 能力 | 实现与范围 |
+|---|---|
+| XPath 生成 | 从当前快照 ref 获取真实节点，结合加权算法和外部 ROBULA+，验证路径唯一指向原节点 |
+| Web 修复辅助 | AI 分析单元素/集合用途；单元素 helper 产生只读提议，普通 DOM 集合解析器检查成员、字段、父子定位和旧新兼容 |
+| Windows 修复 | Python UIA 按可信原身份恢复单控件定位，可供编码版和可视化流程调用；当前真实业务验证限本机微信 |
+| 观察与验收 | 实验性 `win32 snapshot`、隔离测试、动作前复核和结果核对；证据不足或歧义时停止修改 |
+
+Web 生成 helper 需要支持 `stripTypeScriptTypes` 的 Node 运行时和固定修订的外部 ROBULA+ 源码；用途分析需要 Python 3.8+。Windows helper 需要目标运行环境安装 `uiautomation==2.0.29`，无需影刀元素库。第三方源码与 Python 依赖不会自动下载。完整算法、依赖、测试结果和限制见 [Skill v10 升级说明](docs/skill-v10-upgrade.md)。
+
+有效新旧定位继续保留，并在动作前消歧；相对父元素的子定位一并验证。Web helper 不点击、不写应用，后续修改和验收由 Agent 编排。Skill 不是常驻自愈服务，Windows 集合、通用分页/虚拟列表和所有 iframe/Shadow 集合尚未支持；当前浏览器接口仍共享活动页上下文。安装后的模块、引用、脚本与模板按需使用，并继续遵守工作区 `AGENTS.md` 和用户授权范围。
 
 ### 完整的 Agent 工作指令
 
@@ -183,6 +192,7 @@ xbot-cli install --skills --global --json
 | `flow code` / `flow visual` | CodeFlow 源码和 VisualFlow 块 |
 | `task` | 已发布应用的控制台任务 |
 | `web`（别名 `browser`） | 浏览器上下文、快照与 click/fill/press 等交互 |
+| `win32 snapshot` | 实验性只读 UIA 快照，显式限定 HWND/PID，独立于 Studio 与原生 Selector |
 | `tool studio` / `tool browser` | 原始工具的发现、schema 和调用 |
 | `wiki` / `schema` / `guide` | 官方知识库、命令参数与内置开发指南 |
 | `install --skills` | 安装 Agent Skill |
@@ -241,6 +251,7 @@ Rust 源码、Skill 和文档进入 GitHub 仓库；原生程序由构建生成�
 ```powershell
 npm run build          # 构建 Rust release，并准备 npm 包中的原生程序
 npm test               # 项目自动化测试
+npm run test:skill     # 离线 helper 与 Python AST 回归；需要 Python 3.8+
 npm run test:package   # 检查 npm 包与启动器
 npm pack               # 生成本地 .tgz，不发布
 ```

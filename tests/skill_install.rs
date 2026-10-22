@@ -93,7 +93,6 @@ fn assert_complete(output: Output, installed: &Path) {
     assert_eq!(result["data"]["installed"], true);
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("skills/xbot-app-dev");
     let expected = resources(&source);
-    assert_eq!(expected.len(), 14);
     assert_eq!(resources(installed), expected);
     let mut reported: Vec<PathBuf> = result["data"]["files"]
         .as_array()

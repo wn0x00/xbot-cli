@@ -13,6 +13,7 @@ mod output;
 mod plan;
 mod schema_cmds;
 mod web_cmds;
+mod win32_cmds;
 
 use clap::FromArgMatches;
 use cli::{Cli, Group};

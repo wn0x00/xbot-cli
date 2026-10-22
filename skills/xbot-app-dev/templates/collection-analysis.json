@@ -1,0 +1,51 @@
+{
+  "template_kind": "ai_collection_contract_not_execution_authorization",
+  "app_id": null,
+  "flow_id": null,
+  "failed_run_id": null,
+  "failure_callsite": null,
+  "source_sha256": null,
+  "failure_phase": "unknown",
+  "action_outcome": "unknown",
+  "root_cause": {
+    "category": "unknown",
+    "evidence": [],
+    "ruled_out": []
+  },
+  "classification": "unknown",
+  "xpath_meaning": null,
+  "target_meaning": null,
+  "member_contract": [],
+  "selection_rules": null,
+  "completeness_evidence": null,
+  "dense_page_validation": {
+    "validation_profile": "business",
+    "independent_baseline_source": null,
+    "identity_fields": [],
+    "expected_by_key": {},
+    "candidate_regions": [],
+    "ambiguous_regions": "stop_without_action",
+    "dom_scale": null,
+    "independent_business_receipts": [],
+    "backend_object_and_action_binding": null,
+    "action_outcome_record": null,
+    "node_identity_and_race_limits": []
+  },
+  "dependent_locators": [],
+  "behavior_contract": [],
+  "old_and_new_compatibility": {
+    "old_versions_retained": true,
+    "parent_variants": [],
+    "child_variants": [],
+    "merge_policy_evidence": [],
+    "ambiguous_behavior": "stop_without_action"
+  },
+  "validation_plan": [],
+  "evidence_and_gaps": [],
+  "attempted_methods": [],
+  "repairability": "uncertain",
+  "test_flow_id": null,
+  "test_run_ids": [],
+  "application_modified": false,
+  "recommendations": []
+}

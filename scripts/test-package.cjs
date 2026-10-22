@@ -94,7 +94,6 @@ try {
     }).sort();
   }
   const expectedSkillFiles = skillFiles(sourceSkillRoot);
-  assert.equal(expectedSkillFiles.length, 14, 'Skill v9 must ship its complete resource set');
   assert.deepEqual(skillFiles(skillRoot), expectedSkillFiles);
   assert.deepEqual(JSON.parse(skill.stdout).data.files.map(path =>
     relative(skillRoot, path).replaceAll('\\', '/')).sort(), expectedSkillFiles);
@@ -103,6 +102,27 @@ try {
       `Installed Skill resource differs: ${file}`);
   }
   assert.match(invoke(['guide', 'cli-contract']).stdout, /^# /);
+  for (const [topic, resource] of [
+    ['automation-routing', 'references/automation-routing.md'],
+    ['web-module', 'modules/web.md'],
+    ['win-design', 'modules/win.md'],
+    ['win-repair', 'references/win-repair.md'],
+    ['locator-repair', 'references/locator-repair.md'],
+    ['locator-usage', 'references/locator-usage.md'],
+    ['collection-repair', 'references/collection-repair.md'],
+    ['skill-updates', 'UPDATE-RECORD.md'],
+  ]) {
+    const result = invoke(['guide', topic, '--json']);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).data.markdown,
+      readFileSync(join(sourceSkillRoot, resource), 'utf8'), `Stale embedded guide: ${topic}`);
+  }
+  const nativeSchema = invoke(['schema', 'win32', 'snapshot']);
+  assert.equal(nativeSchema.status, 0, nativeSchema.stderr);
+  const nativeContract = JSON.parse(nativeSchema.stdout).data;
+  assert.equal(nativeContract.context, 'windows_uia');
+  assert.equal(nativeContract.requires_studio, false);
+  assert.deepEqual(nativeContract.effects, ['read']);
   const digest = createHash('sha256').update(readFileSync(tarball)).digest('hex');
   console.log(`Package installation verified: ${relative(root, tarball)}`);
   console.log(`SHA256 ${digest}`);

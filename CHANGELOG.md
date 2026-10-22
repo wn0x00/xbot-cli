@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add Skill v10 Web and Windows modules, with Agent routing based on the failed call and its actual target. Embed and install all 38 Skill resources and expose the corresponding offline guides.
+- Add ref-to-XPath generation using the weighted DOM generator and a hash-pinned, externally supplied ROBULA+ source. Verify that generated paths identify the original node; support segmented iframe/open Shadow paths within the documented limits.
+- Add workflow-usage analysis and read-only repair proposals for single elements. Add ordinary-DOM collection contracts, dependent child locator checks, dense-page candidate screening and compatible old/new locator variants.
+- Add an experimental Python UIA single-control repair helper and `win32 snapshot --hwnd --pid`. Keep native observation separate from ShadowBot selectors; preserve original assets and reject ambiguity, incomplete observation and unproven identities.
+- Document real test results and remaining limits, including same-content node replacement, Windows collection repair and uncertain WeChat send results. These helpers are not an unattended repair service.
+- Extend offline helper regressions and package verification to cover the complete installed Skill, current embedded guides and the Windows snapshot discovery contract. ROBULA+ source, UIA dependencies and business runtime data are not bundled.
+
 ## [0.7.3](https://github.com/wn0x00/xbot-cli/compare/v0.7.2...v0.7.3) (2026-10-21)
 
 - The npm launcher now reminds interactive users when a newer release is available, printing a one-line upgrade hint to stderr without touching stdout or JSON output.

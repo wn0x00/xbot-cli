@@ -63,6 +63,9 @@ pub(crate) enum Group {
     /// 网页操作:打开、快照、点击、填写与导航
     #[command(name = "web", visible_alias = "browser", subcommand)]
     Browser(BrowserSub),
+    /// 实验性 Windows UIA 只读能力,独立于影刀原生选择器引擎
+    #[command(subcommand)]
+    Win32(Win32Sub),
     /// 影刀官方知识库
     #[command(subcommand)]
     Wiki(WikiSub),
@@ -104,6 +107,26 @@ pub(crate) enum Group {
     /// 兼容入口:仅客户端全局状态
     #[command(hide = true)]
     State,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum Win32Sub {
+    /// 有界读取指定 HWND/PID 的 UIA 树;ref 仅用于本次证据,不支持动作
+    Snapshot {
+        /// 窗口句柄,十进制或 0x 十六进制;不自动选择活动窗口
+        #[arg(long)]
+        hwnd: String,
+        /// 预期窗口所属进程 ID
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+        pid: u32,
+        #[arg(long, default_value_t = 1000, value_parser = clap::value_parser!(u32).range(1..=5000))]
+        max_nodes: u32,
+        #[arg(long, default_value_t = 12, value_parser = clap::value_parser!(u32).range(0..=64))]
+        max_depth: u32,
+        /// 整个提供器子进程的时间上限,包含启动和导入
+        #[arg(long, default_value_t = 10, value_parser = clap::value_parser!(u64).range(1..=60))]
+        timeout: u64,
+    },
 }
 
 #[derive(Subcommand)]

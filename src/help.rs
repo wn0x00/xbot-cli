@@ -129,6 +129,13 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli task run <app-id> --inputs-json @inputs.json",
             "xbot-cli task status <task-id>",
         ],
+        ["win32"] => &[
+            "xbot-cli help win32 snapshot",
+            "xbot-cli schema win32 snapshot",
+        ],
+        ["win32", "snapshot"] => {
+            &["xbot-cli win32 snapshot --hwnd <HWND> --pid <PID> --timeout 10 --json"]
+        }
         ["tool"] => &["xbot-cli tool studio list", "xbot-cli tool browser list"],
         ["tool", "studio"] => &[
             "xbot-cli tool studio list",

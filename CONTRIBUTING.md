@@ -24,7 +24,7 @@ Conventional Commits 用于评审和整理变更记录，不自动计算或发�
 
 ## 开发与验证
 
-环境为 Windows x64、Node.js 22+、Rust stable 和 MSVC 构建工具。在仓库根目录运行：
+环境为 Windows x64、Node.js 22+、Rust stable 和 MSVC 构建工具。Skill 用途分析回归还需要 Python 3.8+，默认调用 `python`，可用 `XBOT_TEST_PYTHON` 指定测试解释器。在仓库根目录运行：
 
 ```powershell
 npm ci --ignore-scripts
@@ -34,6 +34,8 @@ npm run test:package
 ```
 
 根据改动验证相关行为：命令或输出契约变更补充有意义的测试；npm 启动器、打包或发布流程变更验证实际安装路径；仅文档改动检查内容和链接即可。PR 写明实际执行的检查，未验证的路径也应说明。
+
+`npm run test:skill` 只验证离线 helper 协议和真实 Python AST 分析，不访问桌面、浏览器或影刀，不下载 ROBULA+，也不能代替真实业务修复验收。测试和运行依赖分别说明，不提交真实窗口快照、聊天记录或定位资产。
 
 修改用户可见行为时，同步 README、CLI 参考或内置指南。Agent 依赖稳定的 JSON、退出码及 stdout/stderr 分离；需要更改时明确兼容性影响。模拟后端测试不能替代真实影刀运行验收。
 

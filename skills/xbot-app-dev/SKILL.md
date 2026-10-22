@@ -1,66 +1,70 @@
 ---
 name: xbot-app-dev
-description: 使用 xbot-cli 探索、开发、验收、维护或发布影刀 ShadowBot 应用和网页自动化。适用于 xbot web、CodeFlow、VisualFlow、浏览器取数及运行故障恢复。
+description: 使用 xbot-cli 开发、验收和维护影刀应用；按报错步骤加载 Web 或 Windows 模块。Web 支持 XPath 修复；Windows 支持 Python UIA 单控件定位修复与真实流程验证。适用于 CodeFlow、VisualFlow 和运行故障恢复。
 metadata:
-  version: "9"
+  version: "10"
 ---
 
 # 影刀应用与指令开发
 
-通过 `xbot` 或 `xbot-cli` 调用影刀内置 shell-cli、studio-mcp 和 browser-use-mcp，两个命令名等价，零注入、零反射。不要使用旧的 `xbot_agent` / `python -m xbot_cli` 工作流。
+通过 `xbot` 或 `xbot-cli` 调用影刀内置 shell-cli、studio-mcp 和 browser-use-mcp，两个命令名等价。不要使用旧的 `xbot_agent` / `python -m xbot_cli` 工作流。Windows 外部适配器须与影刀官方通道分别标明，不反射、注入或绕过影刀 SDK 的公开边界。
 
 本 Skill 随 npm 包 `@guanzhu.me/xbot-cli` 分发，适用于 Windows x64 和 Node.js 22+。使用 `xbot install --skills` 安装到当前工作区，或加 `--global` 安装到用户的 `.agents/skills`。运行影刀操作前需要客户端已启动并登录；帮助、schema 和 guide 可离线读取。
 
-这个 Skill 的目标是把业务需求变成可重复、可验收、可维护的自动化流程。网页 CLI 适合探索和短流程；需要参数、输入输出、长期运行或维护时，优先沉淀为 CodeFlow，只有确实适合块编排时才使用 VisualFlow。
+这个 Skill 的目标是把业务需求变成可重复、可验收、可维护的自动化流程。需要参数、输入输出、长期运行或维护时，优先沉淀为 CodeFlow，只有确实适合块编排时才使用 VisualFlow。Skill 不是常驻修复服务。
 
-## 工作模式
+## 平台模块
 
-先判断当前任务属于哪一种模式，再读取对应参考文档：
+修复入口先读取 [平台识别与模块选择](references/automation-routing.md)。由当前 Agent 自动读取报错行/块、相关调用代码、对象来源及原元素资料，判断**失败的这一步**属于 Web 还是 Windows，再加载对应模块。不要求用户先选平台，也不按整个应用的名称或大多数步骤判断。
 
-| 模式 | 适用场景 | 参考文档 |
+影刀应用是承载自动化流程的项目，业务目标可以是任意受支持的程序窗口或网页。`app_id/flow_id/run_id` 与 `--expect-app` 标识影刀项目和执行上下文；业务窗口/进程、浏览器页面需另外确认。影刀 `status`、当前活动窗口以及变量名不能代替目标识别。
+
+| 平台 | 入口 | 当前状态 |
 |---|---|---|
-| `explore` | 探索页面、登录态、元素、分页和业务路径 | [web-lifecycle.md](references/web-lifecycle.md)、[browser.md](references/browser.md) |
-| `build` | 根据已确认路径创建或修改自动化流程 | [web-lifecycle.md](references/web-lifecycle.md)、[codeflow.md](references/codeflow.md) 或 [visualflow.md](references/visualflow.md) |
-| `verify` | 检查静态诊断、真实运行、输出和页面结果 | [web-acceptance.md](references/web-acceptance.md) |
-| `maintain` | 处理页面变化、选择器失效、运行失败和超时 | [web-maintenance.md](references/web-maintenance.md)、[recovery.md](references/recovery.md) |
-| `release` | 保存、同步、发布、回收或运行已发布应用 | [recovery.md](references/recovery.md)、[cli-contract.md](references/cli-contract.md) |
+| Web：失败调用实际操作网页 DOM、iframe 或 Shadow DOM | [modules/web.md](modules/web.md) | 现有 v10 能力，按已验证边界使用 |
+| Windows：失败调用实际操作业务程序窗口或原生控件，包括浏览器的系统弹窗 | [modules/win.md](modules/win.md) | 优先 Python UIA 单控件修复；无需影刀元素库。按已验证的应用与动作方式使用 |
+| 混合：同一流程含 Web 和 Windows 步骤 | 按失败调用逐一选择；确实涉及两侧时分别加载 | Electron/WebView 也按实际操作对象分流，不默认先读 Windows |
+| 未知：源码、实际块类型、对象来源缺失或证据冲突 | 先补证据，暂不进入平台修复 | 不猜平台、不改业务流程、不默认采集影刀窗口 |
+
+先记录平台选择依据和业务目标，再分析单元素/相似元素组、父子引用及可修复性。模块选中不等于可以修复：Windows 须核实实际后端和部署条件，如实报告未实现的步骤；不能因该模块暂不支持而改用 Web 修复器。这里的自动选择由加载 Skill 的 Agent 执行，不是 CLI 常驻监控或已实现的通用程序类型分析器。
+
+`explore/build/verify/maintain/release` 是共用工作阶段，平台具体动作由模块规定。更新历史保存在 [UPDATE-RECORD.md](UPDATE-RECORD.md)，不是运行时必读材料。现有 `references/`、`scripts/` 和 `templates/` 路径保留兼容。
 
 ## 先读这些规则
 
-1. 操作前先运行 `xbot-cli status`；不确定命令时用 `xbot-cli`、`xbot-cli <group>`、`xbot-cli help <path>` 逐层发现，再按需读 `schema <path>` 或 `guide <topic>`，不要猜 flag。裸根命令和纯分组显示简短帮助，退出 0，不调用后端。
+1. 影刀操作前先运行 `xbot-cli status`；不确定命令时用 `xbot-cli`、`xbot-cli <group>`、`xbot-cli help <path>` 逐层发现，再按需读 `schema <path>` 或 `guide <topic>`，不要猜 flag。裸根命令和纯分组显示简短帮助，退出 0，不调用后端。独立 UIA 快照不依赖 Studio，不能以影刀 status 代替目标窗口身份校验。
 2. 解析业务结果时显式加 `--json`：成功读 stdout 的 `ok/data`，失败读 stderr 的 `error/type/code/hint/retryable` 和可能的 `data`。默认业务输出在终端为文本、管道为 JSON；帮助和 guide 默认始终为文本，schema 默认始终为 JSON。失败可能已产生部分修改，不只按自然语言 message 分支，不盲目整批重试。
 3. 修改前先读现状，最小修改，不直接编辑影刀应用目录文件。Studio 工作显式指定 `--expect-app <id>`，防止 GUI 切换后操作另一应用；它是断言，不负责切换应用。
 4. 副作用命令可先用 `--dry-run`；它只做离线输入校验与预览，未验证当前应用、目标流程、权限和后端接受性，不等同运行验收。
 5. `app publish`、`app recycle`、`app open --force` 必须展示动作并取得用户明确同意后，才能追加 `--yes`。绝不默认携带 `--yes`。
 6. `flow check` 仅静态检查；`flow verify` 会实际运行。超时保留 `run_id`，用 `flow wait` 继续等待，不启动第二份流程。开发运行完成不自动发布；未实际运行的路径不得声称已验证。
 7. 遵守当前工作区的 `AGENTS.md`、用户授权范围和项目实际提供的开发规范。不猜测团队规则，不依赖个人或团队专用服务。用户已有明确授权时不重复索要相同确认；授权不明确时先展示具体操作及影响。
-8. 创建或维护网页自动化时，先明确输入、输出、成功条件、失败条件、允许的副作用和需要确认的动作；可从 [templates/task-spec.md](templates/task-spec.md) 开始。
-9. 网页 ref 只在当前快照中有效。页面变化、导航、提交或弹窗变化后重新 snapshot；不能编造、跨页面复用或把 CSS/XPath 当作 ref。
-10. 动作成功但快照失败时，保留 `applied: true`，只补执行 `web snapshot`；超时或连接中断时先确认页面状态，不自动重放可能已生效的动作。
-11. 只读、可逆和不可逆动作按 [web-risk.md](references/web-risk.md) 处理。提交、删除、发布、付款、发消息和账户修改必须在执行前说明影响并取得用户授权。
-12. 完成后区分“已探索”“已写入”“静态通过”“运行通过”“业务通过”和“未验证”，报告至少包含 `app_id`、`flow_id`、`run_id` 或 `task_id` 及关键证据。
+8. 创建或维护自动化时，先明确输入、输出、成功条件、失败条件、允许的副作用和需要确认的动作；可从 [templates/task-spec.md](templates/task-spec.md) 开始。
+9. 快照 ref 属于特定平台、后端、窗口或页面及采集批次。界面变化后重新采集；不能编造、跨上下文复用或把定位表达式当作 ref。临时句柄和 RuntimeId 不是长期业务身份。
+10. 动作结果与后续观测分别记录。已生效但快照失败时只补观测；超时或连接中断先核对结果，不自动重放可能已生效的动作，不因旧定位异常就换新定位再点一次。
+11. 提交、删除、发布、付款、发消息和账户修改必须在执行前说明影响并取得用户授权。已有明确授权无需重复索要。Web 动作细则见对应模块。
+12. 完成后区分“已探索”“已写入”“静态通过”“运行通过”“业务通过”和“未验证”。影刀流程报告包含 `app_id`、`flow_id`、`run_id` 或 `task_id` 及关键证据；独立 Windows 观察记录 `snapshot_id`、后端和窗口作用域。
+13. 流程报错先确定根因和失败调用点，按平台识别规则选择模块，再判断可修复性；可新建复用测试子流程隔离验证。只有证据充分且测试通过才最小修改，保留有效旧、新定位及各自子定位。先分析原用途是单元素还是集合及父子依赖，不按失效定位的当前匹配数倒推。不可修复或不确定时不改业务流程，仍交付原因、尝试、建议和报告。平台的证据及验收门槛见对应模块。
+14. 未收到用户推送要求时，不提交、不推送、不发布，也不自增 Skill 版本号。本定制 Skill 版本标记保持 `v10`；交付日期和测试批次单独记录。
 
 ## 默认生命周期
 
-创建或维护流程前，读取 [项目规范](references/project-conventions.md)：元素库名称采用 `平台名_业务含义_按钮/输入框/标志`，流程按“配置、业务、测试、主流程”组织。编码版变量默认使用英文 `snake_case`，保留既有对外参数契约。网页 Flow 优先使用已验证的 XPath；VisualFlow 用“获取元素对象（web）”搭配 XPath，CodeFlow 用 XPath API。元素失效修复须兼容有效的新旧定位，尤其检查新旧元素同时存在时的歧义，见 [维护指南](references/web-maintenance.md)。
+创建或维护流程前，读取 [项目规范](references/project-conventions.md)：元素库名称采用 `平台名_业务含义_按钮/输入框/标志`，流程按“配置、业务、测试、主流程”组织。编码版变量默认使用英文 `snake_case`，保留既有对外参数契约。先确认平台支持的定位及持久化方式，再选择流程类型。
 
 ```text
 业务目标
   -> 任务契约
   -> status/doctor
-  -> 页面探索与快照
-  -> XPath、页面状态和兼容分支记录
+  -> 按实际操作对象识别平台，加载对应模块并确认能力
+  -> 页面或窗口探索与快照
+  -> 目标契约、定位、状态和兼容分支记录
   -> 选择 web / CodeFlow / VisualFlow
   -> dry-run
   -> 实际写入与回读
   -> flow check
-  -> flow verify 或业务级网页验收
+  -> flow verify 与业务结果验收
   -> 保存证据和报告
 ```
-
-网页 CLI 适合探索、短流程和一次性取数；需要重复执行、参数化、明确输入输出或长期维护时，优先沉淀为 CodeFlow。只有已有流程或业务需求适合块编排时才使用 VisualFlow。
-
-长期资产不要只保存 `e4` 这类临时 ref。记录经过页面验证的 XPath、作用域、有效的新旧版本及匹配数，参考 [templates/locator-registry.json](templates/locator-registry.json)。该文件是说明模板，不是执行器。只有确需使用项目元素库时才持久化命名选择器，并先用 `xbot tool browser schema web_review` 确认当前参数。
 
 ## 结果报告
 
@@ -73,7 +77,7 @@ metadata:
 - 业务通过：页面或 Out 满足任务契约中的成功条件。
 - 未验证：客户端、登录态、权限或真实运行尚未确认。
 
-报告至少包含 `app_id`、`flow_id`、`run_id` 或 `task_id`、输入摘要、实际输出、错误和关键快照证据。不要只报告命令退出码。
+报告包含适用的应用/流程/运行标识或独立快照标识、输入摘要、实际输出、错误和关键证据。不要只报告命令退出码。
 
 ## 常用工作流
 
@@ -108,20 +112,6 @@ xbot-cli flow verify report --timeout 600 --expect-app <app-id> --json
 xbot-cli flow visual snapshots report --expect-app <app-id> --json
 ```
 
-### 浏览器交互
-
-先阅读 [references/browser.md](references/browser.md)。使用 `web` 的位置参数操作页面，无需为常用动作编写 JSON：
-
-```bash
-xbot web open https://example.com --json
-xbot web snapshot --json
-# e4 是语法示例，必须替换为当前快照里的实际 ref
-xbot web fill e4 "搜索内容" --json
-xbot web press Enter --ref e4 --json
-```
-
-打开、附着、导航和常用交互后默认返回新快照；`--no-snapshot` 跳过，`close` 不取快照。保留快照元数据和真实 ref；增量快照不能当成完整页面。动作成功但自动快照失败时，读取 warning 和 `applied: true`，只补取快照，不重复动作。元素选择器名称会暂存于后端，省略 `--name` 时由 CLI 生成临时名称；只有后续 `web_review` 才将选定的选择器写入项目元素库。
-
 ## Reference 强触发索引
 
 命中任一条件时，在下一步前读取对应 reference；同一文件只读一次。本地新增规范以本目录文件为准；`xbot-cli guide <topic>` 只提供 CLI 已内置的指南，不保证包含这些定制内容。
@@ -132,11 +122,9 @@ xbot web press Enter --ref e4 --json
 | 新建或维护流程、流程分组、元素库命名、编码变量命名 | [references/project-conventions.md](references/project-conventions.md) |
 | 新建/修改/调试 CodeFlow、声明 In/Out、安装 pip 依赖 | [references/codeflow.md](references/codeflow.md) |
 | 新建/修改/调试 VisualFlow、块字段、变量或快照 | [references/visualflow.md](references/visualflow.md) |
-| 网页探索、交互、XPath、选择器、上传下载或验证码 | [references/browser.md](references/browser.md) |
-| 从业务需求到网页流程实现 | [references/web-lifecycle.md](references/web-lifecycle.md) |
-| 失败定位、选择器漂移、重试和最小修复 | [references/web-maintenance.md](references/web-maintenance.md) |
-| 验收用例、业务断言和证据报告 | [references/web-acceptance.md](references/web-acceptance.md) |
-| 动作副作用和用户确认边界 | [references/web-risk.md](references/web-risk.md) |
+| 元素报错、平台未确定、混合流程、Electron/WebView 或系统弹窗 | 先读 [references/automation-routing.md](references/automation-routing.md)，按失败步骤选择模块 |
+| 已确认 Web 的探索、构建、XPath 生成/修复、相似元素、验收或网页动作风险 | [modules/web.md](modules/web.md)，再按其中索引读取对应 reference |
+| 已确认 Windows 的业务窗口、原生控件、Python UIA、Windows-MCP、Umbriel、win32 snapshot | [modules/win.md](modules/win.md)，再读 Python 运行与修复链路 |
 | 维护既有应用、编辑模式冲突、运行失败、同步、发布或回收 | [references/recovery.md](references/recovery.md) |
 
 原始通道使用 `tool studio list/schema/call`、`tool browser list/schema/call`；已发布应用使用 `task run/stop/status/logs`。`browser` 是 `web` 的兼容别名；旧 `code`、`visual`、`mcp` 入口只用于兼容。影刀官方细节通过 `xbot-cli wiki list/search/read` 查询；不要用记忆替代当前契约。

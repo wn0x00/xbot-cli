@@ -192,6 +192,14 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
         other => other,
     };
     match group {
+        Group::Win32(Win32Sub::Snapshot { ref hwnd, .. }) => {
+            crate::win32_cmds::parse_hwnd(hwnd)?;
+            Ok(PreparedCommand {
+                operation: Operation::Command(group),
+                preview: None,
+                confirmation_required: false,
+            })
+        }
         Group::App(AppSub::Run {
             app_id,
             inputs,

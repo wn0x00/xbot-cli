@@ -9,6 +9,16 @@ use crate::app_cmds::CmdOut;
 use crate::core::{BackendError, Res};
 
 const SKILL: &str = include_str!("../skills/xbot-app-dev/SKILL.md");
+const WEB_MODULE: &str = include_str!("../skills/xbot-app-dev/modules/web.md");
+const WIN_MODULE: &str = include_str!("../skills/xbot-app-dev/modules/win.md");
+const SKILL_UPDATES: &str = include_str!("../skills/xbot-app-dev/UPDATE-RECORD.md");
+const AUTOMATION_ROUTING: &str =
+    include_str!("../skills/xbot-app-dev/references/automation-routing.md");
+const WIN_SNAPSHOT: &str = include_str!("../skills/xbot-app-dev/scripts/win32/snapshot.py");
+const WIN_LOCATOR: &str = include_str!("../skills/xbot-app-dev/scripts/win32/locator.cjs");
+const WIN_UIA_RUNTIME: &str = include_str!("../skills/xbot-app-dev/scripts/win32/uia_runtime.py");
+const WIN_UIA_RUNNER: &str = include_str!("../skills/xbot-app-dev/scripts/win32/run_uia.py");
+const WIN_REPAIR: &str = include_str!("../skills/xbot-app-dev/references/win-repair.md");
 const CLI_CONTRACT: &str = include_str!("../skills/xbot-app-dev/references/cli-contract.md");
 const CODEFLOW: &str = include_str!("../skills/xbot-app-dev/references/codeflow.md");
 const VISUALFLOW: &str = include_str!("../skills/xbot-app-dev/references/visualflow.md");
@@ -24,8 +34,51 @@ const TASK_SPEC: &str = include_str!("../skills/xbot-app-dev/templates/task-spec
 const LOCATOR_REGISTRY: &str =
     include_str!("../skills/xbot-app-dev/templates/locator-registry.json");
 const ACCEPTANCE_CASE: &str = include_str!("../skills/xbot-app-dev/templates/acceptance-case.json");
+const LOCATOR_REPAIR: &str = include_str!("../skills/xbot-app-dev/references/locator-repair.md");
+const REPAIR_CONTRACT: &str = include_str!("../skills/xbot-app-dev/templates/repair-contract.json");
+const REPAIR_PLAN: &str = include_str!("../skills/xbot-app-dev/templates/repair-plan.json");
+const REPAIR_SCRIPT: &str = include_str!("../skills/xbot-app-dev/scripts/locator-repair.cjs");
+const REPAIR_GUARD: &str = include_str!("../skills/xbot-app-dev/scripts/locator/guarded-core.js");
+const REPAIR_HYBRID: &str = include_str!("../skills/xbot-app-dev/scripts/locator/hybrid-core.js");
+const REPAIR_WEIGHTED: &str = include_str!("../skills/xbot-app-dev/scripts/locator/weighted.js");
+const REPAIR_ROBULA_ADAPTER: &str =
+    include_str!("../skills/xbot-app-dev/scripts/locator/robula-adapter.js");
+const LOCATOR_USAGE: &str = include_str!("../skills/xbot-app-dev/references/locator-usage.md");
+const USAGE_SCRIPT: &str = include_str!("../skills/xbot-app-dev/scripts/locator-usage.cjs");
+const USAGE_AST: &str = include_str!("../skills/xbot-app-dev/scripts/locator/usage-ast.py");
+const USAGE_ANALYSIS: &str = include_str!("../skills/xbot-app-dev/templates/usage-analysis.json");
+const COLLECTION_REPAIR: &str =
+    include_str!("../skills/xbot-app-dev/references/collection-repair.md");
+const COLLECTION_COMPAT: &str = include_str!("../skills/xbot-app-dev/scripts/collection-compat.py");
+const COLLECTION_ANALYSIS: &str =
+    include_str!("../skills/xbot-app-dev/templates/collection-analysis.json");
 
 const TOPICS: &[(&str, &str, &str)] = &[
+    (
+        "automation-routing",
+        "按失败步骤识别 Web/Windows 业务目标并选择模块",
+        AUTOMATION_ROUTING,
+    ),
+    (
+        "web-module",
+        "Web 自动化模块与既有 v10 能力路由",
+        WEB_MODULE,
+    ),
+    (
+        "win-design",
+        "Windows 自动化设计、快照和单控件实验边界",
+        WIN_MODULE,
+    ),
+    (
+        "win-repair",
+        "Python Windows 单控件修复、流程调用和动作对账",
+        WIN_REPAIR,
+    ),
+    (
+        "skill-updates",
+        "Skill v10 功能更新与能力边界",
+        SKILL_UPDATES,
+    ),
     (
         "cli-contract",
         "命令层、JSON、退出码、dry-run 与确认门禁",
@@ -35,6 +88,21 @@ const TOPICS: &[(&str, &str, &str)] = &[
     ("visualflow", "VisualFlow 块、参数、快照和验收", VISUALFLOW),
     ("browser", "浏览器快照、交互、选择器和专用工具", BROWSER),
     ("recovery", "维护、排障、发布与回收边界", RECOVERY),
+    (
+        "locator-repair",
+        "XPath 零匹配、强身份校验、组合生成器和只读修复提议",
+        LOCATOR_REPAIR,
+    ),
+    (
+        "locator-usage",
+        "修复前 AI 分析单元素/集合用途、源码证据和交接校验",
+        LOCATOR_USAGE,
+    ),
+    (
+        "collection-repair",
+        "相似元素契约、旧新父子定位兼容和隔离修复验收",
+        COLLECTION_REPAIR,
+    ),
 ];
 
 pub fn cmd_guide(topic: Option<&str>) -> Res<CmdOut> {
@@ -93,6 +161,30 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
 fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
     vec![
         (root.join("SKILL.md"), SKILL),
+        (root.join("modules").join("web.md"), WEB_MODULE),
+        (root.join("modules").join("win.md"), WIN_MODULE),
+        (root.join("UPDATE-RECORD.md"), SKILL_UPDATES),
+        (
+            root.join("references").join("automation-routing.md"),
+            AUTOMATION_ROUTING,
+        ),
+        (
+            root.join("scripts").join("win32").join("snapshot.py"),
+            WIN_SNAPSHOT,
+        ),
+        (
+            root.join("scripts").join("win32").join("locator.cjs"),
+            WIN_LOCATOR,
+        ),
+        (
+            root.join("scripts").join("win32").join("uia_runtime.py"),
+            WIN_UIA_RUNTIME,
+        ),
+        (
+            root.join("scripts").join("win32").join("run_uia.py"),
+            WIN_UIA_RUNNER,
+        ),
+        (root.join("references").join("win-repair.md"), WIN_REPAIR),
         (
             root.join("references").join("cli-contract.md"),
             CLI_CONTRACT,
@@ -126,6 +218,62 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
         (
             root.join("templates").join("acceptance-case.json"),
             ACCEPTANCE_CASE,
+        ),
+        (
+            root.join("references").join("locator-repair.md"),
+            LOCATOR_REPAIR,
+        ),
+        (
+            root.join("templates").join("repair-contract.json"),
+            REPAIR_CONTRACT,
+        ),
+        (root.join("templates").join("repair-plan.json"), REPAIR_PLAN),
+        (
+            root.join("scripts").join("locator-repair.cjs"),
+            REPAIR_SCRIPT,
+        ),
+        (
+            root.join("scripts").join("locator").join("guarded-core.js"),
+            REPAIR_GUARD,
+        ),
+        (
+            root.join("scripts").join("locator").join("hybrid-core.js"),
+            REPAIR_HYBRID,
+        ),
+        (
+            root.join("scripts").join("locator").join("weighted.js"),
+            REPAIR_WEIGHTED,
+        ),
+        (
+            root.join("scripts")
+                .join("locator")
+                .join("robula-adapter.js"),
+            REPAIR_ROBULA_ADAPTER,
+        ),
+        (
+            root.join("references").join("locator-usage.md"),
+            LOCATOR_USAGE,
+        ),
+        (root.join("scripts").join("locator-usage.cjs"), USAGE_SCRIPT),
+        (
+            root.join("scripts").join("locator").join("usage-ast.py"),
+            USAGE_AST,
+        ),
+        (
+            root.join("templates").join("usage-analysis.json"),
+            USAGE_ANALYSIS,
+        ),
+        (
+            root.join("references").join("collection-repair.md"),
+            COLLECTION_REPAIR,
+        ),
+        (
+            root.join("scripts").join("collection-compat.py"),
+            COLLECTION_COMPAT,
+        ),
+        (
+            root.join("templates").join("collection-analysis.json"),
+            COLLECTION_ANALYSIS,
         ),
     ]
 }

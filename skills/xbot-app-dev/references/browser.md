@@ -75,14 +75,18 @@ xbot web eval "return await activePage.title();" --json
 
 ## XPath 优先与验证
 
+- ref 转 XPath、旧 XPath 零匹配或自动修复时读取 [locator-repair.md](locator-repair.md)，用真实句柄确定目标并运行生成器；不依据快照文字由 Agent 手写猜测路径。
 - 从当前页面的真实 DOM 提取稳定属性、精确业务文本和父区域关系，验证 XPath 后再写入流程；优先业务属性、稳定 id 或名称，避免版本化样式类、绝对层级路径和无业务依据的序号。
 - 快照不足以确定 XPath 时，用只读 `web eval` 检查 DOM、匹配数量、可见性和所属区域。记录页面条件、frame/父区域、候选版本和验证时间；未观察到的旧页面只能标为未验证。
 - 点击或输入前，在正确的页面/弹窗/行作用域内确认唯一、可见、可操作的业务目标。多个命中时先缩小作用域；不追加 `[1]`、不直接取列表首项来掩盖歧义。
 - 等待和存在性判断使用表示业务状态的标志；页面跳转后重新获取元素对象，不跨页面复用旧对象。等待与兼容分支共用有界时间预算。
 - iframe、Shadow DOM 先查 SDK 的上下文能力；普通 XPath 不会自动穿过它们。不支持直接 XPath 的场景可保留经过验证的工程 selector，并按项目规范命名。
+- 影刀分段 XPath 用数组表达 iframe 链，段内以 `/xbotShadowRoot` 表达 open ShadowRoot；这是 Selector 上下文协议，不是标准 XPath。closed ShadowRoot、ShadowRoot 内 iframe 不能声明支持。每层 frame/host 都保存业务身份；跨域测试通过不等于所有跨域页面均已支持。
 - `web_build_selector_by_xpath` 构建的是元素库候选，不是直接 XPath 执行入口；不为了实现 XPath 优先而滥用它。确需建库时遵守该工具 schema 的使用条件；已有 ref 的捕获方式也只限确需建库的场景。
 
 VisualFlow 通过“获取元素对象（web）”的 XPath 模式得到对象后再操作；CodeFlow 使用 `find_by_xpath` / `find_all_by_xpath`。新旧版本共存的处理见 [维护指南](web-maintenance.md)。
+
+目标及祖先可见/启用还不足以证明可点击：检查实际点击点是否被遮挡；frame 内目标逐层检查父文档。离屏目标先按已授权工作流滚动，再重新快照和复核；含 transform/zoom 的 frame 未实现坐标适配时停止自动采用。生成路径有效与 ref 点击通道成功分开记录，后端捕获失败不能算执行成功。
 
 ## 专用工具与开发
 

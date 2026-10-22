@@ -1,6 +1,6 @@
 # xbot-cli 命令与行为参考
 
-面向 AI Agent 的影刀（ShadowBot）RPA CLI。通过影刀内置 shell-cli、studio-mcp 和 browser-use-mcp 操作，零注入、零反射。
+面向 AI Agent 的影刀（ShadowBot）RPA CLI。影刀操作通过内置 shell-cli、studio-mcp 和 browser-use-mcp；实验性 Windows UIA 观察使用独立 Python 提供器，不是影刀原生 Selector 引擎。
 
 命令按所操作的资源组织：
 
@@ -12,12 +12,13 @@
 | `flow code` / `flow visual` | CodeFlow 源码和 VisualFlow 块 |
 | `task` | 已发布应用的运行任务、状态、日志与停止 |
 | `web`（兼容 `browser`） | 打开网页、快照、点击、填写和导航 |
+| `win32 snapshot` | 显式窗口作用域下的实验性只读 UIA 观察 |
 | `tool studio` / `tool browser` | 按 schema 调用原始工具 |
 | `wiki` / `schema` / `guide` | 领域知识、命令契约和开发指南 |
 
 ## 安装与 Agent 接入
 
-Windows x64、Node.js 22+ 环境可通过 npm 包 `@guanzhu.me/xbot-cli` 安装预编译程序，无需安装 Rust；`xbot` 与 `xbot-cli` 是同一程序的两个入口。安装命令和可复制的 Agent 指令见[项目 README](../README.md#安装与首次运行)。
+Windows x64、Node.js 22+ 环境可通过 npm 包 `@guanzhu.me/xbot-cli` 安装预编译程序，无需安装 Rust；`xbot` 与 `xbot-cli` 是同一程序的两个入口。安装命令和可复制的 Agent 指令见[项目 README](../README.md#安装)。
 
 ```powershell
 xbot-cli install --skills --json           # 当前工作区 .agents/skills
@@ -25,6 +26,25 @@ xbot-cli install --skills --global --json  # 用户 ~/.agents/skills
 ```
 
 已有 Skill 内容不同时不会静默覆盖；先查看差异，确认覆盖后追加 `--yes`。自动化调用下文的业务命令时均应显式添加 `--json`，示例中的 `<...>` 需替换为实际标识。
+
+当前源码安装 Skill v10 的 38 个资源。`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。
+
+`locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；依赖与已验证边界见 [Skill v10 升级说明](skill-v10-upgrade.md)。
+
+## Windows UIA 快照（实验性）
+
+```powershell
+xbot-cli help win32 snapshot
+xbot-cli schema win32 snapshot
+# 用已确认的实际 HWND/PID 替换示例值
+xbot-cli win32 snapshot --hwnd 0x12345 --pid 1234 --max-nodes 1000 --max-depth 12 --timeout 10 --json
+```
+
+该命令不要求 Studio 打开，不自动选择活动窗口，不点击或保存元素。HWND 支持非零十进制/十六进制，并须属于显式传入的 PID。`--max-nodes` 范围为 1–5000，`--max-depth` 为 0–64，`--timeout` 为 1–60 秒；CLI 使用子进程超时约束提供器，输出超限、依赖缺失、窗口不符和采集错误分别返回失败。
+
+通过 `XBOT_UIA_PYTHON` 指定已安装 `uiautomation` 的 Python 可执行文件，缺省使用 `python`，不自动安装依赖。快照保留完整性和截断原因；部分树不能据此证明元素不存在。ref 仅为本批证据，不能当作 Web ref、动作入口或长期业务身份。密码字段保守隐藏，其他业务文本仍应按任务范围处理。
+
+`win32 snapshot` 不接受 `--expect-app` 或 `--dry-run`。Python Windows 修复 helper 是另一条按需运行链路，其内部预算不能中断卡住的 UIA/provider 调用；不能据 CLI 快照超时能力声称所有 Windows 动作已有硬超时。
 
 ## 开发流程
 
@@ -165,7 +185,7 @@ xbot-cli guide codeflow
 
 JSON 参数通常接受字面 JSON、`@file` 或 `-` stdin；源码文件参数接受路径或 `-` stdin。具体编码查看对应 schema 的 `input_shapes`。复杂输入优先文件或 stdin，避免 shell 引号和转义问题。
 
-所有 `--timeout` 参数的范围为 1–86400 秒，范围也随参数 schema 返回。
+流程等既有命令的 `--timeout` 范围为 1–86400 秒；实验性 `win32 snapshot --timeout` 为 1–60 秒。以对应命令的 schema 为准。
 
 ## 网页操作
 

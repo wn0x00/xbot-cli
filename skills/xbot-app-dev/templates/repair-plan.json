@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "template_kind": "agent_review_plan_not_runtime_asset",
+  "note": "供 Agent 记录写入范围与验收；不是 xbot-cli 子命令参数，也不是 helper 自动执行配置。",
+  "status": "REVIEW_REQUIRED",
+  "app_id": null,
+  "flow_id": null,
+  "failed_run_id": null,
+  "failure_phase": null,
+  "action_applied": null,
+  "action_outcome": "unknown",
+  "expected_asset_version": null,
+  "usage_analysis": {
+    "analysis_id": null,
+    "decision_sha256": null,
+    "flow_id": null,
+    "callsite_ids": [],
+    "classification": "unknown"
+  },
+  "identity_evidence": null,
+  "snapshot_metadata": null,
+  "document_generation": null,
+  "old_locators": [],
+  "new_locators": [],
+  "generator_results": [],
+  "candidate_count": null,
+  "final_same_dom_node": null,
+  "page_state_checks": [],
+  "actionability_checks": [],
+  "affected_references": [],
+  "exact_edit": {
+    "file_or_block": null,
+    "expected_old_value": null,
+    "proposed_new_value": null
+  },
+  "shared_selector_strategy": "new_version_replace_explicit_references",
+  "persisted": false,
+  "execution_authorized": false,
+  "verification": {
+    "readback": null,
+    "static_check": null,
+    "run_id": null,
+    "business_result": null,
+    "observed_action_count": null
+  },
+  "rollback_scope": "configuration_only_not_business_compensation"
+}

@@ -41,8 +41,9 @@
     "build": "node scripts/build.cjs",
     "check": "cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings",
     "pretest": "npm run build",
-    "test": "cargo test --locked && npm run test:npm",
+    "test": "cargo test --locked && npm run test:npm && npm run test:skill",
     "test:npm": "node --test tests/npm/*.test.cjs",
+    "test:skill": "node --test tests/skill/*.test.cjs",
     "test:package": "node scripts/test-package.cjs",
     "release:version": "node scripts/set-version.cjs",
     "prepack": "npm run build && node scripts/check-package.cjs"

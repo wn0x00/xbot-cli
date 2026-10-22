@@ -23,6 +23,7 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
         Group::Doctor => m::cmd_doctor(),
         Group::Diag => m::cmd_diag(),
         Group::State => m::cmd_state(),
+        Group::Win32(sub) => crate::win32_cmds::execute(sub),
         Group::App(sub) => match sub {
             AppSub::Create { name, desc } => a::app_new(&name, desc.as_deref()),
             AppSub::List {

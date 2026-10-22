@@ -88,6 +88,7 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         | "uncheck"] => (&["interact"], "browser", true, "none"),
         ["web", "snapshot"] => (&["read", "write_file_when_output"], "browser", true, "none"),
         ["web", ..] => (&["read"], "browser", false, "none"),
+        ["win32", ..] => (&["read"], "windows_uia", false, "none"),
         ["tool", "studio", "call"] => (&["tool_defined"], "studio", true, "tool_defined"),
         ["tool", "browser", "call"] => (&["tool_defined"], "browser", true, "tool_defined"),
         ["tool", ..] => (&["read"], "service", false, "none"),
