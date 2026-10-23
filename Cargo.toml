@@ -1,6 +1,6 @@
 [package]
 name = "xbot-cli"
-version = "0.7.6"
+version = "0.8.1"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/wn0x00/xbot-cli"
