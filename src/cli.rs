@@ -34,47 +34,35 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Group {
-    /// 输出 CLI 版本
-    Version,
-    /// 升级 xbot-cli 到最新版本(由 npm 启动器执行)
-    Update {
-        /// 只检查是否有新版本,不执行升级
-        #[arg(long)]
-        check: bool,
-    },
-    /// 查看客户端与当前应用状态
-    Status,
-    /// 深度检查 shell-cli / MCP / View 通道
-    Doctor,
     /// 创建、打开、保存、同步和发布应用
     #[command(subcommand)]
     App(AppSub),
     /// 读取、编辑、检查与运行 Studio 流程
     #[command(subcommand)]
     Flow(FlowSub),
-    /// CodeFlow 源码操作
-    #[command(subcommand)]
-    #[command(hide = true)]
-    Code(CodeSub),
-    /// VisualFlow 块、变量和快照操作
-    #[command(subcommand)]
-    #[command(hide = true)]
-    Visual(VisualSub),
     /// 已发布应用的运行任务,默认使用客户端通道
     #[command(subcommand)]
     Task(TaskSub),
-    /// 底层工具的发现、schema 与调用
-    #[command(subcommand)]
-    Tool(ToolChannel),
     /// 网页操作:打开、快照、点击、填写与导航
     #[command(name = "web", visible_alias = "browser", subcommand)]
     Browser(BrowserSub),
     /// 实验性 Windows UIA 只读能力,独立于影刀原生选择器引擎
     #[command(subcommand)]
     Win32(Win32Sub),
+    /// 底层工具的发现、schema 与调用
+    #[command(subcommand)]
+    Tool(ToolChannel),
     /// 影刀官方知识库
     #[command(subcommand)]
     Wiki(WikiSub),
+    /// 影刀开放平台 Open API:授权、应用、机器人、调度与日志
+    #[command(
+        name = "oapi",
+        alias = "platform",
+        subcommand,
+        long_about = "影刀开放平台 Open API,独立于本机客户端。\n先用 oapi auth <AccessKeyId> <AccessKeySecret> 保存凭据;普通命令失败不会自动切换到此通道。\nplatform 是兼容别名,新脚本请使用 oapi。"
+    )]
+    Oapi(crate::oapi_cli::OapiSub),
     /// 查看 CLI 自身的命令与参数 schema
     Schema {
         #[arg(num_args = 0..)]
@@ -82,19 +70,6 @@ pub(crate) enum Group {
     },
     /// 按需阅读内置开发与排障指南
     Guide { topic: Option<String> },
-    /// 影刀开放平台 Open API;企业版可选的备用入口
-    #[command(
-        name = "oapi",
-        alias = "platform",
-        subcommand,
-        long_about = "影刀开放平台 Open API,企业版可选的备用入口,独立于本机客户端。\n先用 oapi auth login 保存 AccessKey;仅在企业凭据可用且明确选择此通道时使用,普通命令失败不会自动切换。\nplatform 是兼容别名,新脚本请使用 oapi。"
-    )]
-    Oapi(crate::oapi_cli::OapiSub),
-    /// 查看命令帮助,例如 help app 或 help flow code write
-    Help {
-        #[arg(num_args = 0..)]
-        path: Vec<String>,
-    },
     /// 安装 Agent Skill 和 references
     Install {
         #[arg(long)]
@@ -103,6 +78,31 @@ pub(crate) enum Group {
         #[arg(long)]
         global: bool,
     },
+    /// 查看客户端与当前应用状态
+    Status,
+    /// 深度检查 shell-cli / MCP / View 通道
+    Doctor,
+    /// 输出 CLI 版本
+    Version,
+    /// 升级 xbot-cli 到最新版本(由 npm 启动器执行)
+    Update {
+        /// 只检查是否有新版本,不执行升级
+        #[arg(long)]
+        check: bool,
+    },
+    /// 查看命令帮助,例如 help app 或 help flow code write
+    Help {
+        #[arg(num_args = 0..)]
+        path: Vec<String>,
+    },
+    /// CodeFlow 源码操作
+    #[command(subcommand)]
+    #[command(hide = true)]
+    Code(CodeSub),
+    /// VisualFlow 块、变量和快照操作
+    #[command(subcommand)]
+    #[command(hide = true)]
+    Visual(VisualSub),
     /// 原始 studio-mcp:tools/schema/call
     #[command(hide = true)]
     Mcp {

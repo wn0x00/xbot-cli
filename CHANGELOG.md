@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.3](https://github.com/wn0x00/xbot-cli/compare/v0.8.2...v0.8.3) (2026-10-23)
+
+- Reorder root help: business commands (app, flow, task, web, win32, tool, wiki, oapi) come first, followed by discovery, diagnostics and self-management (schema, guide, install, status, doctor, version, update, help).
+- Simplify the `oapi` summary line to describe the Open API surface: auth, apps, robots, dispatch and logs.
+
 ## [0.8.2](https://github.com/wn0x00/xbot-cli/compare/v0.8.1...v0.8.2) (2026-10-23)
 
 - Keep only the `xbot-cli` entry point; the `xbot` shim is no longer created. A stray older native program earlier in PATH (for example a manually copied `xbot-cli.exe`) used to shadow the npm shim and diverge command output between `xbot` and `xbot-cli`.
