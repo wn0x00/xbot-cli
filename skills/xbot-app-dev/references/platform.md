@@ -1,12 +1,19 @@
-# 开放平台 API 与调度排障
+# 企业版备用入口：开放平台 API
 
-`platform` 直接调用影刀企业开放 API，不依赖本机客户端、Studio 或 `status`。
+默认按原有 CLI 方式操作：应用运行及日志使用 `task run/status/logs`，
+Studio 流程使用 `flow run/verify/wait`，开发和浏览器操作继续使用 `app/flow/web`。
+本指南仅在企业版用户明确选择开放 API 运行应用、调用调度或查询平台日志时读取。
+API 凭据存在不会切换通道，普通命令失败也不会自动回退到 `platform`；
+任务结果未知时先查询原任务，避免跨通道重复运行。
+
+选用此备用入口后，`platform` 直接调用影刀企业开放 API，
+不依赖本机客户端、Studio 或 `status`。
 内置 68 个官方文档索引和 44 个接口契约，包括鉴权。
 接口 schema 保存请求/响应字段、枚举和状态码表，原始说明、FAQ、示例及附件见来源链接。
 回调文档描述服务端推送的数据格式，不是可以主动调用的 API；
 CLI 不启动回调接收服务。
 
-## 配置
+## 选择备用入口后配置
 
 企业管理员在影刀控制台的 API 配置中创建密钥，再通过环境变量提供：
 
@@ -26,6 +33,21 @@ xbot-cli platform auth check --json
 密钥模式下每次 CLI 调用先获取 token，同一次异步日志查询复用 token。
 不持久化凭据、不输出 token，也不自行延长 `expiresIn`。
 不要将凭据写入仓库文件或命令行参数。
+
+## 企业 API 运行应用
+
+普通的“运行应用”请求仍使用 `task run <app-id>`。只有用户明确选择企业 API
+运行时，才查看相应接口契约并准备请求：
+
+```powershell
+xbot-cli platform api schema job.start --json
+xbot-cli platform api schema task.start --json
+xbot-cli platform api call job.start --body @enterprise-run.json --dry-run --json
+```
+
+`job.start` 启动企业调度应用，`task.start` 启动常规调度任务；
+按接口 schema 填写企业标识和参数。预览后在已有授权范围内追加 `--yes` 执行。
+这不是 `task run` 的自动替代，也不能在原任务状态未知时换通道重跑。
 
 ## 调度排障
 

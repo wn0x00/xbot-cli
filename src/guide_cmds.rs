@@ -56,11 +56,6 @@ const COLLECTION_ANALYSIS: &str =
 
 const TOPICS: &[(&str, &str, &str)] = &[
     (
-        "platform",
-        "开放平台鉴权、调度运行记录、日志与错误分析",
-        PLATFORM,
-    ),
-    (
         "automation-routing",
         "按失败步骤识别 Web/Windows 业务目标并选择模块",
         AUTOMATION_ROUTING,
@@ -108,6 +103,11 @@ const TOPICS: &[(&str, &str, &str)] = &[
         "collection-repair",
         "相似元素契约、旧新父子定位兼容和隔离修复验收",
         COLLECTION_REPAIR,
+    ),
+    (
+        "platform",
+        "企业版可选备用入口:开放 API 运行与调度日志",
+        PLATFORM,
     ),
 ];
 

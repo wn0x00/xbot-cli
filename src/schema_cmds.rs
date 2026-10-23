@@ -157,6 +157,12 @@ pub fn cmd_schema(root: &Command, path: &[String]) -> Res<CmdOut> {
             "exit_codes": {"0":"success","1":"operation","2":"validation","3":"authentication","4":"network","5":"conflict","6":"internal_or_protocol","10":"confirmation"},
             "dry_run": "local input validation and action preview only; runtime context, permissions and backend acceptance are not verified",
             "expect_app": "assert the current application before Studio commands; dry-run does not verify this runtime condition",
+            "routing": {
+                "default_application_backend": "shell-cli",
+                "default_flow_backend": "studio-mcp",
+                "platform_requires_explicit_command": true,
+                "automatic_platform_fallback": false,
+            },
         });
     }
     Ok((data, vec![]))

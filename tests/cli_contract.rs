@@ -16,6 +16,9 @@ fn invoke(args: &[&str], stdin: Option<&str>, endpoint: Option<&str>) -> Output 
     command
         .args(args)
         .env("XBOT_SHELL_CLI", "__xbot_test_missing_shell__.exe")
+        // Enterprise credentials must not select the transport for ordinary commands.
+        .env("XBOT_PLATFORM_BASE_URL", "http://127.0.0.1:1")
+        .env("XBOT_PLATFORM_ACCESS_TOKEN", "unused-enterprise-token")
         .env(
             "XBOT_MCP_ENDPOINT",
             endpoint.unwrap_or("http://127.0.0.1:1/unavailable"),

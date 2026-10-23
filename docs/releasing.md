@@ -117,3 +117,15 @@ npm view '@guanzhu.me/xbot-cli@0.6.1' version dist.integrity --registry=https://
 将示例版本替换为需要恢复的版本；`publish.yml` 必须已存在于默认分支及该 tag。tag 必须等于 `v<package.json version>`，分支不能直接发布。
 
 重试时，已存在的 npm 版本只有在 `dist.integrity` 与本次制品一致时才跳过发布；同名 Release 附件只有校验值相同时才跳过上传。不同内容会失败，不覆盖已有版本或附件。若 npm 已成功而附件上传失败，恢复附件步骤即可；若源码或包内容需要修改，应通过新的 PR 发布新版本，不移动旧 tag。
+
+## 明确要求同版本重打包时
+
+常规发布仍按上文使用新版本。若维护者明确要求版本不变，只更新 GitHub 制品，
+先将修正合并到 `main`、通过 CI，并对新构建完成安装验收。为新源码创建独立
+`repack/<version>-<date>` 标签，在 Release 说明中记录该来源、重打包日期及校验值；
+原 `v<version>` 标签继续对应首次发布的 npm 内容。
+
+npm 不允许将同名同版本替换为不同内容，因此重打包不调用 npm 发布，也不绕过
+发布脚本的完整性保护。替换 GitHub 附件前保留旧文件，先上传并校验新附件，
+再替换名称和校验文件。Release 必须明确说明附件属于重打包版、npm registry
+仍保留旧包，并提供从 Release `.tgz` 安装的命令。

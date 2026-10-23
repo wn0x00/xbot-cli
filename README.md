@@ -9,6 +9,8 @@
 
 通过影刀客户端内置的 shell-cli、studio-mcp 和 browser-use-mcp 管理应用、编辑流程、运行验证及浏览器自动化。Agent 可以逐层查询帮助和参数 schema，通过稳定的 JSON 结果判断下一步，并安装随包提供的开发 Skill。CLI 使用 Rust 实现，通过 npm 分发预编译程序。
 
+普通操作和应用运行默认沿用客户端通道；`platform` 仅供企业版用户明确选择开放 API 时作为备用入口。
+
 ## 安装
 
 **环境要求：Windows x64，Node.js 22 或更高版本。** npm 包包含原生可执行文件，不需要用户安装 Rust，也不在 `postinstall` 阶段下载程序。执行影刀操作前，需要本机已安装影刀客户端并启动、登录；帮助、版本、命令 schema 和内置指南可离线使用。
@@ -19,6 +21,11 @@
 npm install -g '@guanzhu.me/xbot-cli'
 xbot version
 ```
+
+**0.7.5 重打包版：** 本次修正了企业备用入口的帮助和 Agent 指引，版本号仍为 0.7.5。
+请使用 [GitHub Release](https://github.com/wn0x00/xbot-cli/releases/tag/v0.7.5)
+中的更新附件；npm registry 不允许覆盖同版本，仍保留首次发布的 0.7.5。
+下载 Release 的 `.tgz` 后可运行 `npm install -g .\guanzhu.me-xbot-cli-0.7.5.tgz`。
 
 `xbot version` 和 `xbot-cli version` 离线输出当前 CLI 版本，`--version` / `-V` 仍可使用。版本默认输出一行文本，即使接入管道也不变；Agent 可用 `xbot version --json` 读取 `data.name` 和 `data.version`。
 
@@ -191,7 +198,7 @@ Web 生成 helper 需要支持 `stripTypeScriptTypes` 的 Node 运行时和固�
 | `flow` | 流程读取、参数、静态检查、实际运行与等待 |
 | `flow code` / `flow visual` | CodeFlow 源码和 VisualFlow 块 |
 | `task` | 已发布应用的控制台任务 |
-| `platform` | 企业开放 API、调度执行记录和云端运行日志 |
+| `platform` | 企业版可选备用入口：开放 API 运行、调度记录和云端日志 |
 | `web`（别名 `browser`） | 浏览器上下文、快照与 click/fill/press 等交互 |
 | `win32 snapshot` | 实验性只读 UIA 快照，显式限定 HWND/PID，独立于 Studio 与原生 Selector |
 | `tool studio` / `tool browser` | 原始工具的发现、schema 和调用 |
@@ -227,15 +234,23 @@ Web 生成 helper 需要支持 `stripTypeScriptTypes` 的 Node 运行时和固�
 
 完整参数语义、兼容命令、确认边界和设计依据见 [CLI 参考](docs/cli-reference.md)；Agent 也可运行 `xbot-cli guide cli-contract`。
 
-## 开放平台与调度日志
+## 企业版备用入口
 
-从 CLI 0.7.5 起，`platform` 直接连接影刀开放 API，不依赖本机客户端。通过环境变量配置
+从 CLI 0.7.5 起保留 `platform`，仅供企业版用户在明确选择开放 API 运行应用、
+调用调度或查询平台日志时使用。正常开发、运行和报错分析继续使用原有
+`status`、`app`、`flow`、`task`、`web` 命令；应用运行用 `task run`，
+运行日志用 `task logs`，Studio 流程用 `flow run/verify`。
+配置了 API 凭据也不会改变默认通道，原命令报错时不会自动切换或再启动一份应用。
+
+确认选择企业版备用入口后，通过环境变量配置
 `XBOT_PLATFORM_ACCESS_KEY_ID` / `XBOT_PLATFORM_ACCESS_KEY_SECRET`，或提供
-`XBOT_PLATFORM_ACCESS_TOKEN`。专有云可设置 `XBOT_PLATFORM_BASE_URL` 为 HTTPS origin。
+`XBOT_PLATFORM_ACCESS_TOKEN`。此入口不依赖本机客户端；专有云可设置
+`XBOT_PLATFORM_BASE_URL` 为 HTTPS origin。
 
 ```powershell
 xbot-cli platform auth status --json
 xbot-cli platform auth check --json
+xbot-cli platform api schema job.start --json
 xbot-cli platform job list --status error --json
 xbot-cli platform job status <jobUuid> --json
 xbot-cli platform job logs <jobUuid> --search "错误" --json

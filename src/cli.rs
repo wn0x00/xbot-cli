@@ -54,12 +54,9 @@ pub(crate) enum Group {
     #[command(subcommand)]
     #[command(hide = true)]
     Visual(VisualSub),
-    /// 控制台应用的运行任务
+    /// 已发布应用的运行任务,默认使用客户端通道
     #[command(subcommand)]
     Task(TaskSub),
-    /// 开放 API:调度、运行记录、日志与企业资源
-    #[command(subcommand)]
-    Platform(crate::platform_cli::PlatformSub),
     /// 底层工具的发现、schema 与调用
     #[command(subcommand)]
     Tool(ToolChannel),
@@ -79,6 +76,12 @@ pub(crate) enum Group {
     },
     /// 按需阅读内置开发与排障指南
     Guide { topic: Option<String> },
+    /// 企业版备用入口:显式选择开放 API
+    #[command(
+        subcommand,
+        long_about = "企业版可选的开放 API 备用入口。仅在用户明确选择此通道并具备企业凭据时使用。\n普通应用运行使用 task run,流程运行使用 flow run/verify;普通命令失败时不会自动切换到开放 API。"
+    )]
+    Platform(crate::platform_cli::PlatformSub),
     /// 查看命令帮助,例如 help app 或 help flow code write
     Help {
         #[arg(num_args = 0..)]

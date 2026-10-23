@@ -198,6 +198,33 @@ fn success(data: Value) -> (u16, String) {
 }
 
 #[test]
+fn ordinary_tasks_never_fall_back_to_the_enterprise_api() {
+    let server = MockApi::new(|_, _| panic!("ordinary task used the enterprise API"));
+    for args in [
+        vec![
+            "task",
+            "run",
+            "11111111-1111-1111-1111-111111111111",
+            "--timeout",
+            "1",
+        ],
+        vec![
+            "app",
+            "run",
+            "11111111-1111-1111-1111-111111111111",
+            "--timeout",
+            "1",
+        ],
+        vec!["task", "status", "22222222-2222-2222-2222-222222222222"],
+        vec!["task", "logs", "22222222-2222-2222-2222-222222222222"],
+    ] {
+        let value = envelope(invoke(&args, Some(&server), false, None), 3);
+        assert_eq!(value["error"]["code"], "SHELL_CLI_MISSING");
+    }
+    assert!(server.requests.lock().unwrap().is_empty());
+}
+
+#[test]
 fn discovery_and_config_work_offline_and_have_platform_semantics() {
     let list = envelope(invoke(&["platform", "api", "list"], None, false, None), 0);
     assert_eq!(list["data"]["endpoints"].as_array().unwrap().len(), 44);
