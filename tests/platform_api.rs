@@ -38,6 +38,8 @@ impl MockApi {
             while !stop.load(Ordering::Relaxed) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Winsock sockets inherit the listener's nonblocking mode.
+                        stream.set_nonblocking(false).unwrap();
                         let Some(request) = read_request(&mut stream) else {
                             continue;
                         };
