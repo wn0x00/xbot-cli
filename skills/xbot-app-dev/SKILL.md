@@ -1,6 +1,6 @@
 ---
 name: xbot-app-dev
-description: 使用 xbot-cli 开发、验收和维护影刀应用；按报错步骤加载 Web 或 Windows 模块。Web 支持 XPath 修复；Windows 支持 Python UIA 单控件定位修复与真实流程验证。适用于 CodeFlow、VisualFlow 和运行故障恢复。
+description: 使用 xbot-cli 开发、验收和维护影刀应用；按报错步骤加载 Web 或 Windows 模块。Web 支持 XPath 修复；Windows 支持 Python UIA 单控件定位修复与真实流程验证。适用于 CodeFlow、VisualFlow、运行故障恢复和企业开放 API 调度日志排障。
 metadata:
   version: "10"
 ---
@@ -9,7 +9,7 @@ metadata:
 
 通过 `xbot` 或 `xbot-cli` 调用影刀内置 shell-cli、studio-mcp 和 browser-use-mcp，两个命令名等价。不要使用旧的 `xbot_agent` / `python -m xbot_cli` 工作流。Windows 外部适配器须与影刀官方通道分别标明，不反射、注入或绕过影刀 SDK 的公开边界。
 
-本 Skill 随 npm 包 `@guanzhu.me/xbot-cli` 分发，适用于 Windows x64 和 Node.js 22+。使用 `xbot install --skills` 安装到当前工作区，或加 `--global` 安装到用户的 `.agents/skills`。运行影刀操作前需要客户端已启动并登录；帮助、schema 和 guide 可离线读取。
+本 Skill 随 npm 包 `@guanzhu.me/xbot-cli` 分发，适用于 Windows x64 和 Node.js 22+。使用 `xbot install --skills` 安装到当前工作区，或加 `--global` 安装到用户的 `.agents/skills`。本地影刀操作需要客户端已启动并登录；`platform` 使用企业开放 API 凭据，无需本机客户端；帮助、schema 和 guide 可离线读取。
 
 这个 Skill 的目标是把业务需求变成可重复、可验收、可维护的自动化流程。需要参数、输入输出、长期运行或维护时，优先沉淀为 CodeFlow，只有确实适合块编排时才使用 VisualFlow。Skill 不是常驻修复服务。
 
@@ -32,7 +32,7 @@ metadata:
 
 ## 先读这些规则
 
-1. 影刀操作前先运行 `xbot-cli status`；不确定命令时用 `xbot-cli`、`xbot-cli <group>`、`xbot-cli help <path>` 逐层发现，再按需读 `schema <path>` 或 `guide <topic>`，不要猜 flag。裸根命令和纯分组显示简短帮助，退出 0，不调用后端。独立 UIA 快照不依赖 Studio，不能以影刀 status 代替目标窗口身份校验。
+1. 本地影刀操作前先运行 `xbot-cli status`；企业开放 API 查询先读 `xbot-cli platform auth status` 和 `guide platform`，不要求本机客户端登录。不确定命令时用 `xbot-cli`、`xbot-cli <group>`、`xbot-cli help <path>` 逐层发现，再按需读 `schema <path>` 或 `guide <topic>`，不要猜 flag。裸根命令和纯分组显示简短帮助，退出 0，不调用后端。独立 UIA 快照不依赖 Studio，不能以影刀 status 代替目标窗口身份校验。
 2. 解析业务结果时显式加 `--json`：成功读 stdout 的 `ok/data`，失败读 stderr 的 `error/type/code/hint/retryable` 和可能的 `data`。默认业务输出在终端为文本、管道为 JSON；帮助和 guide 默认始终为文本，schema 默认始终为 JSON。失败可能已产生部分修改，不只按自然语言 message 分支，不盲目整批重试。
 3. 修改前先读现状，最小修改，不直接编辑影刀应用目录文件。Studio 工作显式指定 `--expect-app <id>`，防止 GUI 切换后操作另一应用；它是断言，不负责切换应用。
 4. 副作用命令可先用 `--dry-run`；它只做离线输入校验与预览，未验证当前应用、目标流程、权限和后端接受性，不等同运行验收。
@@ -119,6 +119,7 @@ xbot-cli flow visual snapshots report --expect-app <app-id> --json
 | 触发条件 | 必读 |
 |---|---|
 | 查询帮助、选择输出格式、解析 stdout/stderr、退出码、`--dry-run`、`--yes`、schema、上下文或原始工具 | [references/cli-contract.md](references/cli-contract.md) |
+| 企业开放 API、调度执行记录、jobUuid/taskUuid/scheduleUuid、云端运行日志或运行数据 | [references/platform.md](references/platform.md)，平台命令不要求本机客户端已登录 |
 | 新建或维护流程、流程分组、元素库命名、编码变量命名 | [references/project-conventions.md](references/project-conventions.md) |
 | 新建/修改/调试 CodeFlow、声明 In/Out、安装 pip 依赖 | [references/codeflow.md](references/codeflow.md) |
 | 新建/修改/调试 VisualFlow、块字段、变量或快照 | [references/visualflow.md](references/visualflow.md) |

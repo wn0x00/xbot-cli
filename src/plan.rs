@@ -9,6 +9,7 @@ use crate::{app_cmds, commands, extra_cmds, flow_cmds, input, web_cmds};
 
 enum Operation {
     Command(Group),
+    Platform(crate::platform::PreparedPlatform),
     TaskRun {
         app_id: String,
         inputs: Value,
@@ -79,6 +80,7 @@ impl PreparedCommand {
 
     pub fn execute(self, yes: bool) -> Res<CmdOut> {
         match self.operation {
+            Operation::Platform(command) => command.execute(),
             Operation::Command(group) => commands::execute(group, yes),
             Operation::TaskRun {
                 app_id,
@@ -192,6 +194,16 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
         other => other,
     };
     match group {
+        Group::Platform(sub) => {
+            let command = crate::platform::prepare(sub)?;
+            let preview = command.preview();
+            let confirmation_required = command.confirmation_required();
+            Ok(PreparedCommand {
+                operation: Operation::Platform(command),
+                preview,
+                confirmation_required,
+            })
+        }
         Group::Win32(Win32Sub::Snapshot { ref hwnd, .. }) => {
             crate::win32_cmds::parse_hwnd(hwnd)?;
             Ok(PreparedCommand {

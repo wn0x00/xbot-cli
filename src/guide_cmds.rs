@@ -20,6 +20,7 @@ const WIN_UIA_RUNTIME: &str = include_str!("../skills/xbot-app-dev/scripts/win32
 const WIN_UIA_RUNNER: &str = include_str!("../skills/xbot-app-dev/scripts/win32/run_uia.py");
 const WIN_REPAIR: &str = include_str!("../skills/xbot-app-dev/references/win-repair.md");
 const CLI_CONTRACT: &str = include_str!("../skills/xbot-app-dev/references/cli-contract.md");
+const PLATFORM: &str = include_str!("../skills/xbot-app-dev/references/platform.md");
 const CODEFLOW: &str = include_str!("../skills/xbot-app-dev/references/codeflow.md");
 const VISUALFLOW: &str = include_str!("../skills/xbot-app-dev/references/visualflow.md");
 const BROWSER: &str = include_str!("../skills/xbot-app-dev/references/browser.md");
@@ -54,6 +55,11 @@ const COLLECTION_ANALYSIS: &str =
     include_str!("../skills/xbot-app-dev/templates/collection-analysis.json");
 
 const TOPICS: &[(&str, &str, &str)] = &[
+    (
+        "platform",
+        "开放平台鉴权、调度运行记录、日志与错误分析",
+        PLATFORM,
+    ),
     (
         "automation-routing",
         "按失败步骤识别 Web/Windows 业务目标并选择模块",
@@ -185,6 +191,7 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
             WIN_UIA_RUNNER,
         ),
         (root.join("references").join("win-repair.md"), WIN_REPAIR),
+        (root.join("references").join("platform.md"), PLATFORM),
         (
             root.join("references").join("cli-contract.md"),
             CLI_CONTRACT,

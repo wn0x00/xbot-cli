@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.5](https://github.com/wn0x00/xbot-cli/compare/v0.7.4...v0.7.5) (2026-10-23)
+
+- Add the `platform` command group for the official enterprise Open API, independent of the local ShadowBot client. Bundle 68 documentation references and 44 endpoint contracts covering authentication, accounts, applications, robots, dispatch, logs, queues, files and run records.
+- Add schedule history, task results, job status and paginated log queries for investigating dispatch failures. Support synchronous log search and bounded notify-and-poll queries that retain the request ID on timeout.
+- Support environment-based API keys or access tokens and private-cloud HTTPS origins. Redact credentials and password fields, encode query/path parameters, preserve server error codes and pagination, and require confirmation for mutating endpoints.
+- Add offline API discovery and schemas, a reusable platform troubleshooting guide, seven-day validation for run-record queries and multipart file uploads.
+- Verify authentication, dispatch filters, cursor precision, log polling, timeout recovery, redaction, upload encoding and installed package resources with local HTTP fixtures. Live enterprise API permissions and production logs remain unverified.
+
 ## [0.7.4](https://github.com/wn0x00/xbot-cli/compare/v0.7.3...v0.7.4) (2026-10-22)
 
 - Add Skill v10 Web and Windows modules, with Agent routing based on the failed call and its actual target. Embed and install all 38 Skill resources and expose the corresponding offline guides.

@@ -129,6 +129,22 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli task run <app-id> --inputs-json @inputs.json",
             "xbot-cli task status <task-id>",
         ],
+        ["platform"] => &[
+            "xbot-cli platform auth status",
+            "xbot-cli platform schedule list --json",
+            "xbot-cli platform job logs <jobUuid> --json",
+            "xbot-cli guide platform",
+        ],
+        ["platform", "api"] => &[
+            "xbot-cli platform api list --json",
+            "xbot-cli platform api schema job.status",
+            "xbot-cli platform api call job.status --body @query.json --json",
+        ],
+        ["platform", "job"] => &[
+            "xbot-cli platform job list --status error --json",
+            "xbot-cli platform job status <jobUuid> --json",
+            "xbot-cli platform job logs <jobUuid> --async --timeout 10 --json",
+        ],
         ["win32"] => &[
             "xbot-cli help win32 snapshot",
             "xbot-cli schema win32 snapshot",

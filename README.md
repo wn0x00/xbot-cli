@@ -142,7 +142,7 @@ xbot-cli install --skills --global --json
 
 请使用支持 `.agents/skills` 的 Agent，或明确让 Agent 阅读生成的 `SKILL.md`。不支持自动加载 Skill 的工具也可以直接阅读下方完整指令。已有 Skill 内容不同时，CLI 会返回冲突；先查看差异，确认覆盖后再追加 `--yes`。
 
-从 **CLI 0.7.4** 起内置 **Skill v10，共 38 个文件**，包含 Web/Windows 模块、12 个脚本及业务任务、用途分析、定位和修复提议模板。使用 0.7.3 或更早版本时，先升级 CLI，再运行 `xbot-cli install --skills` 安装新 Skill；已有本地改动时先查看差异，再决定是否覆盖。
+从 **CLI 0.7.4** 起内置 **Skill v10**。当前源码包含 39 个资源，包括 Web/Windows 模块、12 个脚本、开放平台排障指南及业务任务、用途分析、定位和修复提议模板。使用 0.7.3 或更早版本时，先升级 CLI，再运行 `xbot-cli install --skills` 安装新 Skill；已有本地改动时先查看差异，再决定是否覆盖。
 
 | 能力 | 实现与范围 |
 |---|---|
@@ -191,6 +191,7 @@ Web 生成 helper 需要支持 `stripTypeScriptTypes` 的 Node 运行时和固�
 | `flow` | 流程读取、参数、静态检查、实际运行与等待 |
 | `flow code` / `flow visual` | CodeFlow 源码和 VisualFlow 块 |
 | `task` | 已发布应用的控制台任务 |
+| `platform` | 企业开放 API、调度执行记录和云端运行日志 |
 | `web`（别名 `browser`） | 浏览器上下文、快照与 click/fill/press 等交互 |
 | `win32 snapshot` | 实验性只读 UIA 快照，显式限定 HWND/PID，独立于 Studio 与原生 Selector |
 | `tool studio` / `tool browser` | 原始工具的发现、schema 和调用 |
@@ -225,6 +226,32 @@ Web 生成 helper 需要支持 `stripTypeScriptTypes` 的 Node 运行时和固�
 失败可能伴随 `applied: true` 或仍在运行的任务，不能理解为“没有执行”。`--dry-run` 只预览本地载荷；`--expect-app` 只在实际执行时断言当前应用。两者都不代替真实运行验收。
 
 完整参数语义、兼容命令、确认边界和设计依据见 [CLI 参考](docs/cli-reference.md)；Agent 也可运行 `xbot-cli guide cli-contract`。
+
+## 开放平台与调度日志
+
+从 CLI 0.7.5 起，`platform` 直接连接影刀开放 API，不依赖本机客户端。通过环境变量配置
+`XBOT_PLATFORM_ACCESS_KEY_ID` / `XBOT_PLATFORM_ACCESS_KEY_SECRET`，或提供
+`XBOT_PLATFORM_ACCESS_TOKEN`。专有云可设置 `XBOT_PLATFORM_BASE_URL` 为 HTTPS origin。
+
+```powershell
+xbot-cli platform auth status --json
+xbot-cli platform auth check --json
+xbot-cli platform job list --status error --json
+xbot-cli platform job status <jobUuid> --json
+xbot-cli platform job logs <jobUuid> --search "错误" --json
+xbot-cli platform job logs <jobUuid> --async --timeout 10 --json
+xbot-cli platform schedule runs <scheduleUuid> --json
+xbot-cli platform task status <taskUuid> --json
+xbot-cli platform api list --json
+xbot-cli platform api schema log.search --json
+xbot-cli guide platform
+```
+
+内置 68 个官方文档索引及 44 个接口契约，覆盖鉴权、企业账号、应用、机器人、
+调度、日志、队列、文件和运行数据。`platform api call` 提供通用调用，
+写操作支持 `--dry-run` 并要求 `--yes`。查询保留原始分页，不自动遍历历史；
+异步日志轮询超时保留 `request_id`。应用运行数据查询的时间跨度限制为 7 天。
+配置、标识关系和错误分析流程见 [平台指南](skills/xbot-app-dev/references/platform.md)。
 
 ## 项目目录
 

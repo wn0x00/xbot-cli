@@ -2,7 +2,7 @@
 
 ## 安装与运行环境
 
-npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 Node.js 22+，安装后 `xbot` 与 `xbot-cli` 调用同一程序；用户无需 Rust，不通过 postinstall 下载程序。运行实际影刀操作前，客户端须已安装、启动并登录。`xbot install --skills` 将 Skill 写入当前工作区的 `.agents/skills/xbot-app-dev`，`--global` 则写入用户目录；已有内容不同时先报冲突，确认覆盖后才使用 `--yes`。
+npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 Node.js 22+，安装后 `xbot` 与 `xbot-cli` 调用同一程序；用户无需 Rust，不通过 postinstall 下载程序。本地影刀操作要求客户端已安装、启动并登录；`platform` 使用企业 API 凭据，不要求本机客户端。`xbot install --skills` 将 Skill 写入当前工作区的 `.agents/skills/xbot-app-dev`，`--global` 则写入用户目录；已有内容不同时先报冲突，确认覆盖后才使用 `--yes`。
 
 需要解析业务结果时始终显式使用 `--json`；下文省略此参数的示例只展示操作语法。自动化必须分别捕获 stdout、stderr 和退出码，不把两条输出流拼接成一个 JSON 文档。
 
@@ -11,6 +11,7 @@ npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 No
 - `app` 管应用生命周期；`flow` 管当前 Studio 流程，源码使用 `flow code`，块使用 `flow visual`。
 - `flow check` 检查整个应用的静态诊断，传入流程时先核验目标（`scope: app`），不启动流程；`flow verify` = 静态诊断 + 实际运行 + Out；已有运行用 `flow wait <run-id>` 继续等待。
 - `task run/stop/status/logs` 管已发布应用的运行任务，使用 task_id，不与 Studio run_id 混用。
+- `platform` 直连企业开放 API，查询调度、执行记录与运行日志，不依赖本机客户端。凭据、平台标识和排障流程见 [platform.md](platform.md) 或 `guide platform`。
 - `web` 管浏览器上下文、快照与交互，`browser` 是兼容别名。使用 `web click <ref>`、`web fill <ref> <text>`、`web press <key>` 等高层命令，不为常用动作编写 JSON。
 - `tool studio` / `tool browser` 提供 `list/schema/call`；优先资源命令，不足时才用原始工具。
 

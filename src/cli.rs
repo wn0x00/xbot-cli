@@ -57,6 +57,9 @@ pub(crate) enum Group {
     /// 控制台应用的运行任务
     #[command(subcommand)]
     Task(TaskSub),
+    /// 开放 API:调度、运行记录、日志与企业资源
+    #[command(subcommand)]
+    Platform(crate::platform_cli::PlatformSub),
     /// 底层工具的发现、schema 与调用
     #[command(subcommand)]
     Tool(ToolChannel),

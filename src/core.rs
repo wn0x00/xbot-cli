@@ -142,7 +142,10 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
     ) {
         return ("validation", 2, false);
     }
-    if code == "api_4011" || code == "SHELL_CLI_MISSING" || code == "AUTH_REQUIRED" {
+    if matches!(
+        code,
+        "api_4011" | "SHELL_CLI_MISSING" | "AUTH_REQUIRED" | "PLATFORM_AUTH" | "PLATFORM_CONFIG"
+    ) {
         return ("authentication", 3, false);
     }
     if matches!(
@@ -153,6 +156,9 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
             | "TIMEOUT"
             | "OPEN_TIMEOUT"
             | "FLOW_RUN_TIMEOUT"
+            | "PLATFORM_NETWORK"
+            | "PLATFORM_TIMEOUT"
+            | "PLATFORM_RATE_LIMIT"
     ) {
         // A transport failure does not prove that a write or run was not applied.
         return ("network", 4, false);
@@ -176,6 +182,7 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
             | "SHELL_CLI_BAD_OUTPUT"
             | "PARSE_FAILED"
             | "FLOW_RUN_UNKNOWN"
+            | "PLATFORM_BAD_RESPONSE"
     ) {
         return ("protocol", 6, false);
     }

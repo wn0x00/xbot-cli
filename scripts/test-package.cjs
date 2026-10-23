@@ -48,7 +48,7 @@ try {
       data: { name: 'xbot-cli', version: manifest.version }, ok: true,
     });
     assert.equal(versionJson.stderr, '');
-    for (const args of [[], ['--help'], ['app'], ['web'], ['browser']]) {
+    for (const args of [[], ['--help'], ['app'], ['web'], ['browser'], ['platform']]) {
       const help = invokeShim(args);
       assert.match(help.stdout, /Usage:/, `${command} ${args.join(' ')} must show help`);
       assert.equal(help.stderr, '');
@@ -80,6 +80,14 @@ try {
   assert.equal(JSON.parse(error.stderr).error.code, 'BAD_ARGS');
   const discovery = invoke(['schema', 'flow', 'code', 'write']);
   assert.equal(JSON.parse(discovery.stdout).data.name, 'flow code write');
+  const platformCatalog = invoke(['platform', 'api', 'list', '--json']);
+  assert.equal(platformCatalog.status, 0, platformCatalog.stderr);
+  assert.equal(JSON.parse(platformCatalog.stdout).data.endpoints.length, 44);
+  const platformDocs = invoke(['platform', 'docs', '--json']);
+  assert.equal(JSON.parse(platformDocs.stdout).data.documents.length, 68);
+  const platformPreview = invoke(['platform', 'job', 'logs', 'job-1', '--dry-run', '--json']);
+  assert.equal(platformPreview.status, 0, platformPreview.stderr);
+  assert.equal(JSON.parse(platformPreview.stdout).data.arguments.body.jobUuid, 'job-1');
   const preview = invoke(['flow', 'code', 'write', 'main', '--file', '-', '--dry-run', '--json'], 'print("npm stdin")\n');
   assert.equal(preview.status, 0, preview.stderr);
   assert.equal(JSON.parse(preview.stdout).data.dry_run, true);
@@ -103,6 +111,7 @@ try {
   }
   assert.match(invoke(['guide', 'cli-contract']).stdout, /^# /);
   for (const [topic, resource] of [
+    ['platform', 'references/platform.md'],
     ['automation-routing', 'references/automation-routing.md'],
     ['web-module', 'modules/web.md'],
     ['win-design', 'modules/win.md'],

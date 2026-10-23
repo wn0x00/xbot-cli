@@ -18,6 +18,7 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
         )),
         Group::Help { .. } => Err(BackendError::new("BAD_ARGS", "帮助应在执行前处理")),
         Group::Task(sub) => execute(task_as_app(sub), yes),
+        Group::Platform(sub) => crate::platform::prepare(sub)?.execute(),
         Group::Tool(channel) => tool_command(channel),
         Group::Status => m::cmd_status(),
         Group::Doctor => m::cmd_doctor(),

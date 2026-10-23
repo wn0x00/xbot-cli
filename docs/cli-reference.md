@@ -1,6 +1,6 @@
 # xbot-cli 命令与行为参考
 
-面向 AI Agent 的影刀（ShadowBot）RPA CLI。影刀操作通过内置 shell-cli、studio-mcp 和 browser-use-mcp；实验性 Windows UIA 观察使用独立 Python 提供器，不是影刀原生 Selector 引擎。
+面向 AI Agent 的影刀（ShadowBot）RPA CLI。本地影刀操作通过内置 shell-cli、studio-mcp 和 browser-use-mcp；`platform` 通过 HTTPS 连接企业开放 API；实验性 Windows UIA 观察使用独立 Python 提供器，不是影刀原生 Selector 引擎。
 
 命令按所操作的资源组织：
 
@@ -11,6 +11,7 @@
 | `flow` | Studio 流程的读取、参数、编辑、静态检查与运行 |
 | `flow code` / `flow visual` | CodeFlow 源码和 VisualFlow 块 |
 | `task` | 已发布应用的运行任务、状态、日志与停止 |
+| `platform` | 企业开放 API、调度执行记录、运行数据与日志 |
 | `web`（兼容 `browser`） | 打开网页、快照、点击、填写和导航 |
 | `win32 snapshot` | 显式窗口作用域下的实验性只读 UIA 观察 |
 | `tool studio` / `tool browser` | 按 schema 调用原始工具 |
@@ -27,7 +28,7 @@ xbot-cli install --skills --global --json  # 用户 ~/.agents/skills
 
 已有 Skill 内容不同时不会静默覆盖；先查看差异，确认覆盖后追加 `--yes`。自动化调用下文的业务命令时均应显式添加 `--json`，示例中的 `<...>` 需替换为实际标识。
 
-当前源码安装 Skill v10 的 38 个资源。`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。
+当前源码安装 Skill v10 的 39 个资源。`guide platform` 提供开放平台鉴权、调度记录、日志与报错分析流程；`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。
 
 `locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；依赖与已验证边界见 [Skill v10 升级说明](skill-v10-upgrade.md)。
 
@@ -89,6 +90,26 @@ xbot-cli task status <task-id>
 xbot-cli task logs <task-id>
 xbot-cli task stop <task-id>
 ```
+
+## 开放平台与调度日志
+
+`platform` 不依赖本机客户端或 Studio。环境变量配置、接口范围、调度标识关系、
+分页和异步日志恢复详见[平台指南](../skills/xbot-app-dev/references/platform.md)，
+也可离线运行 `xbot-cli guide platform`。
+
+```powershell
+xbot-cli platform auth status --json
+xbot-cli platform api list --json
+xbot-cli platform api schema log.search --json
+xbot-cli platform schedule runs <scheduleUuid> --json
+xbot-cli platform task status <taskUuid> --json
+xbot-cli platform job status <jobUuid> --json
+xbot-cli platform job logs <jobUuid> --async --timeout 10 --json
+```
+
+结果在 `data.response` 中保留平台封装。API 成功不代表任务运行成功；
+分析错误时读取任务状态、`remark`、截屏地址和日志。
+原始写接口使用 `platform api call`，支持离线预览并要求 `--yes`。
 
 ## 应用与流程上下文
 

@@ -11,6 +11,8 @@ mod input;
 mod misc_cmds;
 mod output;
 mod plan;
+mod platform;
+mod platform_cli;
 mod schema_cmds;
 mod web_cmds;
 mod win32_cmds;

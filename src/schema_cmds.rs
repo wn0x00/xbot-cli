@@ -72,6 +72,12 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         ["task", "run"] => (&["execute"], "console", true, "none"),
         ["task", "stop"] => (&["stop_execution"], "console", true, "none"),
         ["task", ..] => (&["read"], "console", false, "none"),
+        ["platform", "api", "call"] => (&["endpoint_defined"], "platform", true, "when_mutating"),
+        ["platform", "api", ..] | ["platform", "docs"] | ["platform", "auth", "status"] => {
+            (&["read"], "local", false, "none")
+        }
+        ["platform", "auth", "check"] => (&["authenticate"], "platform", false, "none"),
+        ["platform", ..] => (&["read"], "platform", true, "none"),
         ["flow", "run" | "verify"] => (&["execute"], "studio", true, "none"),
         ["flow", "stop"] => (&["stop_execution"], "studio", true, "none"),
         ["flow", "create"]
@@ -335,6 +341,13 @@ fn visual_groups_shape() -> Value {
 
 fn input_shapes(path: &[&str]) -> Value {
     match path {
+        ["platform", "api", "call"] => json!({
+            "body":json_input(json!({"type":"object"})),
+            "query":json_input(json!({"type":"object","additionalProperties":{"type":["string","number","boolean","null"]}})),
+            "path":json_input(json!({"type":"object","additionalProperties":{"type":"string","minLength":1}})),
+            "file":{"encoding":["file_path"],"endpoint":"file.upload"},
+            "constraints":["at most one parameter can read stdin", "GET parameters use query", "required top-level fields and documented path parameters are validated offline"]
+        }),
         ["flow", "params", "set"] => json!({"operations": {
             "encoding":["literal_json","@file","stdin:-"],
             "schema":{"oneOf":[parameter_operations_shape(), {
@@ -383,6 +396,7 @@ fn input_shapes(path: &[&str]) -> Value {
 
 fn dynamic_schema_hint(path: &[&str]) -> Option<&'static str> {
     match path {
+        ["platform", "api", "call"] => Some("xbot-cli platform api schema <endpoint>"),
         ["tool", "studio", ..] => Some("xbot-cli tool studio schema <tool>"),
         ["tool", "browser", ..] => Some("xbot-cli tool browser schema <tool>"),
         ["web", "act" | "click" | "dblclick" | "fill" | "type" | "press" | "hover" | "select" | "check"
