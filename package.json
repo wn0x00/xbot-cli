@@ -1,6 +1,6 @@
 {
   "name": "@guanzhu.me/xbot-cli",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Agent-friendly CLI for ShadowBot RPA applications, flows, tasks and browser automation",
   "license": "MIT",
   "author": "wn0x00",
@@ -21,12 +21,12 @@
     "automation"
   ],
   "bin": {
-    "xbot": "bin/xbot-cli.cjs",
     "xbot-cli": "bin/xbot-cli.cjs"
   },
   "files": [
     "bin/xbot-cli.cjs",
-    "native/win32-x64/xbot-cli.exe"
+    "native/win32-x64/xbot-cli.exe",
+    "scripts/preinstall.cjs"
   ],
   "os": [
     "win32"
@@ -40,6 +40,7 @@
   "scripts": {
     "build": "node scripts/build.cjs",
     "check": "cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings",
+    "preinstall": "node scripts/preinstall.cjs",
     "pretest": "npm run build",
     "test": "cargo test --locked && npm run test:npm && npm run test:skill",
     "test:npm": "node --test tests/npm/*.test.cjs",

@@ -18,7 +18,7 @@ xbot-cli 通过影刀客户端内置通道管理应用、编辑流程、运行�
 - **Agent 优先的输出契约。** 裸调用逐层返回帮助，`schema <path>` 给出机器可读的参数定义；成功写 stdout、失败写 stderr，配合明确的退出码与 `ok/data/error` JSON 信封。
 - **应用与流程全生命周期。** `app` 创建、打开、保存、同步、发布；`flow` 读取、静态检查、运行与等待；`task` 运行已发布应用。
 - **安全的写入边界。** `--dry-run` 离线预览，`--expect-app` 断言当前应用，高风险操作必须显式 `--yes`。
-- **浏览器自动化。** `xbot web` 提供“打开页面 → 快照 → 操作元素”的短命令循环，无需手写 JSON。
+- **浏览器自动化。** `xbot-cli web` 提供“打开页面 → 快照 → 操作元素”的短命令循环，无需手写 JSON。
 - **开放平台 Open API。** `oapi` 一条命令保存 AccessKey，token 自动刷新；应用、机器人、调度、日志、队列、企业账号全覆盖。
 - **内置 Agent Skill。** `xbot-cli install --skills` 安装开发规范、Web/Windows 修复辅助和排障指南。
 
@@ -28,10 +28,10 @@ xbot-cli 通过影刀客户端内置通道管理应用、编辑流程、运行�
 
 ```powershell
 npm install -g '@guanzhu.me/xbot-cli'
-xbot version
+xbot-cli version
 ```
 
-安装后 `xbot` 与 `xbot-cli` 调用同一程序。升级直接运行：
+安装后通过 `xbot-cli` 调用（0.8.2 起仅保留此入口；安装时会自动清理旧版遗留的 `xbot` shim 和 PATH 中的旧程序）。升级直接运行：
 
 ```powershell
 xbot-cli update          # 升级到最新版本;--check 只检查不升级
@@ -51,9 +51,9 @@ xbot-cli task run <app-id> --json         # 运行已发布应用
 浏览器交互：
 
 ```powershell
-xbot web open baidu.com
-xbot web fill e4 "影刀 RPA"
-xbot web click e7
+xbot-cli web open baidu.com
+xbot-cli web fill e4 "影刀 RPA"
+xbot-cli web click e7
 ```
 
 裸调用 `xbot-cli` 或任意分组（如 `xbot-cli flow`）会返回该层级的帮助和示例；`xbot-cli help <path>` 查看详细帮助。

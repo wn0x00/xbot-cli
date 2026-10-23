@@ -40,9 +40,9 @@ xbot-cli flow list --expect-app <app-id> --json
 优先使用高层网页命令：
 
 ```powershell
-xbot web active --json
-xbot web open <url> --json
-xbot web snapshot --format text
+xbot-cli web active --json
+xbot-cli web open <url> --json
+xbot-cli web snapshot --format text
 ```
 
 每次动作后重新查看返回快照或主动运行 `web snapshot`。记录页面 URL、标题、快照类型、关键文本、元素角色和当前 ref。快照可能是增量内容，不能把一次快照当成永久页面模型。
@@ -53,7 +53,7 @@ xbot web snapshot --format text
 
 | 方式 | 默认用途 | 选择理由 |
 |---|---|---|
-| `xbot web` | 一次性取数、页面核验、短交互和探索 | 反馈快，但依赖当前活动浏览器上下文 |
+| `xbot-cli web` | 一次性取数、页面核验、短交互和探索 | 反馈快，但依赖当前活动浏览器上下文 |
 | CodeFlow | 重复执行、参数化、明确 In/Out、需要长期维护 | 代码和输入输出更容易审查、修改和回归 |
 | VisualFlow | 块结构需要业务人员维护，或已有流程已经是 VisualFlow | 与既有应用一致，避免混用模型 |
 

@@ -2,7 +2,7 @@
 
 ## 安装与运行环境
 
-npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 Node.js 22+，安装后 `xbot` 与 `xbot-cli` 调用同一程序；用户无需 Rust，不通过 postinstall 下载程序。默认操作要求客户端已安装、启动并登录；仅企业版用户明确选择 `platform` 备用入口时使用企业 API 凭据。`xbot install --skills` 将 Skill 写入当前工作区的 `.agents/skills/xbot-app-dev`，`--global` 则写入用户目录；已有内容不同时先报冲突，确认覆盖后才使用 `--yes`。
+npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 Node.js 22+，安装后以 `xbot-cli` 调用；用户无需 Rust，不通过 postinstall 下载程序。默认操作要求客户端已安装、启动并登录；仅企业版用户明确选择 `platform` 备用入口时使用企业 API 凭据。`xbot-cli install --skills` 将 Skill 写入当前工作区的 `.agents/skills/xbot-app-dev`，`--global` 则写入用户目录；已有内容不同时先报冲突，确认覆盖后才使用 `--yes`。
 
 需要解析业务结果时始终显式使用 `--json`；下文省略此参数的示例只展示操作语法。自动化必须分别捕获 stdout、stderr 和退出码，不把两条输出流拼接成一个 JSON 文档。
 
@@ -53,7 +53,7 @@ xbot-cli app --json            # 当前分组的结构化帮助，不是完整 s
 xbot-cli status --json         # 显式机器结果
 ```
 
-裸根命令和纯分组是发现请求，默认显示简短文本帮助；`-h`、`--help`、`help <path>` 默认显示详细文本帮助。帮助写 stdout、退出 0，不访问后端、不检查登录、不初始化应用，即使在管道中也默认保持文本。`xbot-cli version`（也可使用 `xbot version`）、`--version` 和 `-V` 离线返回一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。`xbot-cli update` 由 npm 启动器在原生程序启动前执行升级（Windows 不允许替换正在运行的可执行文件），`--check` 只检查不升级；升级全局安装时优先使用 `xbot-cli update` 而不是让用户手动拼 npm 命令。
+裸根命令和纯分组是发现请求，默认显示简短文本帮助；`-h`、`--help`、`help <path>` 默认显示详细文本帮助。帮助写 stdout、退出 0，不访问后端、不检查登录、不初始化应用，即使在管道中也默认保持文本。`xbot-cli version`、`--version` 和 `-V` 离线返回一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。`xbot-cli update` 由 npm 启动器在原生程序启动前执行升级（Windows 不允许替换正在运行的可执行文件），`--check` 只检查不升级；升级全局安装时优先使用 `xbot-cli update` 而不是让用户手动拼 npm 命令。
 
 业务结果默认 `--format auto`：stdout 是终端时为简洁文本，非终端时为紧凑 JSON。需要解析结果时显式使用 `--json`，它等价于 `--format json`。`--format text` 强制文本；`--format pretty` 仍是 JSON，仅增加缩进。显式格式优先于自动选择，也可用于帮助、schema 和 guide。
 

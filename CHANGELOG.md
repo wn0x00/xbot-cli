@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.2](https://github.com/wn0x00/xbot-cli/compare/v0.8.1...v0.8.2) (2026-10-23)
+
+- Keep only the `xbot-cli` entry point; the `xbot` shim is no longer created. A stray older native program earlier in PATH (for example a manually copied `xbot-cli.exe`) used to shadow the npm shim and diverge command output between `xbot` and `xbot-cli`.
+- Add a `preinstall` cleanup that removes legacy `xbot` shims belonging to this package and quarantines conflicting `xbot-cli` programs outside the npm bin directory to `.bak`, so the command always resolves to the current install. Set `XBOT_CLI_SKIP_CLEANUP=1` to opt out.
+- Documentation and built-in examples now consistently use `xbot-cli`.
+
 ## [0.8.1](https://github.com/wn0x00/xbot-cli/compare/v0.7.6...v0.8.1) (2026-10-23)
 
 - Add `xbot-cli update`: the npm launcher checks the registry for the latest release and runs the global npm upgrade before the native process starts, since Windows cannot replace a running executable. `xbot-cli update --check` only reports whether a newer version exists.

@@ -19,7 +19,7 @@
 
 ## 安装与 Agent 接入
 
-Windows x64、Node.js 22+ 环境可通过 npm 包 `@guanzhu.me/xbot-cli` 安装预编译程序，无需安装 Rust；`xbot` 与 `xbot-cli` 是同一程序的两个入口。安装命令和可复制的 Agent 指令见[项目 README](../README.md#安装)。
+Windows x64、Node.js 22+ 环境可通过 npm 包 `@guanzhu.me/xbot-cli` 安装预编译程序，无需安装 Rust；安装后以 `xbot-cli` 调用，安装前会自动清理旧版遗留的 `xbot` shim 和 PATH 中的旧程序。安装命令和可复制的 Agent 指令见[项目 README](../README.md#安装)。
 
 ```powershell
 xbot-cli install --skills --json           # 当前工作区 .agents/skills
@@ -159,7 +159,7 @@ xbot-cli app --json            # 紧凑结构化帮助，不是参数 schema
 | `--json` / `--format json` | 明确请求紧凑 JSON，两者等价 |
 | `--format pretty` | JSON 缩进显示，字段与紧凑 JSON 相同 |
 
-显式格式优先于自动选择。`schema` 默认始终输出 JSON；`guide` 默认输出 Markdown 文本；这两个默认值和帮助文本一样不随管道改变。请求 JSON 帮助得到当前层级的简短发现信息，不会展开完整参数 schema。`xbot-cli version`（也可使用 `xbot version`）、`--version` 和 `-V` 离线输出一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。`xbot-cli update` 由 npm 启动器在原生程序启动前完成升级（Windows 不允许替换正在运行的可执行文件），`--check` 只检查不升级；直接对原生可执行文件运行 `update` 会返回 `UPDATE_REQUIRES_LAUNCHER`。
+显式格式优先于自动选择。`schema` 默认始终输出 JSON；`guide` 默认输出 Markdown 文本；这两个默认值和帮助文本一样不随管道改变。请求 JSON 帮助得到当前层级的简短发现信息，不会展开完整参数 schema。`xbot-cli version`、`--version` 和 `-V` 离线输出一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。`xbot-cli update` 由 npm 启动器在原生程序启动前完成升级（Windows 不允许替换正在运行的可执行文件），`--check` 只检查不升级；直接对原生可执行文件运行 `update` 会返回 `UPDATE_REQUIRES_LAUNCHER`。
 
 成功结果写 stdout、退出 0。以下为 JSON 模式示例：
 
@@ -226,19 +226,19 @@ JSON 参数通常接受字面 JSON、`@file` 或 `-` stdin；源码文件参数�
 `web` 使用影刀浏览器后端，以快照中的真实元素编号操作页面：
 
 ```powershell
-xbot web open example.com
-xbot web fill e4 "hello"
-xbot web click e5
-xbot web press Enter
-xbot web goto https://example.com/page
-xbot web snapshot --output page.txt
+xbot-cli web open example.com
+xbot-cli web fill e4 "hello"
+xbot-cli web click e5
+xbot-cli web press Enter
+xbot-cli web goto https://example.com/page
+xbot-cli web snapshot --output page.txt
 ```
 
 示例编号必须替换为最近快照中的编号。`open` 自动为裸域名补全 HTTPS；`active`（别名 `attach`）附着活动页面。`click`、`dblclick`、`fill`、`hover`、`check`、`uncheck`、`select` 接受元素编号；`type` 和 `press` 默认作用于当前焦点，`press --ref <ref>` 指定元素。导航使用 `goto`、`reload`、`go-back`、`go-forward` 和 `close`。
 
 打开、附着、导航（除 `close`）及上述元素、键盘交互成功后默认获取快照，`--no-snapshot` 可关闭这一步；`eval` 和底层工具调用不追加快照。快照失败会保留操作成功及 `applied: true`，并返回 `warning`；不要因此重复点击或提交。快照正文及 full/diff 元数据来自后端，CLI 不改写编号。`snapshot --output` 保存正文且不覆盖已有文件。终端默认文本输出，管道默认 JSON；`--json` 显式保留完整结果，`--format text` 可强制输出文本。
 
-影刀元素操作要求选择器名称；CLI 默认生成唯一临时名称，`--name` 可指定名称。它们会暂存在影刀浏览器后端，写入项目元素库仍由显式的 review 流程控制。`eval` 保持注入 `activePage` 的只读异步函数体语法。完整参数见 `xbot web --help` 和 [浏览器指南](../skills/xbot-app-dev/references/browser.md)。
+影刀元素操作要求选择器名称；CLI 默认生成唯一临时名称，`--name` 可指定名称。它们会暂存在影刀浏览器后端，写入项目元素库仍由显式的 review 流程控制。`eval` 保持注入 `activePage` 的只读异步函数体语法。完整参数见 `xbot-cli web --help` 和 [浏览器指南](../skills/xbot-app-dev/references/browser.md)。
 
 ## 原始工具
 

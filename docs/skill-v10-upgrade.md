@@ -43,7 +43,7 @@ Skill 从 v9 的 14 个文件扩展到 38 个文件，包含 Web/Windows 模块�
 ### 从快照到 XPath 的实际链路
 
 ```text
-xbot web snapshot 的当前完整快照
+xbot-cli web snapshot 的当前完整快照
  -> 取得实际 ref，例如 e12
  -> activePage.locator("aria-ref=" + ref).elementHandle()
  -> 得到当前真实 DOM 节点及所在上下文

@@ -1,6 +1,6 @@
 # 发布 xbot-cli
 
-源码仓库为 [`wn0x00/xbot-cli`](https://github.com/wn0x00/xbot-cli)，npm 包为 [`@guanzhu.me/xbot-cli`](https://www.npmjs.com/package/@guanzhu.me/xbot-cli)，安装后可使用 `xbot` 或 `xbot-cli`。发布目标是 Windows x64，npm 包自带原生程序。
+源码仓库为 [`wn0x00/xbot-cli`](https://github.com/wn0x00/xbot-cli)，npm 包为 [`@guanzhu.me/xbot-cli`](https://www.npmjs.com/package/@guanzhu.me/xbot-cli)，安装后使用 `xbot-cli`。发布目标是 Windows x64，npm 包自带原生程序。
 
 ## 发布渠道
 

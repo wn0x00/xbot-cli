@@ -27,11 +27,11 @@
 网页 CLI 适合探索、短流程和一次性取数；重复执行、参数化和长期维护优先沉淀为 CodeFlow。网页流程优先用已验证的 XPath；VisualFlow 用“获取元素对象（web）”搭配 XPath，CodeFlow 用公开 XPath API。
 
 ```bash
-xbot web open https://example.com --json
-xbot web snapshot --json
+xbot-cli web open https://example.com --json
+xbot-cli web snapshot --json
 # e4 仅为语法示例，使用当前完整快照中的实际 ref
-xbot web fill e4 "搜索内容" --json
-xbot web press Enter --ref e4 --json
+xbot-cli web fill e4 "搜索内容" --json
+xbot-cli web press Enter --ref e4 --json
 ```
 
 打开、附着、导航和常用交互后默认返回快照；`--no-snapshot` 跳过，`close` 不取快照。快照可能是增量，保留元数据，不把增量当完整页面。页面变化、导航、提交或弹窗变化后重新 snapshot；ref 不能编造、跨页面复用或替换成 CSS/XPath。

@@ -434,19 +434,25 @@ fn examples(command: &Command, path: &[&str]) -> Vec<String> {
     }
     let examples: &[&str] = match path {
         ["web", "open"] => &[
-            "xbot web open example.com",
-            "xbot web open https://example.com --mode edge",
+            "xbot-cli web open example.com",
+            "xbot-cli web open https://example.com --mode edge",
         ],
-        ["web", "active"] => &["xbot web active"],
-        ["web", "snapshot"] => &["xbot web snapshot", "xbot web snapshot --output page.txt"],
+        ["web", "active"] => &["xbot-cli web active"],
+        ["web", "snapshot"] => &[
+            "xbot-cli web snapshot",
+            "xbot-cli web snapshot --output page.txt",
+        ],
         ["web", "click"] => &[
-            "xbot web click e5",
-            "xbot web click e5 --button right --no-snapshot",
+            "xbot-cli web click e5",
+            "xbot-cli web click e5 --button right --no-snapshot",
         ],
-        ["web", "fill"] => &["xbot web fill e4 \"hello\""],
-        ["web", "press"] => &["xbot web press Enter", "xbot web press Control+A --ref e4"],
-        ["web", "select"] => &["xbot web select e9 blue"],
-        ["web", "goto"] => &["xbot web goto https://example.com/page"],
+        ["web", "fill"] => &["xbot-cli web fill e4 \"hello\""],
+        ["web", "press"] => &[
+            "xbot-cli web press Enter",
+            "xbot-cli web press Control+A --ref e4",
+        ],
+        ["web", "select"] => &["xbot-cli web select e9 blue"],
+        ["web", "goto"] => &["xbot-cli web goto https://example.com/page"],
         ["flow", "check"] => &["xbot-cli flow check main --expect-app <app-id>"],
         ["flow", "wait"] => &["xbot-cli flow wait <run-id> --timeout 600"],
         ["flow", "code", "read"] => &["xbot-cli flow code read main"],

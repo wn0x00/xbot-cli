@@ -7,9 +7,9 @@ metadata:
 
 # 影刀应用与指令开发
 
-通过 `xbot` 或 `xbot-cli` 调用影刀内置 shell-cli、studio-mcp 和 browser-use-mcp，两个命令名等价。不要使用旧的 `xbot_agent` / `python -m xbot_cli` 工作流。Windows 外部适配器须与影刀官方通道分别标明，不反射、注入或绕过影刀 SDK 的公开边界。
+通过 `xbot-cli` 调用影刀内置 shell-cli、studio-mcp 和 browser-use-mcp。不要使用旧的 `xbot_agent` / `python -m xbot_cli` 工作流。Windows 外部适配器须与影刀官方通道分别标明，不反射、注入或绕过影刀 SDK 的公开边界。
 
-本 Skill 随 npm 包 `@guanzhu.me/xbot-cli` 分发，适用于 Windows x64 和 Node.js 22+。使用 `xbot install --skills` 安装到当前工作区，或加 `--global` 安装到用户的 `.agents/skills`。默认操作需要客户端已启动并登录；帮助、schema 和 guide 可离线读取。
+本 Skill 随 npm 包 `@guanzhu.me/xbot-cli` 分发，适用于 Windows x64 和 Node.js 22+。使用 `xbot-cli install --skills` 安装到当前工作区，或加 `--global` 安装到用户的 `.agents/skills`。默认操作需要客户端已启动并登录；帮助、schema 和 guide 可离线读取。
 
 这个 Skill 的目标是把业务需求变成可重复、可验收、可维护的自动化流程。需要参数、输入输出、长期运行或维护时，优先沉淀为 CodeFlow，只有确实适合块编排时才使用 VisualFlow。Skill 不是常驻修复服务。
 

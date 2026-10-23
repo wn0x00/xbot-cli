@@ -510,7 +510,7 @@ mod tests {
         assert!(text.contains(tree));
         assert!(text.contains("快照已保存: page.txt"));
         let warning = json!({"ok":true,"data":{"command":"web.click","applied":true,
-            "warning":{"message":"网页操作已成功，但后续快照获取失败","hint":"先运行 xbot web snapshot；不要重复点击", "cause":{"message":"offline","data":{"raw":"HIDDEN"}}}}});
+            "warning":{"message":"网页操作已成功，但后续快照获取失败","hint":"先运行 xbot-cli web snapshot；不要重复点击", "cause":{"message":"offline","data":{"raw":"HIDDEN"}}}}});
         let text = render(&warning, OutputMode::Text);
         assert!(text.starts_with("已点击元素"));
         assert!(text.contains("原因: offline"));

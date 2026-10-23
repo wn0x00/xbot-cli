@@ -14,7 +14,7 @@ mkdirSync(dist, { recursive: true });
 const packed = JSON.parse(npm(['pack', '--ignore-scripts', '--json', '--pack-destination', dist], {
   encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
 }).stdout)[0];
-const expected = ['LICENSE', 'README.md', 'bin/xbot-cli.cjs', 'native/win32-x64/xbot-cli.exe', 'package.json'].sort();
+const expected = ['LICENSE', 'README.md', 'bin/xbot-cli.cjs', 'native/win32-x64/xbot-cli.exe', 'package.json', 'scripts/preinstall.cjs'].sort();
 assert.deepEqual(packed.files.map(file => file.path).sort(), expected, 'Unexpected npm package content');
 const tarball = join(dist, packed.filename);
 const scratch = mkdtempSync(join(tmpdir(), 'xbot-cli package test '));
@@ -26,7 +26,8 @@ try {
   // Local tarball, no dependencies, and lifecycle scripts disabled: no compiler or download.
   npm(['install', '--global', '--prefix', prefix, '--ignore-scripts', '--offline', '--no-audit', '--no-fund', tarball]);
   const launcher = join(prefix, 'node_modules', ...manifest.name.split('/'), 'bin', 'xbot-cli.cjs');
-  for (const command of ['xbot', 'xbot-cli']) {
+  assert.ok(!existsSync(join(prefix, 'xbot.cmd')), '0.8.2 起不再创建 xbot shim');
+  for (const command of ['xbot-cli']) {
     const shim = join(prefix, `${command}.cmd`);
     assert.ok(existsSync(shim), `npm must create ${command}.cmd`);
     function invokeShim(args) {

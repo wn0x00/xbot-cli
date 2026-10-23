@@ -50,7 +50,7 @@ impl PreparedWeb {
                 && error.code == "MCP_TOOL_FAILED"
                 && error.hint.is_none()
             {
-                error.with_hint("先运行 xbot web snapshot 查看当前页面，确认使用最新快照中可编辑元素（例如 textbox）的编号；选择器已保存不代表填写成功，不要盲目重试")
+                error.with_hint("先运行 xbot-cli web snapshot 查看当前页面，确认使用最新快照中可编辑元素（例如 textbox）的编号；选择器已保存不代表填写成功，不要盲目重试")
             } else {
                 error
             }
@@ -73,7 +73,7 @@ impl PreparedWeb {
                         data["warning"] = json!({
                             "code": "WEB_SNAPSHOT_FAILED",
                             "message": "网页操作已成功，但后续快照获取失败",
-                            "hint": "先运行 xbot web snapshot 查看当前页面；不要重复刚才的操作",
+                            "hint": "先运行 xbot-cli web snapshot 查看当前页面；不要重复刚才的操作",
                             "cause": {
                                 "code": error.code,
                                 "message": error.message,
@@ -391,8 +391,8 @@ mod tests {
     use clap::Parser;
 
     fn parse(args: &[&str]) -> PreparedWeb {
-        let cli =
-            Cli::try_parse_from(["xbot", "web"].into_iter().chain(args.iter().copied())).unwrap();
+        let cli = Cli::try_parse_from(["xbot-cli", "web"].into_iter().chain(args.iter().copied()))
+            .unwrap();
         let Some(Group::Browser(sub)) = cli.group else {
             panic!("web command expected");
         };
