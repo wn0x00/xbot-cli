@@ -36,6 +36,12 @@ pub(crate) struct Cli {
 pub(crate) enum Group {
     /// 输出 CLI 版本
     Version,
+    /// 升级 xbot-cli 到最新版本(由 npm 启动器执行)
+    Update {
+        /// 只检查是否有新版本,不执行升级
+        #[arg(long)]
+        check: bool,
+    },
     /// 查看客户端与当前应用状态
     Status,
     /// 深度检查 shell-cli / MCP / View 通道
@@ -76,12 +82,14 @@ pub(crate) enum Group {
     },
     /// 按需阅读内置开发与排障指南
     Guide { topic: Option<String> },
-    /// 企业版备用入口:显式选择开放 API
+    /// 影刀开放平台 Open API;企业版可选的备用入口
     #[command(
+        name = "oapi",
+        alias = "platform",
         subcommand,
-        long_about = "企业版可选的开放 API 备用入口。仅在用户明确选择此通道并具备企业凭据时使用。\n普通应用运行使用 task run,流程运行使用 flow run/verify;普通命令失败时不会自动切换到开放 API。"
+        long_about = "影刀开放平台 Open API,企业版可选的备用入口,独立于本机客户端。\n先用 oapi auth login 保存 AccessKey;仅在企业凭据可用且明确选择此通道时使用,普通命令失败不会自动切换。\nplatform 是兼容别名,新脚本请使用 oapi。"
     )]
-    Platform(crate::platform_cli::PlatformSub),
+    Oapi(crate::oapi_cli::OapiSub),
     /// 查看命令帮助,例如 help app 或 help flow code write
     Help {
         #[arg(num_args = 0..)]

@@ -1,6 +1,6 @@
 # xbot-cli 命令与行为参考
 
-面向 AI Agent 的影刀（ShadowBot）RPA CLI。默认通过内置 shell-cli、studio-mcp 和 browser-use-mcp 操作和运行应用；`platform` 仅是企业版用户明确选择时的开放 API 备用入口。实验性 Windows UIA 观察使用独立 Python 提供器，不是影刀原生 Selector 引擎。
+面向 AI Agent 的影刀（ShadowBot）RPA CLI。默认通过内置 shell-cli、studio-mcp 和 browser-use-mcp 操作和运行应用；`oapi` 仅是企业版用户明确选择时的开放 API 备用入口。实验性 Windows UIA 观察使用独立 Python 提供器，不是影刀原生 Selector 引擎。
 
 命令按所操作的资源组织：
 
@@ -11,7 +11,7 @@
 | `flow` | Studio 流程的读取、参数、编辑、静态检查与运行 |
 | `flow code` / `flow visual` | CodeFlow 源码和 VisualFlow 块 |
 | `task` | 已发布应用的运行任务、状态、日志与停止 |
-| `platform` | 企业版可选备用入口：开放 API 运行、调度记录与日志 |
+| `oapi` | 企业版可选备用入口：开放 API 运行、调度记录与日志 |
 | `web`（兼容 `browser`） | 打开网页、快照、点击、填写和导航 |
 | `win32 snapshot` | 显式窗口作用域下的实验性只读 UIA 观察 |
 | `tool studio` / `tool browser` | 按 schema 调用原始工具 |
@@ -28,7 +28,7 @@ xbot-cli install --skills --global --json  # 用户 ~/.agents/skills
 
 已有 Skill 内容不同时不会静默覆盖；先查看差异，确认覆盖后追加 `--yes`。自动化调用下文的业务命令时均应显式添加 `--json`，示例中的 `<...>` 需替换为实际标识。
 
-当前源码安装 Skill v10 的 39 个资源。`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。仅在企业版用户明确选择备用入口时读取 `guide platform`。
+当前源码安装 Skill v10 的 39 个资源。`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。仅在企业版用户明确选择备用入口时读取 `guide oapi`。
 
 `locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；依赖与已验证边界见 [Skill v10 升级说明](skill-v10-upgrade.md)。
 
@@ -91,30 +91,36 @@ xbot-cli task logs <task-id>
 xbot-cli task stop <task-id>
 ```
 
-## 企业版备用入口
+## 企业版备用入口(oapi)
 
 普通应用运行、状态和日志继续使用 `task run/status/logs`，Studio 流程继续使用
 `flow run/verify/wait`。只有企业版用户明确选择开放 API 运行、调度或平台日志时才用
-`platform`，不会因凭据存在或普通命令失败而自动切换。
+`oapi`（`platform` 为兼容别名），不会因凭据存在或普通命令失败而自动切换。
 
-此备用入口不依赖本机客户端或 Studio。环境变量配置、接口范围、调度标识关系、
-分页和异步日志恢复详见[平台指南](../skills/xbot-app-dev/references/platform.md)，
-也可离线运行 `xbot-cli guide platform`。
+此备用入口不依赖本机客户端或 Studio。`oapi auth <AccessKeyId> <AccessKeySecret>`
+一条命令完成登录并把凭据保存到本地配置，token 过期前复用、过期后自动刷新，
+`oapi auth logout` 清除当前授权；也可用环境变量 `XBOT_OAPI_ACCESS_KEY_ID` /
+`XBOT_OAPI_ACCESS_KEY_SECRET`（兼容 `XBOT_PLATFORM_*`），专有云设置 `XBOT_OAPI_BASE_URL`。
+接口范围、调度标识关系、分页和异步日志恢复详见[平台指南](../skills/xbot-app-dev/references/oapi.md)，
+也可离线运行 `xbot-cli guide oapi`。
 
 ```powershell
-xbot-cli platform auth status --json
-xbot-cli platform api list --json
-xbot-cli platform api schema job.start --json
-xbot-cli platform api schema log.search --json
-xbot-cli platform schedule runs <scheduleUuid> --json
-xbot-cli platform task status <taskUuid> --json
-xbot-cli platform job status <jobUuid> --json
-xbot-cli platform job logs <jobUuid> --async --timeout 10 --json
+xbot-cli oapi auth status --json
+xbot-cli oapi robot list --json
+xbot-cli oapi app list --json
+xbot-cli oapi job start --app <appId> --robot <accountName> --dry-run --json
+xbot-cli oapi schedule runs <scheduleUuid> --json
+xbot-cli oapi task status <taskUuid> --json
+xbot-cli oapi job status <jobUuid> --json
+xbot-cli oapi job logs <jobUuid> --async --timeout 10 --json
+xbot-cli oapi user list --json
+xbot-cli oapi queue list --json
+xbot-cli oapi api schema job.start --json
 ```
 
 结果在 `data.response` 中保留平台封装。API 成功不代表任务运行成功；
 分析错误时读取任务状态、`remark`、截屏地址和日志。
-原始写接口使用 `platform api call`，支持离线预览并要求 `--yes`。
+写操作（启动、停止、重试、入队、账号变更等）支持离线预览并要求 `--yes`。
 
 ## 应用与流程上下文
 
@@ -132,6 +138,8 @@ xbot-cli platform job logs <jobUuid> --async --timeout 10 --json
 xbot-cli                       # 简短根帮助
 xbot-cli version               # 离线输出一行 CLI 版本
 xbot-cli version --json        # 机器读取 data.name 和 data.version
+xbot-cli update                # 通过 npm 启动器升级到最新版本
+xbot-cli update --check        # 只检查是否有新版本
 xbot-cli app                   # 应用操作与示例
 xbot-cli flow code             # CodeFlow 操作与示例
 xbot-cli tool studio           # 原始工具入口
@@ -151,7 +159,7 @@ xbot-cli app --json            # 紧凑结构化帮助，不是参数 schema
 | `--json` / `--format json` | 明确请求紧凑 JSON，两者等价 |
 | `--format pretty` | JSON 缩进显示，字段与紧凑 JSON 相同 |
 
-显式格式优先于自动选择。`schema` 默认始终输出 JSON；`guide` 默认输出 Markdown 文本；这两个默认值和帮助文本一样不随管道改变。请求 JSON 帮助得到当前层级的简短发现信息，不会展开完整参数 schema。`xbot-cli version`（也可使用 `xbot version`）、`--version` 和 `-V` 离线输出一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。
+显式格式优先于自动选择。`schema` 默认始终输出 JSON；`guide` 默认输出 Markdown 文本；这两个默认值和帮助文本一样不随管道改变。请求 JSON 帮助得到当前层级的简短发现信息，不会展开完整参数 schema。`xbot-cli version`（也可使用 `xbot version`）、`--version` 和 `-V` 离线输出一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。`xbot-cli update` 由 npm 启动器在原生程序启动前完成升级（Windows 不允许替换正在运行的可执行文件），`--check` 只检查不升级；直接对原生可执行文件运行 `update` 会返回 `UPDATE_REQUIRES_LAUNCHER`。
 
 成功结果写 stdout、退出 0。以下为 JSON 模式示例：
 

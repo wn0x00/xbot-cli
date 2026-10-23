@@ -11,7 +11,7 @@ npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 No
 - `app` 管应用生命周期；`flow` 管当前 Studio 流程，源码使用 `flow code`，块使用 `flow visual`。
 - `flow check` 检查整个应用的静态诊断，传入流程时先核验目标（`scope: app`），不启动流程；`flow verify` = 静态诊断 + 实际运行 + Out；已有运行用 `flow wait <run-id>` 继续等待。
 - `task run/stop/status/logs` 管已发布应用的运行任务，使用 task_id，不与 Studio run_id 混用。
-- `platform` 是企业版可选备用入口，只有用户明确选择开放 API 运行/调度或平台日志时才使用。普通命令不读取企业凭据来选择通道，报错后不自动切换；应用仍用 `task run/status/logs`，流程仍用 `flow run/verify/wait`。备用入口的配置及标识关系见 [platform.md](platform.md)。
+- `oapi` 是企业版可选备用入口（`platform` 为兼容别名），只有用户明确选择开放 API 运行/调度或平台日志时才使用。`oapi auth <AccessKeyId> <AccessKeySecret>` 一条命令登录并保存凭据，token 自动刷新，`oapi auth logout` 清除授权。普通命令不读取企业凭据来选择通道，报错后不自动切换；应用仍用 `task run/status/logs`，流程仍用 `flow run/verify/wait`。备用入口的配置及标识关系见 [oapi.md](oapi.md)。
 - `web` 管浏览器上下文、快照与交互，`browser` 是兼容别名。使用 `web click <ref>`、`web fill <ref> <text>`、`web press <key>` 等高层命令，不为常用动作编写 JSON。
 - `tool studio` / `tool browser` 提供 `list/schema/call`；优先资源命令，不足时才用原始工具。
 
@@ -43,6 +43,8 @@ xbot-cli flow wait <run-id> --timeout 600 --expect-app <app-id>
 xbot-cli                       # 简短根帮助，退出 0
 xbot-cli version               # 离线输出一行 CLI 版本
 xbot-cli version --json        # 机器读取 data.name 和 data.version
+xbot-cli update                # 升级 CLI 到最新版本(npm 启动器执行)
+xbot-cli update --check        # 只检查是否有新版本
 xbot-cli app                   # 分组帮助，退出 0
 xbot-cli flow code             # 嵌套分组帮助，退出 0
 xbot-cli tool studio           # 原始工具分组帮助，退出 0
@@ -51,7 +53,7 @@ xbot-cli app --json            # 当前分组的结构化帮助，不是完整 s
 xbot-cli status --json         # 显式机器结果
 ```
 
-裸根命令和纯分组是发现请求，默认显示简短文本帮助；`-h`、`--help`、`help <path>` 默认显示详细文本帮助。帮助写 stdout、退出 0，不访问后端、不检查登录、不初始化应用，即使在管道中也默认保持文本。`xbot-cli version`（也可使用 `xbot version`）、`--version` 和 `-V` 离线返回一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。
+裸根命令和纯分组是发现请求，默认显示简短文本帮助；`-h`、`--help`、`help <path>` 默认显示详细文本帮助。帮助写 stdout、退出 0，不访问后端、不检查登录、不初始化应用，即使在管道中也默认保持文本。`xbot-cli version`（也可使用 `xbot version`）、`--version` 和 `-V` 离线返回一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。`xbot-cli update` 由 npm 启动器在原生程序启动前执行升级（Windows 不允许替换正在运行的可执行文件），`--check` 只检查不升级；升级全局安装时优先使用 `xbot-cli update` 而不是让用户手动拼 npm 命令。
 
 业务结果默认 `--format auto`：stdout 是终端时为简洁文本，非终端时为紧凑 JSON。需要解析结果时显式使用 `--json`，它等价于 `--format json`。`--format text` 强制文本；`--format pretty` 仍是 JSON，仅增加缩进。显式格式优先于自动选择，也可用于帮助、schema 和 guide。
 

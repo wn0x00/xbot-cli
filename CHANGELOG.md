@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/wn0x00/xbot-cli/compare/v0.7.6...v0.8.1) (2026-10-23)
+
+- Add `xbot-cli update`: the npm launcher checks the registry for the latest release and runs the global npm upgrade before the native process starts, since Windows cannot replace a running executable. `xbot-cli update --check` only reports whether a newer version exists.
+- The native `update` subcommand keeps the command discoverable in help and schema; invoked on the bare executable it returns `UPDATE_REQUIRES_LAUNCHER` pointing at the npm entry point. The update notifier now recommends `xbot-cli update`.
+- Rename the enterprise entry point to `xbot-cli oapi` (`platform` remains a compatibility alias). One-line login `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>` verifies and stores credentials locally; the token is cached, reused until expiry and refreshed automatically with the stored keys. `oapi auth logout` clears the current authorization; `XBOT_OAPI_*` environment variables take precedence and legacy `XBOT_PLATFORM_*` names keep working.
+- Wrap the full Open API with friendly commands: `robot list/groups/detail`, `app list/detail/versions/flows/transfer/records`, `job start/stop/retry/list/status/logs`, `task start/stop`, `user list/create/modify/delete/reset-password` and the complete `queue` group. All 44 registered endpoints remain reachable through `oapi api call`; mutating operations require `--yes` and support offline `--dry-run` previews.
+
 ## [0.7.6](https://github.com/wn0x00/xbot-cli/compare/v0.7.5...v0.7.6) (2026-10-23)
 
 - Fix command routing so application runs and diagnostics continue to use the existing client CLI by default. Enterprise `platform` API operations require explicit selection and never become an automatic fallback.

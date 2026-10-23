@@ -129,21 +129,21 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli task run <app-id> --inputs-json @inputs.json",
             "xbot-cli task status <task-id>",
         ],
-        ["platform"] => &[
-            "xbot-cli platform auth status",
-            "xbot-cli platform schedule list --json",
-            "xbot-cli platform job logs <jobUuid> --json",
-            "xbot-cli guide platform",
+        ["oapi"] => &[
+            "xbot-cli oapi auth login --ak <AccessKeyId> --sk <AccessKeySecret>",
+            "xbot-cli oapi robot list --json",
+            "xbot-cli oapi job start --app <appUuid> --robot <accountName> --yes --json",
+            "xbot-cli guide oapi",
         ],
-        ["platform", "api"] => &[
-            "xbot-cli platform api list --json",
-            "xbot-cli platform api schema job.status",
-            "xbot-cli platform api call job.status --body @query.json --json",
+        ["oapi", "api"] => &[
+            "xbot-cli oapi api list --json",
+            "xbot-cli oapi api schema job.status",
+            "xbot-cli oapi api call job.status --body @query.json --json",
         ],
-        ["platform", "job"] => &[
-            "xbot-cli platform job list --status error --json",
-            "xbot-cli platform job status <jobUuid> --json",
-            "xbot-cli platform job logs <jobUuid> --async --timeout 10 --json",
+        ["oapi", "job"] => &[
+            "xbot-cli oapi job list --status error --json",
+            "xbot-cli oapi job status <jobUuid> --json",
+            "xbot-cli oapi job logs <jobUuid> --async --timeout 10 --json",
         ],
         ["win32"] => &[
             "xbot-cli help win32 snapshot",

@@ -9,7 +9,7 @@ use crate::{app_cmds, commands, extra_cmds, flow_cmds, input, web_cmds};
 
 enum Operation {
     Command(Group),
-    Platform(crate::platform::PreparedPlatform),
+    Platform(crate::oapi::PreparedPlatform),
     TaskRun {
         app_id: String,
         inputs: Value,
@@ -194,8 +194,8 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
         other => other,
     };
     match group {
-        Group::Platform(sub) => {
-            let command = crate::platform::prepare(sub)?;
+        Group::Oapi(sub) => {
+            let command = crate::oapi::prepare(sub)?;
             let preview = command.preview();
             let confirmation_required = command.confirmation_required();
             Ok(PreparedCommand {

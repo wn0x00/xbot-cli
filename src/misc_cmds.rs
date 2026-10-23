@@ -11,6 +11,15 @@ pub fn cmd_diag() -> Res<CmdOut> {
     Ok((core::mcp("diagnostics.snapshot", json!({}), 130)?, vec![]))
 }
 
+/// 自升级由 npm 启动器在原生进程启动前完成;原生程序运行时无法替换自身。
+pub fn cmd_update() -> Res<CmdOut> {
+    Err(
+        BackendError::new("UPDATE_REQUIRES_LAUNCHER", "自升级由 npm 启动器执行").with_hint(
+            "使用 npm 安装的 xbot-cli update 升级;或手动运行 npm i -g @guanzhu.me/xbot-cli@latest",
+        ),
+    )
+}
+
 pub fn cmd_state() -> Res<CmdOut> {
     Ok((core::shell_cli(&["system", "state"], 15)?, vec![]))
 }

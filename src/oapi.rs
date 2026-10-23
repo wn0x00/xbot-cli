@@ -11,7 +11,7 @@ use url::Url;
 
 use crate::app_cmds::CmdOut;
 use crate::core::{self, BackendError, Res};
-use crate::platform_cli::*;
+use crate::oapi_cli::*;
 
 const BASE_URL: &str = "https://api.yingdao.com";
 const MAX_RESPONSE: u64 = 20 * 1024 * 1024;
@@ -144,7 +144,7 @@ fn endpoint(name: &str) -> Res<Endpoint> {
         .find(|e| e.name == name || e.id == name || e.path == name)
         .ok_or_else(|| {
             BackendError::new("BAD_ARGS", format!("未知平台接口: {name}"))
-                .with_hint("xbot-cli platform api list --json")
+                .with_hint("xbot-cli oapi api list --json")
         })
 }
 
@@ -152,23 +152,129 @@ fn env_value(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|s| !s.trim().is_empty())
 }
 
+/// XBOT_OAPI_* 优先,XBOT_PLATFORM_* 保持兼容。
+fn env_any(names: &[&str]) -> Option<String> {
+    names.iter().find_map(|name| env_value(name))
+}
+
+fn auth_file() -> Option<PathBuf> {
+    if let Some(path) = env_value("XBOT_OAPI_AUTH_FILE") {
+        return Some(PathBuf::from(path));
+    }
+    env_value("LOCALAPPDATA").map(|dir| PathBuf::from(dir).join("xbot-cli").join("oapi-auth.json"))
+}
+
+fn read_stored_auth() -> Option<Value> {
+    let content = fs::read_to_string(auth_file()?).ok()?;
+    let value: Value = serde_json::from_str(&content).ok()?;
+    Some(value)
+}
+
+fn stored_string(auth: &Value, key: &str) -> Option<String> {
+    auth.get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+}
+
+fn now_epoch() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+/// 缓存 token 提前 60 秒视为过期,避免边界时刻使用将过期 token。
+const TOKEN_SKEW_SECS: u64 = 60;
+
+fn stored_token(auth: &Value) -> Option<(String, u64)> {
+    let token = stored_string(auth, "access_token")?;
+    let expires_at = auth.get("token_expires_at")?.as_u64()?;
+    Some((token, expires_at))
+}
+
+fn write_stored_auth(value: &Value) -> Res<PathBuf> {
+    let path = auth_file()
+        .ok_or_else(|| BackendError::new("PLATFORM_CONFIG", "无法确定本地凭据存储路径"))?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| BackendError::new("FILE_WRITE", e.to_string()))?;
+    }
+    fs::write(&path, serde_json::to_vec_pretty(value).unwrap())
+        .map_err(|e| BackendError::new("FILE_WRITE", e.to_string()))?;
+    Ok(path)
+}
+
+fn mask(value: &str) -> String {
+    let prefix: String = value.chars().take(4).collect();
+    format!("{prefix}***")
+}
+
+/// 凭据来源:环境变量优先,其次 oapi auth login 保存的本地配置。
+#[derive(Default, Clone)]
+struct Credentials {
+    token: Option<String>,
+    key_id: Option<String>,
+    key_secret: Option<String>,
+    base_url: Option<String>,
+    stored_token: Option<(String, u64)>,
+    source: &'static str,
+}
+
+impl Credentials {
+    fn resolve() -> Self {
+        let token = env_any(&["XBOT_OAPI_ACCESS_TOKEN", "XBOT_PLATFORM_ACCESS_TOKEN"]);
+        let key_id = env_any(&["XBOT_OAPI_ACCESS_KEY_ID", "XBOT_PLATFORM_ACCESS_KEY_ID"]);
+        let key_secret = env_any(&[
+            "XBOT_OAPI_ACCESS_KEY_SECRET",
+            "XBOT_PLATFORM_ACCESS_KEY_SECRET",
+        ]);
+        let env_base = env_any(&["XBOT_OAPI_BASE_URL", "XBOT_PLATFORM_BASE_URL"]);
+        if token.is_some() || key_id.is_some() || key_secret.is_some() {
+            return Self {
+                token,
+                key_id,
+                key_secret,
+                base_url: env_base,
+                stored_token: None,
+                source: "environment",
+            };
+        }
+        let stored = read_stored_auth();
+        Self {
+            token: None,
+            key_id: stored
+                .as_ref()
+                .and_then(|a| stored_string(a, "access_key_id")),
+            key_secret: stored
+                .as_ref()
+                .and_then(|a| stored_string(a, "access_key_secret")),
+            base_url: env_base
+                .or_else(|| stored.as_ref().and_then(|a| stored_string(a, "base_url"))),
+            stored_token: stored.as_ref().and_then(stored_token),
+            source: if stored.is_some() {
+                "config_file"
+            } else {
+                "none"
+            },
+        }
+    }
+
+    fn secrets(&self) -> Secrets {
+        Secrets(
+            [&self.token, &self.key_id, &self.key_secret]
+                .into_iter()
+                .flatten()
+                .cloned()
+                .collect(),
+        )
+    }
+}
+
 #[derive(Default)]
 struct Secrets(Vec<String>);
 
 impl Secrets {
-    fn from_env() -> Self {
-        Self(
-            [
-                "XBOT_PLATFORM_ACCESS_TOKEN",
-                "XBOT_PLATFORM_ACCESS_KEY_ID",
-                "XBOT_PLATFORM_ACCESS_KEY_SECRET",
-            ]
-            .iter()
-            .filter_map(|name| env_value(name))
-            .collect(),
-        )
-    }
-
     fn scrub(&self, value: &mut Value) {
         match value {
             Value::String(text) => {
@@ -285,8 +391,8 @@ impl Request {
         };
         if request.endpoint.name == "auth.token" {
             return Err(
-                BackendError::new("BAD_ARGS", "请使用 platform auth check 验证密钥").with_hint(
-                    "通过 XBOT_PLATFORM_ACCESS_KEY_ID / XBOT_PLATFORM_ACCESS_KEY_SECRET 配置凭据",
+                BackendError::new("BAD_ARGS", "请使用 oapi auth check 验证密钥").with_hint(
+                    "运行 xbot-cli oapi auth login --ak <id> --sk <secret> 保存凭据,或设置 XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET",
                 ),
             );
         }
@@ -468,14 +574,14 @@ impl Request {
 
     fn preview(&self) -> Value {
         let mut value = json!({
-            "action":format!("platform.{}",self.endpoint.name),
+            "action":format!("oapi.{}",self.endpoint.name),
             "target":{"endpoint":self.endpoint.name,"method":self.endpoint.method,"path":self.endpoint.path},
             "arguments":{"body":self.body,"query":self.query,"path":self.path},
         });
         if let Some((name, bytes)) = &self.upload {
             value["arguments"]["file"] = json!({"name":name,"bytes":bytes.len()});
         }
-        Secrets::from_env().scrub(&mut value);
+        Credentials::resolve().secrets().scrub(&mut value);
         value
     }
 }
@@ -490,6 +596,13 @@ enum Operation {
         check: bool,
         timeout: u64,
     },
+    Login {
+        key_id: String,
+        key_secret: String,
+        base_url: Option<String>,
+        timeout: u64,
+    },
+    Logout,
     Call {
         request: Box<Request>,
         timeout: u64,
@@ -531,6 +644,13 @@ impl PreparedPlatform {
                 }
                 status
             }
+            Operation::Login {
+                key_id,
+                key_secret,
+                base_url,
+                timeout,
+            } => auth_login(key_id, key_secret, base_url, timeout)?,
+            Operation::Logout => auth_logout(),
             Operation::Call {
                 request,
                 timeout,
@@ -547,6 +667,72 @@ impl PreparedPlatform {
         };
         Ok((data, vec![]))
     }
+}
+
+/// 先用给定密钥联网换取 token 验证有效,再把密钥保存到本地配置。
+fn auth_login(
+    key_id: String,
+    key_secret: String,
+    base_url: Option<String>,
+    timeout: u64,
+) -> Res<Value> {
+    for (name, value) in [("ak", &key_id), ("sk", &key_secret)] {
+        if value.trim().is_empty() {
+            return Err(BackendError::new("BAD_INPUT", format!("--{name} 不能为空")));
+        }
+    }
+    let credentials = Credentials {
+        key_id: Some(key_id.clone()),
+        key_secret: Some(key_secret.clone()),
+        base_url: base_url.or_else(|| env_any(&["XBOT_OAPI_BASE_URL", "XBOT_PLATFORM_BASE_URL"])),
+        ..Default::default()
+    };
+    let mut client = Client::with_credentials(timeout, credentials)?;
+    client.authenticate()?;
+    let expires_at = client.expires_in.map(|secs| now_epoch() + secs);
+    let stored = json!({
+        "access_key_id": key_id,
+        "access_key_secret": key_secret,
+        "base_url": client.base.as_str(),
+        "access_token": client.token,
+        "token_expires_at": expires_at,
+    });
+    let path = write_stored_auth(&stored)?;
+    let env_override = env_any(&[
+        "XBOT_OAPI_ACCESS_KEY_ID",
+        "XBOT_PLATFORM_ACCESS_KEY_ID",
+        "XBOT_OAPI_ACCESS_TOKEN",
+        "XBOT_PLATFORM_ACCESS_TOKEN",
+    ])
+    .is_some();
+    Ok(json!({
+        "saved": true,
+        "auth_file": path.display().to_string(),
+        "base_url": client.base.as_str(),
+        "access_key_id": mask(&key_id),
+        "verified": true,
+        "expires_in": client.expires_in,
+        "token_expires_at": expires_at,
+        "note": if env_override {
+            "环境变量已设置凭据,优先于本地配置;auth status 可查看生效来源"
+        } else {
+            "凭据与 token 已保存,过期后自动用密钥刷新;oapi auth logout 可清除授权"
+        },
+    }))
+}
+
+fn auth_logout() -> Value {
+    let path = auth_file();
+    let removed = path
+        .as_ref()
+        .filter(|p| p.exists())
+        .and_then(|p| fs::remove_file(p).ok())
+        .is_some();
+    json!({
+        "removed": removed,
+        "auth_file": path.map(|p| p.display().to_string()),
+        "note": "环境变量中的凭据不受影响;auth status 可查看生效来源",
+    })
 }
 
 fn insert_optional(body: &mut Value, key: &str, value: Option<String>) {
@@ -568,19 +754,30 @@ fn cursor_body(page: CursorArgs, begin: &str, end: &str) -> (Value, u64) {
     (body, page.http.timeout)
 }
 
-fn call(name: &str, body: Value, timeout: u64, asynchronous: bool) -> Res<PreparedPlatform> {
+fn call_request(
+    name: &str,
+    body: Value,
+    query: Value,
+    path: Value,
+    timeout: u64,
+    asynchronous: bool,
+) -> Res<PreparedPlatform> {
     Ok(PreparedPlatform {
         operation: Operation::Call {
-            request: Box::new(Request::new(name, body, json!({}), json!({}))?),
+            request: Box::new(Request::new(name, body, query, path)?),
             timeout,
             asynchronous,
         },
     })
 }
 
-pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
+fn call(name: &str, body: Value, timeout: u64, asynchronous: bool) -> Res<PreparedPlatform> {
+    call_request(name, body, json!({}), json!({}), timeout, asynchronous)
+}
+
+pub fn prepare(sub: OapiSub) -> Res<PreparedPlatform> {
     let operation = match sub {
-        PlatformSub::Api(ApiSub::List { search }) => {
+        OapiSub::Api(ApiSub::List { search }) => {
             let search = search.unwrap_or_default().to_lowercase();
             let items: Vec<Value> = endpoints()
                 .iter()
@@ -589,13 +786,13 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
                 .collect();
             Operation::Offline(json!({"endpoints":items}))
         }
-        PlatformSub::Api(ApiSub::Schema { endpoint: name }) => {
+        OapiSub::Api(ApiSub::Schema { endpoint: name }) => {
             let endpoint = endpoint(&name)?;
             Operation::Offline(
                 json!({"endpoint":endpoint.summary(),"document":endpoint.document()}),
             )
         }
-        PlatformSub::Docs { id } => Operation::Offline(if let Some(id) = id {
+        OapiSub::Docs { id } => Operation::Offline(if let Some(id) = id {
             documents()
                 .iter()
                 .find(|doc| doc["id"] == id)
@@ -604,15 +801,425 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
         } else {
             json!({"documents":documents().iter().map(|d| json!({"id":d["id"],"title":d["title"],"url":d["url"]})).collect::<Vec<_>>()})
         }),
-        PlatformSub::Auth(AuthSub::Status) => Operation::Auth {
-            check: false,
-            timeout: 30,
-        },
-        PlatformSub::Auth(AuthSub::Check { http }) => Operation::Auth {
-            check: true,
-            timeout: http.timeout,
-        },
-        PlatformSub::Api(ApiSub::Call {
+        OapiSub::Auth(auth) => {
+            let AuthArgs {
+                credentials,
+                command,
+            } = auth;
+            match command {
+                Some(AuthSub::Status) => Operation::Auth {
+                    check: false,
+                    timeout: 30,
+                },
+                Some(AuthSub::Check { http }) => Operation::Auth {
+                    check: true,
+                    timeout: http.timeout,
+                },
+                Some(AuthSub::Login {
+                    ak,
+                    sk,
+                    base_url,
+                    http,
+                }) => Operation::Login {
+                    key_id: ak,
+                    key_secret: sk,
+                    base_url,
+                    timeout: http.timeout,
+                },
+                Some(AuthSub::Logout) => Operation::Logout,
+                None => {
+                    let [ak, sk]: &[String] = &credentials else {
+                        return Err(BackendError::new(
+                            "BAD_ARGS",
+                            "oapi auth 需要 <AccessKeyId> <AccessKeySecret> 两个参数",
+                        )
+                        .with_hint("或使用 oapi auth status / check / login / logout 子命令"));
+                    };
+                    Operation::Login {
+                        key_id: ak.clone(),
+                        key_secret: sk.clone(),
+                        base_url: None,
+                        timeout: 30,
+                    }
+                }
+            }
+        }
+        OapiSub::App(AppSub::List {
+            search,
+            owner,
+            page,
+            size,
+            http,
+        }) => {
+            let mut body = json!({"page":page.to_string(),"size":size.to_string()});
+            insert_optional(&mut body, "appName", search);
+            insert_optional(&mut body, "ownerUserSearchKey", owner);
+            return call("app.list", body, http.timeout, false);
+        }
+        OapiSub::App(AppSub::Detail { app_id, dev, http }) => {
+            let (name, query) = if dev {
+                ("app.version-detail", json!({"appId":app_id}))
+            } else {
+                ("app.online-detail", json!({"appId":app_id}))
+            };
+            return call_request(name, json!({}), query, json!({}), http.timeout, false);
+        }
+        OapiSub::App(AppSub::Flows { app_id, http }) => {
+            return call_request(
+                "app.flows",
+                json!({}),
+                json!({"appId":app_id}),
+                json!({}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::App(AppSub::Transfer {
+            app_id,
+            receive,
+            http,
+        }) => {
+            return call(
+                "app.transfer",
+                json!({"appId":app_id,"receiveUserAccount":receive}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::User(UserSub::List {
+            search,
+            phone,
+            page,
+            size,
+            http,
+        }) => {
+            let mut query = json!({"page":page,"size":size});
+            insert_optional(&mut query, "accountKeyword", search);
+            insert_optional(&mut query, "phone", phone);
+            return call_request(
+                "user.list",
+                json!({}),
+                query,
+                json!({}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::User(UserSub::Create {
+            name,
+            account,
+            phone,
+            email,
+            account_type,
+            role,
+            password,
+            http,
+        }) => {
+            let mut body = json!({
+                "name":name, "account":account, "phone":phone,
+                "accountType":account_type, "userRole":role, "password":password,
+            });
+            insert_optional(&mut body, "email", email);
+            return call("user.create", body, http.timeout, false);
+        }
+        OapiSub::User(UserSub::Modify {
+            account,
+            name,
+            phone,
+            email,
+            role,
+            http,
+        }) => {
+            let mut body = json!({"account":account});
+            insert_optional(&mut body, "name", name);
+            insert_optional(&mut body, "phone", phone);
+            insert_optional(&mut body, "email", email);
+            insert_optional(&mut body, "userRole", role);
+            return call("user.modify", body, http.timeout, false);
+        }
+        OapiSub::User(UserSub::Delete {
+            account,
+            receive,
+            http,
+        }) => {
+            return call(
+                "user.delete",
+                json!({"account":account,"receiveAccount":receive}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::User(UserSub::ResetPassword {
+            account,
+            old,
+            new,
+            http,
+        }) => {
+            return call(
+                "user.reset-password",
+                json!({"loginAccount":account,"oldPwd":old,"pwd":new}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Queue(QueueSub::List {
+            search,
+            page,
+            size,
+            http,
+        }) => {
+            let mut query = json!({"page":page,"size":size});
+            insert_optional(&mut query, "keyword", search);
+            return call_request(
+                "queue.list",
+                json!({}),
+                query,
+                json!({}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Queue(QueueSub::Items {
+            queue_uuid,
+            status,
+            page,
+            size,
+            http,
+        }) => {
+            let mut query = json!({"page":page,"size":size});
+            insert_optional(&mut query, "status", status);
+            return call_request(
+                "queue.items",
+                json!({}),
+                query,
+                json!({"queueUuid":queue_uuid}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Queue(QueueSub::Enqueue {
+            queue_uuid,
+            name,
+            priority,
+            biz_info,
+            description,
+            effective_time,
+            expire_time,
+            http,
+        }) => {
+            if !(1..=100).contains(&name.chars().count()) {
+                return Err(BackendError::new("BAD_INPUT", "--name 长度必须在1~100之间"));
+            }
+            if !(1..=1000).contains(&biz_info.chars().count()) {
+                return Err(BackendError::new(
+                    "BAD_INPUT",
+                    "--biz-info 长度必须在1~1000之间",
+                ));
+            }
+            let mut body = json!({
+                "name":name,
+                "priority":priority.parse::<u64>().unwrap_or(100),
+                "bizInfo":biz_info,
+                "source":"OpenAPI",
+            });
+            insert_optional(&mut body, "description", description);
+            if let Some(value) = effective_time {
+                body["effectiveTime"] = json!(value);
+            }
+            if let Some(value) = expire_time {
+                body["expireTime"] = json!(value);
+            }
+            return call_request(
+                "queue.enqueue",
+                body,
+                json!({}),
+                json!({"queueUuid":queue_uuid}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Queue(QueueSub::Dequeue { queue_uuid, http }) => {
+            return call_request(
+                "queue.dequeue",
+                json!({}),
+                json!({}),
+                json!({"queueUuid":queue_uuid}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Queue(QueueSub::Modify {
+            item_uuid,
+            status,
+            description,
+            http,
+        }) => {
+            let mut body = json!({"status":status});
+            insert_optional(&mut body, "description", description);
+            return call_request(
+                "queue.modify",
+                body,
+                json!({}),
+                json!({"itemUuid":item_uuid}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Queue(QueueSub::Reenqueue { item_uuid, http }) => {
+            return call_request(
+                "queue.reenqueue",
+                json!({}),
+                json!({}),
+                json!({"itemUuid":item_uuid}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Queue(QueueSub::Count { queue_uuid, http }) => {
+            return call_request(
+                "queue.count",
+                json!({}),
+                json!({}),
+                json!({"queueUuid":queue_uuid}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Queue(QueueSub::Statuses { http }) => {
+            return call("queue.statuses", json!({}), http.timeout, false);
+        }
+        OapiSub::Queue(QueueSub::BatchStatus {
+            queue_uuid,
+            from,
+            to,
+            http,
+        }) => {
+            return call_request(
+                "queue.batch-status",
+                json!({"sourceStatus":from,"targetStatus":to}),
+                json!({}),
+                json!({"queueUuid":queue_uuid}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::App(AppSub::Versions {
+            app_id,
+            page,
+            size,
+            http,
+        }) => {
+            return call(
+                "app.versions",
+                json!({"appId":app_id,"pageDTO":{"page":page,"size":size}}),
+                http.timeout,
+                false,
+            );
+        }
+        OapiSub::Robot(RobotSub::List {
+            search,
+            status,
+            group,
+            page,
+            size,
+            http,
+        }) => {
+            let mut body = json!({"page":page,"size":size});
+            insert_optional(&mut body, "key", search);
+            insert_optional(&mut body, "status", status);
+            insert_optional(&mut body, "robotClientGroupUuid", group);
+            return call("robot.list", body, http.timeout, false);
+        }
+        OapiSub::Robot(RobotSub::Groups {
+            search,
+            page,
+            size,
+            http,
+        }) => {
+            let mut body = json!({"page":page,"size":size});
+            insert_optional(&mut body, "key", search);
+            return call("robot.groups", body, http.timeout, false);
+        }
+        OapiSub::Robot(RobotSub::Detail { robot, uuid, http }) => {
+            if robot.is_none() && uuid.is_none() {
+                return Err(BackendError::new(
+                    "BAD_INPUT",
+                    "--robot 或 --uuid 必须提供一个",
+                ));
+            }
+            let mut body = json!({});
+            insert_optional(&mut body, "accountName", robot);
+            insert_optional(&mut body, "robotClientUuid", uuid);
+            return call("robot.detail", body, http.timeout, false);
+        }
+        OapiSub::Job(JobSub::Start {
+            app,
+            robot,
+            group,
+            scope,
+            params,
+            run_timeout,
+            idempotent,
+            callback,
+            summary,
+            http,
+        }) => {
+            if robot.is_none() && group.is_none() {
+                return Err(BackendError::new(
+                    "BAD_INPUT",
+                    "--robot 或 --group 必须提供一个",
+                ));
+            }
+            let mut body = json!({"robotUuid":app});
+            insert_optional(&mut body, "accountName", robot);
+            let grouped = group.is_some();
+            insert_optional(&mut body, "robotClientGroupUuid", group);
+            if grouped {
+                body["executeScope"] = json!(scope);
+            }
+            if let Some(raw) = params {
+                let value = core::json_arg(&raw)?;
+                if !value.is_array() {
+                    return Err(BackendError::new(
+                        "BAD_INPUT",
+                        "--params 必须是 JSON 数组,如 [{\"name\":\"x\",\"value\":\"1\",\"type\":\"str\"}]",
+                    ));
+                }
+                body["params"] = value;
+            }
+            if let Some(seconds) = run_timeout {
+                body["runTimeout"] = json!(seconds);
+            }
+            if let Some(value) = idempotent {
+                if value.chars().count() > 36 {
+                    return Err(BackendError::new(
+                        "BAD_INPUT",
+                        "--idempotent 不能超过36字符",
+                    ));
+                }
+                body["idempotentUuid"] = json!(value);
+            }
+            insert_optional(&mut body, "callbackUrl", callback);
+            if let Some(value) = summary {
+                if value.chars().count() > 128 {
+                    return Err(BackendError::new("BAD_INPUT", "--summary 不能超过128字符"));
+                }
+                body["summary"] = json!(value);
+            }
+            return call("job.start", body, http.timeout, false);
+        }
+        OapiSub::Job(JobSub::Stop { job_uuid, http }) => {
+            return call("job.stop", json!({"jobUuid":job_uuid}), http.timeout, false)
+        }
+        OapiSub::Job(JobSub::Retry { job_uuid, http }) => {
+            return call(
+                "job.retry",
+                json!({"jobUuid":job_uuid}),
+                http.timeout,
+                false,
+            )
+        }
+        OapiSub::Api(ApiSub::Call {
             endpoint,
             body,
             query,
@@ -641,7 +1248,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
                 asynchronous: false,
             }
         }
-        PlatformSub::Job(JobSub::List {
+        OapiSub::Job(JobSub::List {
             app,
             schedule,
             robot,
@@ -653,7 +1260,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
             insert_optional(&mut body, "robotClientUuid", robot);
             return call("job.list", body, timeout, false);
         }
-        PlatformSub::Job(JobSub::Status { job_uuid, http }) => {
+        OapiSub::Job(JobSub::Status { job_uuid, http }) => {
             return call(
                 "job.status",
                 json!({"jobUuid":job_uuid}),
@@ -661,7 +1268,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
                 false,
             )
         }
-        PlatformSub::Job(JobSub::Logs {
+        OapiSub::Job(JobSub::Logs {
             job_uuid,
             page,
             size,
@@ -687,7 +1294,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
                 asynchronous,
             );
         }
-        PlatformSub::Schedule(ScheduleSub::List {
+        OapiSub::Schedule(ScheduleSub::List {
             search,
             page,
             size,
@@ -697,7 +1304,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
             insert_optional(&mut body, "key", search);
             return call("schedule.list", body, http.timeout, false);
         }
-        PlatformSub::Schedule(ScheduleSub::Detail {
+        OapiSub::Schedule(ScheduleSub::Detail {
             schedule_uuid,
             http,
         }) => {
@@ -708,7 +1315,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
                 false,
             )
         }
-        PlatformSub::Schedule(ScheduleSub::Runs {
+        OapiSub::Schedule(ScheduleSub::Runs {
             schedule_uuid,
             page,
         }) => {
@@ -716,7 +1323,43 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
             body["sourceUuid"] = json!(schedule_uuid);
             return call("task.runs", body, timeout, false);
         }
-        PlatformSub::Task(TaskSub::Latest { page, size, http }) => {
+        OapiSub::Task(TaskSub::Start {
+            schedule_uuid,
+            idempotent,
+            params,
+            http,
+        }) => {
+            let mut body = json!({"scheduleUuid":schedule_uuid});
+            if let Some(value) = idempotent {
+                if value.chars().count() > 36 {
+                    return Err(BackendError::new(
+                        "BAD_INPUT",
+                        "--idempotent 不能超过36字符",
+                    ));
+                }
+                body["idempotentUuid"] = json!(value);
+            }
+            if let Some(raw) = params {
+                let value = core::json_arg(&raw)?;
+                if !value.is_array() {
+                    return Err(BackendError::new(
+                        "BAD_INPUT",
+                        "--params 必须是 JSON 数组,每项含 robotUuid 及对应的 params",
+                    ));
+                }
+                body["scheduleRelaParams"] = value;
+            }
+            return call("task.start", body, http.timeout, false);
+        }
+        OapiSub::Task(TaskSub::Stop { task_uuid, http }) => {
+            return call(
+                "task.stop",
+                json!({"taskUuid":task_uuid}),
+                http.timeout,
+                false,
+            )
+        }
+        OapiSub::Task(TaskSub::Latest { page, size, http }) => {
             return call(
                 "task.latest",
                 json!({"page":page,"size":size}),
@@ -724,7 +1367,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
                 false,
             )
         }
-        PlatformSub::Task(TaskSub::Status { task_uuid, http }) => {
+        OapiSub::Task(TaskSub::Status { task_uuid, http }) => {
             return call(
                 "task.status",
                 json!({"taskUuid":task_uuid}),
@@ -732,7 +1375,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
                 false,
             )
         }
-        PlatformSub::Task(TaskSub::Jobs {
+        OapiSub::Task(TaskSub::Jobs {
             task_uuid,
             robot,
             http,
@@ -744,7 +1387,7 @@ pub fn prepare(sub: PlatformSub) -> Res<PreparedPlatform> {
                 false,
             )
         }
-        PlatformSub::App(AppSub::Records {
+        OapiSub::App(AppSub::Records {
             app,
             from,
             to,
@@ -771,6 +1414,8 @@ struct Client {
     token: Option<String>,
     key_id: Option<String>,
     key_secret: Option<String>,
+    stored_token: Option<(String, u64)>,
+    source: &'static str,
     secrets: Secrets,
     expires_in: Option<u64>,
     deadline: Instant,
@@ -779,7 +1424,14 @@ struct Client {
 
 impl Client {
     fn new(timeout: u64) -> Res<Self> {
-        let raw_base = env_value("XBOT_PLATFORM_BASE_URL").unwrap_or_else(|| BASE_URL.into());
+        Self::with_credentials(timeout, Credentials::resolve())
+    }
+
+    fn with_credentials(timeout: u64, credentials: Credentials) -> Res<Self> {
+        let raw_base = credentials
+            .base_url
+            .clone()
+            .unwrap_or_else(|| BASE_URL.into());
         let base = Url::parse(&raw_base)
             .map_err(|_| BackendError::new("PLATFORM_CONFIG", "平台地址无效"))?;
         let loopback = matches!(base.host_str(), Some("127.0.0.1" | "[::1]" | "localhost"));
@@ -796,12 +1448,15 @@ impl Client {
                 "平台地址必须是 HTTPS origin;本地测试可用 HTTP loopback",
             ));
         }
+        let secrets = credentials.secrets();
         Ok(Self {
             base,
-            token: env_value("XBOT_PLATFORM_ACCESS_TOKEN"),
-            key_id: env_value("XBOT_PLATFORM_ACCESS_KEY_ID"),
-            key_secret: env_value("XBOT_PLATFORM_ACCESS_KEY_SECRET"),
-            secrets: Secrets::from_env(),
+            token: credentials.token,
+            key_id: credentials.key_id,
+            key_secret: credentials.key_secret,
+            stored_token: credentials.stored_token,
+            source: credentials.source,
+            secrets,
             expires_in: None,
             deadline: Instant::now() + Duration::from_secs(timeout),
             agent: ureq::AgentBuilder::new().redirects(0).build(),
@@ -809,14 +1464,26 @@ impl Client {
     }
 
     fn status(&self) -> Value {
+        let credentials = Credentials::resolve();
+        let file = auth_file();
+        let cached = self
+            .stored_token
+            .as_ref()
+            .map(|(_, expires_at)| *expires_at > now_epoch() + TOKEN_SKEW_SECS)
+            .unwrap_or(false);
         json!({
             "base_url":self.base.as_str(),
             "access_token_configured":self.token.is_some(),
             "access_key_id_configured":self.key_id.is_some(),
             "access_key_secret_configured":self.key_secret.is_some(),
-            "credential_source":if self.token.is_some() {"access_token"} else {"access_key"},
+            "access_key_id":self.key_id.as_deref().map(mask),
+            "credential_source":credentials.source,
+            "token_cached":cached,
+            "token_expires_at":self.stored_token.as_ref().map(|(_, e)| *e),
+            "auth_file":file.as_ref().map(|p| p.display().to_string()),
+            "auth_file_exists":file.is_some_and(|p| p.exists()),
             "verified":false,
-            "configuration":"XBOT_PLATFORM_BASE_URL / XBOT_PLATFORM_ACCESS_TOKEN / XBOT_PLATFORM_ACCESS_KEY_ID / XBOT_PLATFORM_ACCESS_KEY_SECRET",
+            "configuration":"XBOT_OAPI_BASE_URL / XBOT_OAPI_ACCESS_TOKEN / XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET(兼容 XBOT_PLATFORM_*),或 xbot-cli oapi auth <ak> <sk>",
         })
     }
 
@@ -833,9 +1500,19 @@ impl Client {
         if self.token.is_some() {
             return Ok(());
         }
+        // 本地配置保存的未过期 token 直接复用;过期后走密钥自动刷新。
+        if self.source == "config_file" {
+            if let Some((token, expires_at)) = &self.stored_token {
+                if *expires_at > now_epoch() + TOKEN_SKEW_SECS {
+                    self.token = Some(token.clone());
+                    self.secrets.0.push(token.clone());
+                    return Ok(());
+                }
+            }
+        }
         let (Some(key_id), Some(key_secret)) = (&self.key_id, &self.key_secret) else {
             return Err(BackendError::new("PLATFORM_AUTH", "尚未配置平台 API 凭据")
-                .with_hint("设置 XBOT_PLATFORM_ACCESS_KEY_ID 和 XBOT_PLATFORM_ACCESS_KEY_SECRET;也可设置 XBOT_PLATFORM_ACCESS_TOKEN"));
+                .with_hint("运行 xbot-cli oapi auth <AccessKeyId> <AccessKeySecret> 保存凭据;或设置 XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET(兼容 XBOT_PLATFORM_*)"));
         };
         let request = Request {
             endpoint: endpoint("auth.token")?,
@@ -865,6 +1542,14 @@ impl Client {
         }
         self.token = Some(token.to_owned());
         self.secrets.0.push(token.to_owned());
+        // 密钥登录的 token 持久化到本地配置,过期前直接复用;写失败不影响本次调用。
+        if self.source == "config_file" {
+            if let Some(mut stored) = read_stored_auth() {
+                stored["access_token"] = json!(token);
+                stored["token_expires_at"] = json!(now_epoch() + self.expires_in.unwrap_or(0));
+                let _ = write_stored_auth(&stored);
+            }
+        }
         Ok(())
     }
 
@@ -994,7 +1679,7 @@ impl Client {
                 "PLATFORM_AUTH",
                 "检查平台 API 密钥、token、企业权限与平台地址",
             ),
-            400 => ("BAD_INPUT", "使用 platform api schema 查看此接口参数"),
+            400 => ("BAD_INPUT", "使用 oapi api schema 查看此接口参数"),
             429 => ("PLATFORM_RATE_LIMIT", "已触发平台限流,稍后重试"),
             80204002 => (
                 "PLATFORM_LOG_PENDING",

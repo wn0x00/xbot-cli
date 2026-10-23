@@ -165,6 +165,38 @@ fn version_is_one_text_line_or_explicit_json_without_backend_access() {
 }
 
 #[test]
+fn update_subcommand_is_discoverable_and_defers_to_the_npm_launcher() {
+    let root = json_success(&invoke(&["schema"]));
+    assert!(root["data"]["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|command| command["name"] == "update"));
+    let schema = json_success(&invoke(&["schema", "update"]));
+    assert_eq!(schema["data"]["name"], "update");
+    assert_eq!(schema["data"]["context"], "local");
+    assert_eq!(
+        schema["data"]["effects"],
+        serde_json::json!(["self_update"])
+    );
+    let help = stdout(&invoke(&["update", "--help"]));
+    assert!(help.contains("Usage: xbot-cli update"));
+    assert!(help.contains("--check"));
+    // 原生程序正在运行时无法替换自身;通过 npm 启动器执行才是真正的升级。
+    for args in [
+        vec!["update", "--json"],
+        vec!["update", "--check", "--json"],
+    ] {
+        let output = invoke(&args);
+        assert!(!output.status.success(), "args={args:?}");
+        assert!(output.stdout.is_empty());
+        let value: Value = serde_json::from_slice(&output.stderr).unwrap();
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"]["code"], "UPDATE_REQUIRES_LAUNCHER");
+    }
+}
+
+#[test]
 fn version_subcommand_is_discoverable_and_validates_arguments() {
     let root = json_success(&invoke(&["schema"]));
     assert!(root["data"]["commands"]

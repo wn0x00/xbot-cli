@@ -47,6 +47,7 @@ pub fn canonical_path(path: &[&str]) -> Vec<String> {
             [vec!["web", "go-forward"], rest.to_vec()].concat()
         }
         ["browser", rest @ ..] => [vec!["web"], rest.to_vec()].concat(),
+        ["platform", rest @ ..] => [vec!["oapi"], rest.to_vec()].concat(),
         _ => path.to_vec(),
     };
     words.into_iter().map(str::to_owned).collect()
@@ -72,12 +73,22 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         ["task", "run"] => (&["execute"], "console", true, "none"),
         ["task", "stop"] => (&["stop_execution"], "console", true, "none"),
         ["task", ..] => (&["read"], "console", false, "none"),
-        ["platform", "api", "call"] => (&["endpoint_defined"], "platform", true, "when_mutating"),
-        ["platform", "api", ..] | ["platform", "docs"] | ["platform", "auth", "status"] => {
+        ["oapi", "api", "call"] => (&["endpoint_defined"], "platform", true, "when_mutating"),
+        ["oapi", "auth", "login"] => (&["authenticate", "write_files"], "platform", false, "none"),
+        ["oapi", "auth", "logout"] => (&["write_files"], "local", false, "none"),
+        ["oapi", "api", ..] | ["oapi", "docs"] | ["oapi", "auth", "status"] => {
             (&["read"], "local", false, "none")
         }
-        ["platform", "auth", "check"] => (&["authenticate"], "platform", false, "none"),
-        ["platform", ..] => (&["read"], "platform", true, "none"),
+        ["oapi", "auth", "check"] => (&["authenticate"], "platform", false, "none"),
+        ["oapi", "job" | "task", "start" | "stop" | "retry"] => {
+            (&["execute"], "platform", true, "always")
+        }
+        ["oapi", "user", "create" | "modify" | "delete" | "reset-password"]
+        | ["oapi", "app", "transfer"]
+        | ["oapi", "queue", "enqueue" | "dequeue" | "modify" | "reenqueue" | "batch-status"] => {
+            (&["write"], "platform", true, "always")
+        }
+        ["oapi", ..] => (&["read"], "platform", true, "none"),
         ["flow", "run" | "verify"] => (&["execute"], "studio", true, "none"),
         ["flow", "stop"] => (&["stop_execution"], "studio", true, "none"),
         ["flow", "create"]
@@ -100,6 +111,7 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         ["tool", ..] => (&["read"], "service", false, "none"),
         ["wiki", ..] => (&["read"], "service", false, "none"),
         ["install"] => (&["write_files"], "local", true, "when_overwriting"),
+        ["update"] => (&["self_update"], "local", false, "none"),
         _ => (&["read"], "local", false, "none"),
     };
     CommandMetadata {
@@ -347,7 +359,7 @@ fn visual_groups_shape() -> Value {
 
 fn input_shapes(path: &[&str]) -> Value {
     match path {
-        ["platform", "api", "call"] => json!({
+        ["oapi", "api", "call"] => json!({
             "body":json_input(json!({"type":"object"})),
             "query":json_input(json!({"type":"object","additionalProperties":{"type":["string","number","boolean","null"]}})),
             "path":json_input(json!({"type":"object","additionalProperties":{"type":"string","minLength":1}})),
@@ -402,7 +414,7 @@ fn input_shapes(path: &[&str]) -> Value {
 
 fn dynamic_schema_hint(path: &[&str]) -> Option<&'static str> {
     match path {
-        ["platform", "api", "call"] => Some("xbot-cli platform api schema <endpoint>"),
+        ["oapi", "api", "call"] => Some("xbot-cli oapi api schema <endpoint>"),
         ["tool", "studio", ..] => Some("xbot-cli tool studio schema <tool>"),
         ["tool", "browser", ..] => Some("xbot-cli tool browser schema <tool>"),
         ["web", "act" | "click" | "dblclick" | "fill" | "type" | "press" | "hover" | "select" | "check"

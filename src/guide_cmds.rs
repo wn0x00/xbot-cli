@@ -20,7 +20,7 @@ const WIN_UIA_RUNTIME: &str = include_str!("../skills/xbot-app-dev/scripts/win32
 const WIN_UIA_RUNNER: &str = include_str!("../skills/xbot-app-dev/scripts/win32/run_uia.py");
 const WIN_REPAIR: &str = include_str!("../skills/xbot-app-dev/references/win-repair.md");
 const CLI_CONTRACT: &str = include_str!("../skills/xbot-app-dev/references/cli-contract.md");
-const PLATFORM: &str = include_str!("../skills/xbot-app-dev/references/platform.md");
+const OAPI: &str = include_str!("../skills/xbot-app-dev/references/oapi.md");
 const CODEFLOW: &str = include_str!("../skills/xbot-app-dev/references/codeflow.md");
 const VISUALFLOW: &str = include_str!("../skills/xbot-app-dev/references/visualflow.md");
 const BROWSER: &str = include_str!("../skills/xbot-app-dev/references/browser.md");
@@ -105,10 +105,11 @@ const TOPICS: &[(&str, &str, &str)] = &[
         COLLECTION_REPAIR,
     ),
     (
-        "platform",
-        "企业版可选备用入口:开放 API 运行与调度日志",
-        PLATFORM,
+        "oapi",
+        "开放平台 Open API:授权、机器人、原子调度与调度日志",
+        OAPI,
     ),
+    ("platform", "oapi 主题的兼容别名", OAPI),
 ];
 
 pub fn cmd_guide(topic: Option<&str>) -> Res<CmdOut> {
@@ -191,7 +192,7 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
             WIN_UIA_RUNNER,
         ),
         (root.join("references").join("win-repair.md"), WIN_REPAIR),
-        (root.join("references").join("platform.md"), PLATFORM),
+        (root.join("references").join("oapi.md"), OAPI),
         (
             root.join("references").join("cli-contract.md"),
             CLI_CONTRACT,

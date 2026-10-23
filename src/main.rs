@@ -9,10 +9,10 @@ mod guide_cmds;
 mod help;
 mod input;
 mod misc_cmds;
+mod oapi;
+mod oapi_cli;
 mod output;
 mod plan;
-mod platform;
-mod platform_cli;
 mod schema_cmds;
 mod web_cmds;
 mod win32_cmds;
@@ -168,6 +168,12 @@ fn run(args: Vec<OsString>, terminal: bool) -> i32 {
         }
     };
     let path = command_path(&matches);
+    // oapi auth <ak> <sk> 是登录动作而不是分组发现;只有裸分组才显示帮助。
+    let positional_auth_login = matches
+        .subcommand_matches("oapi")
+        .and_then(|m| m.subcommand_matches("auth"))
+        .and_then(|m| m.get_many::<String>("credentials"))
+        .is_some_and(|values| values.len() > 0);
     if let Some(("help", help_matches)) = matches.subcommand() {
         let target: Vec<String> = help_matches
             .get_many::<String>("path")
@@ -175,7 +181,7 @@ fn run(args: Vec<OsString>, terminal: bool) -> i32 {
             .unwrap_or_default();
         return show_help(&root, &target, true, requested_mode(&args, terminal, true));
     }
-    if path.is_empty() || help::is_group(&root, &path) {
+    if path.is_empty() || (help::is_group(&root, &path) && !positional_auth_login) {
         if matches.get_flag("dry_run")
             || matches.get_flag("yes")
             || matches.get_one::<String>("expect_app").is_some()

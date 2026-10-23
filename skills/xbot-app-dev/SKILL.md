@@ -15,7 +15,7 @@ metadata:
 
 普通应用运行用 `task run`，查询状态和报错用 `task status/logs`，Studio 流程运行用
 `flow run/verify`。只有企业版用户明确选择开放 API 运行、调度或平台日志时，才按需读取
-[企业版备用入口](references/platform.md) 并使用 `platform`。凭据存在、客户端离线或普通
+[企业版备用入口](references/oapi.md) 并使用 `oapi`。凭据存在、客户端离线或普通
 命令失败都不构成切换依据；已有执行结果未知时先查询原任务，不能换通道再次启动应用。
 
 ## 平台模块
@@ -124,7 +124,7 @@ xbot-cli flow visual snapshots report --expect-app <app-id> --json
 | 触发条件 | 必读 |
 |---|---|
 | 查询帮助、选择输出格式、解析 stdout/stderr、退出码、`--dry-run`、`--yes`、schema、上下文或原始工具 | [references/cli-contract.md](references/cli-contract.md) |
-| 企业版用户明确选择开放 API 运行/调度，或明确指定平台 jobUuid/taskUuid/scheduleUuid 查询云端日志 | [references/platform.md](references/platform.md)，仅此备用入口使用企业 API 凭据 |
+| 企业版用户明确选择开放 API 运行/调度，或明确指定平台 jobUuid/taskUuid/scheduleUuid 查询云端日志 | [references/oapi.md](references/oapi.md)，仅此备用入口使用企业 API 凭据 |
 | 新建或维护流程、流程分组、元素库命名、编码变量命名 | [references/project-conventions.md](references/project-conventions.md) |
 | 新建/修改/调试 CodeFlow、声明 In/Out、安装 pip 依赖 | [references/codeflow.md](references/codeflow.md) |
 | 新建/修改/调试 VisualFlow、块字段、变量或快照 | [references/visualflow.md](references/visualflow.md) |

@@ -111,7 +111,7 @@ try {
   }
   assert.match(invoke(['guide', 'cli-contract']).stdout, /^# /);
   for (const [topic, resource] of [
-    ['platform', 'references/platform.md'],
+    ['oapi', 'references/oapi.md'],
     ['automation-routing', 'references/automation-routing.md'],
     ['web-module', 'modules/web.md'],
     ['win-design', 'modules/win.md'],

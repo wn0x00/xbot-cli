@@ -67,7 +67,7 @@ test('update notice prints once per version over the launcher', async () => {
     const first = await run();
     assert.equal(first.stdout.trim(), `xbot-cli ${version}`);
     assert.match(first.stderr, /新版本 xbot-cli 999\.0\.0 可用/);
-    assert.match(first.stderr, new RegExp(`npm i -g .* 更新`));
+    assert.match(first.stderr, /xbot-cli update 升级/);
 
     const second = await run();
     assert.equal(second.stdout.trim(), `xbot-cli ${version}`);
