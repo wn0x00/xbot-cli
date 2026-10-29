@@ -35,7 +35,7 @@ xbot-cli flow wait <run-id> --timeout 600 --expect-app <app-id>
 
 打开、附着、导航和常用交互成功后自动读取快照，可加 `--no-snapshot` 跳过；`web close` 不读取快照。动作成功后取快照失败仍返回 `ok: true`、退出 0，并提供 warning 和 `applied: true`。此时只补取 `web snapshot`，不要重放动作。快照保留后端元数据，可能是增量；ref 必须来自当前页面证据。`web snapshot --output <file>`（别名 `--filename`）保存文本，不覆盖已有文件。
 
-`--name` 指定元素暂存选择器名称；省略时 CLI 自动生成唯一中文临时名。操作会在后端暂存名称，只有 `web_review` 才将选定的选择器写入项目元素库。`web eval` 是注入 `activePage` 的只读 Playwright 函数体，不接受任意写入脚本来代替交互命令。
+`--name` 仅为旧调用保留兼容参数，Chrome Bridge 不暂存选择器，也不写入影刀元素库。`web eval` 是注入 `activePage` 的只读 Playwright 函数体，不接受任意写入脚本来代替交互命令。
 
 ## 帮助与输出（v0.6）
 

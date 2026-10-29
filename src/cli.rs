@@ -524,7 +524,7 @@ pub(crate) enum BrowserSub {
     /// 查看浏览器工具 inputSchema
     #[command(hide = true)]
     Schema { tool: String },
-    /// 原始 browser-use-mcp 调用
+    /// 原始 Chrome Bridge 兼容调用
     #[command(hide = true)]
     Call {
         tool: String,

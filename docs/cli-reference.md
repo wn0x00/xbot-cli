@@ -1,6 +1,6 @@
 # xbot-cli 命令与行为参考
 
-面向 AI Agent 的影刀（ShadowBot）RPA CLI。默认通过内置 shell-cli、studio-mcp 和 browser-use-mcp 操作和运行应用；`oapi` 仅是企业版用户明确选择时的开放 API 备用入口。实验性 Windows UIA 观察使用独立 Python 提供器，不是影刀原生 Selector 引擎。
+面向 AI Agent 的影刀（ShadowBot）RPA CLI。默认通过内置 shell-cli、studio-mcp 和 Chrome Bridge 命名管道操作和运行应用；网页命令全部采用管道协议，不依赖 browser-use-mcp。`oapi` 仅是企业版用户明确选择时的开放 API 备用入口。实验性 Windows UIA 观察使用独立 Python 提供器，不是影刀原生 Selector 引擎。
 
 命令按所操作的资源组织：
 
@@ -238,7 +238,9 @@ xbot-cli web snapshot --output page.txt
 
 打开、附着、导航（除 `close`）及上述元素、键盘交互成功后默认获取快照，`--no-snapshot` 可关闭这一步；`eval` 和底层工具调用不追加快照。快照失败会保留操作成功及 `applied: true`，并返回 `warning`；不要因此重复点击或提交。快照正文及 full/diff 元数据来自后端，CLI 不改写编号。`snapshot --output` 保存正文且不覆盖已有文件。终端默认文本输出，管道默认 JSON；`--json` 显式保留完整结果，`--format text` 可强制输出文本。
 
-影刀元素操作要求选择器名称；CLI 默认生成唯一临时名称，`--name` 可指定名称。它们会暂存在影刀浏览器后端，写入项目元素库仍由显式的 review 流程控制。`eval` 保持注入 `activePage` 的只读异步函数体语法。完整参数见 `xbot-cli web --help` 和 [浏览器指南](../skills/xbot-app-dev/references/browser.md)。
+全部网页命令均通过影刀 Chrome Bridge 命名管道和 CDP 执行，命令形式参考最新 Playwright CLI。`--name` 仅为旧调用保留兼容参数，不会写入影刀元素库。`eval` 保持注入 `activePage` 的只读异步函数体语法。完整参数见 `xbot-cli web --help` 和 [浏览器指南](../skills/xbot-app-dev/references/browser.md)。
+
+可用 `XBOT_WEB_PIPE` 显式指定管道，管道前缀不作为浏览器产品身份判据。快照失败保留已执行动作的证据，不自动重试。
 
 ## 原始工具
 

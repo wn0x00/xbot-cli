@@ -1,7 +1,7 @@
 //! code / browser / wiki 命令组。
 //!
 //! code    — codeflow.read/write/edit(部分替换),CodeFlow 的代码面
-//! browser — browser-use-mcp(19 工具)的 CLI 封装,浏览器自动化
+//! browser — Chrome Bridge 的 CLI 兼容封装,浏览器自动化
 //! wiki    — 影刀官方知识库(与内置 opencode 的 skill 同源),块原型/SDK/规范都在这
 
 use serde_json::{json, Value};
@@ -84,7 +84,7 @@ pub fn code_edit_prepared(
     Ok((json!({"edit": r, "static_errors": errs}), nxt))
 }
 
-// ---------- browser(browser-use-mcp) ----------
+// ---------- browser(Chrome Bridge) ----------
 
 pub fn browser_act(args_json: &str) -> Res<CmdOut> {
     browser_act_prepared(input::browser_args(Some(args_json))?)

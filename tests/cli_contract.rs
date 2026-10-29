@@ -23,13 +23,12 @@ fn invoke(args: &[&str], stdin: Option<&str>, endpoint: Option<&str>) -> Output 
             "XBOT_MCP_ENDPOINT",
             endpoint.unwrap_or("http://127.0.0.1:1/unavailable"),
         )
-        .env(
-            "XBOT_BROWSER_MCP_ENDPOINT",
-            endpoint.unwrap_or("http://127.0.0.1:1/unavailable"),
-        )
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    if let Some(endpoint) = endpoint.filter(|endpoint| endpoint.starts_with(r"\\.\pipe\")) {
+        command.env("XBOT_WEB_PIPE", endpoint);
+    }
     let mut child = command.spawn().unwrap();
     if let Some(input) = stdin {
         child
@@ -142,7 +141,7 @@ fn web_aliases_share_help_schema_and_offline_previews() {
 }
 
 #[test]
-fn web_short_commands_send_literal_playwright_arguments_once() {
+fn web_short_commands_send_literal_bridge_arguments_once() {
     for (cli, target, method, args) in [
         (
             vec![
@@ -202,40 +201,61 @@ fn web_short_commands_send_literal_playwright_arguments_once() {
         (vec!["reload", "--no-snapshot"], "page", "reload", json!([])),
         (vec!["close"], "page", "close", json!([])),
     ] {
-        let server = MockMcp::new(|_| json!({"structuredContent":{"success":true}}));
+        let server = MockBridge::new(|_, _| None);
         let mut command = vec!["web"];
         command.extend(cli);
         envelope(&invoke(&command, None, Some(&server.endpoint)), 0);
-        assert_eq!(server.calls(), ["web_action"]);
         let requests = server.requests.lock().unwrap();
-        let arguments = &requests[0]["params"]["arguments"];
-        assert_eq!(arguments["target"], target);
-        assert_eq!(arguments["method"], method);
-        assert_eq!(arguments["args"], args);
-        if target == "locator" {
-            assert!(arguments["selector_name"]
-                .as_str()
-                .is_some_and(|name| !name.is_empty()));
+        let evaluations = requests
+            .iter()
+            .filter(|request| {
+                request["method"] == "debugger.sendCommand"
+                    && request["params"]["method"] == "Runtime.evaluate"
+            })
+            .map(|request| {
+                request["params"]["commandParam"]["expression"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        match (target, method) {
+            ("page", "goto") => {
+                assert!(requests.iter().any(|request| {
+                    request["method"] == "debugger.sendCommand"
+                        && request["params"]["method"] == "Page.navigate"
+                        && request["params"]["commandParam"]["url"] == args[0]
+                }));
+            }
+            ("page", "goBack") => {
+                assert!(evaluations.iter().any(|code| code.contains("history.back")))
+            }
+            ("page", "goForward") => assert!(evaluations
+                .iter()
+                .any(|code| code.contains("history.forward"))),
+            ("page", "reload" | "close") => {
+                let expected = if method == "reload" {
+                    "Page.reload"
+                } else {
+                    "Page.close"
+                };
+                assert!(requests.iter().any(|request| {
+                    request["method"] == "debugger.sendCommand"
+                        && request["params"]["method"] == expected
+                }));
+            }
+            _ => {
+                let literal = args[0].to_string();
+                let literal = literal.trim_matches(['"', '[', ']']);
+                assert!(evaluations.iter().any(|code| code.contains(literal)));
+            }
         }
     }
 }
 
 #[test]
 fn web_open_takes_a_snapshot_and_preserves_backend_fields_and_refs() {
-    let server = MockMcp::new(|request| match request["params"]["name"].as_str() {
-        Some("web_create") => {
-            assert_eq!(
-                request["params"]["arguments"]["url"],
-                "https://example.com/"
-            );
-            assert!(request["params"]["arguments"].get("mode").is_none());
-            json!({"structuredContent":{"success":true,"url":"https://example.com/","message":"opened"}})
-        }
-        Some("web_snapshot") => {
-            json!({"structuredContent":{"success":true,"result":"### AccTree\n- textbox Name [e4]\n","acc_tree_meta":{"kind":"full","diff_index":0}}})
-        }
-        _ => panic!("unexpected browser call"),
-    });
+    let server = MockBridge::new(|_, _| None);
     let value = envelope(
         &invoke(
             &["web", "open", "example.com"],
@@ -244,27 +264,83 @@ fn web_open_takes_a_snapshot_and_preserves_backend_fields_and_refs() {
         ),
         0,
     );
-    assert_eq!(server.calls(), ["web_create", "web_snapshot"]);
+    let calls = server.calls();
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|method| *method == "chrome.create")
+            .count(),
+        1
+    );
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|method| *method == "chrome.query")
+            .count(),
+        1
+    );
     assert_eq!(value["data"]["success"], true);
+    assert_eq!(value["data"]["backend"], "chrome-bridge");
     assert_eq!(value["data"]["url"], "https://example.com/");
-    assert_eq!(value["data"]["snapshot"]["acc_tree_meta"]["kind"], "full");
+    assert_eq!(
+        value["data"]["snapshot"]["acc_tree_meta"]["kind"], "full",
+        "{value}"
+    );
     assert!(value["data"]["snapshot"]["result"]
         .as_str()
         .unwrap()
-        .contains("[e4]"));
+        .contains("[ref=e4]"));
+}
+
+#[test]
+fn web_command_surfaces_bridge_errors_without_retrying() {
+    let server = MockBridge::new(|method, _| {
+        (method == "debugger.sendCommand").then(|| json!({"__error":"stale ref"}))
+    });
+    let value = envelope(
+        &invoke(
+            &["web", "click", "e5", "--json"],
+            None,
+            Some(&server.endpoint),
+        ),
+        1,
+    );
+    assert_eq!(value["error"]["code"], "WEB_BRIDGE_FAILED");
+    assert_eq!(value["error"]["message"], "stale ref");
+    assert_eq!(value["error"]["retryable"], false);
+    assert!(!server
+        .calls()
+        .iter()
+        .any(|method| method == "Input.dispatchMouseEvent"));
+}
+
+#[test]
+fn web_open_reports_missing_bridge() {
+    let value = envelope(
+        &invoke(
+            &["web", "open", "example.com", "--json"],
+            None,
+            Some(r"\\.\pipe\xbot-cli-definitely-missing"),
+        ),
+        1,
+    );
+    assert_eq!(value["error"]["code"], "WEB_BRIDGE_UNAVAILABLE");
 }
 
 #[test]
 fn web_snapshot_failure_does_not_turn_a_successful_click_into_a_retry() {
-    let server = MockMcp::new(|request| match request["params"]["name"].as_str() {
-        Some("web_action") => {
-            assert_eq!(request["params"]["arguments"]["kwargs"]["button"], "right");
-            json!({"structuredContent":{"success":true,"result":"clicked"}})
+    let server = MockBridge::new(|method, params| {
+        if method == "debugger.sendCommand"
+            && params["method"] == "Runtime.evaluate"
+            && params["commandParam"]["expression"]
+                .as_str()
+                .unwrap_or("")
+                .contains("ariaSnapshot(document.body")
+        {
+            Some(json!({"__error":"snapshot unavailable"}))
+        } else {
+            None
         }
-        Some("web_snapshot") => {
-            json!({"isError":true,"structuredContent":{"success":false,"error":"snapshot unavailable"}})
-        }
-        _ => panic!("unexpected browser call"),
     });
     let value = envelope(
         &invoke(
@@ -274,7 +350,18 @@ fn web_snapshot_failure_does_not_turn_a_successful_click_into_a_retry() {
         ),
         0,
     );
-    assert_eq!(server.calls(), ["web_action", "web_snapshot"]);
+    let requests = server.requests.lock().unwrap();
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|request| {
+                request["method"] == "debugger.sendCommand"
+                    && request["params"]["method"] == "Input.dispatchMouseEvent"
+                    && request["params"]["commandParam"]["type"] == "mousePressed"
+            })
+            .count(),
+        1
+    );
     assert_eq!(value["data"]["applied"], true);
     assert!(value["data"].get("warning").is_some());
     assert!(value["data"].to_string().contains("snapshot unavailable"));
@@ -282,9 +369,9 @@ fn web_snapshot_failure_does_not_turn_a_successful_click_into_a_retry() {
 
 #[test]
 fn web_failed_action_and_legacy_raw_action_are_never_repeated() {
-    let server = MockMcp::new(
-        |_| json!({"isError":true,"structuredContent":{"success":false,"error":"stale ref"}}),
-    );
+    let server = MockBridge::new(|method, _| {
+        (method == "debugger.sendCommand").then(|| json!({"__error":"stale ref"}))
+    });
     let value = envelope(
         &invoke(
             &["web", "fill", "e4", "hello"],
@@ -294,9 +381,26 @@ fn web_failed_action_and_legacy_raw_action_are_never_repeated() {
         1,
     );
     assert_eq!(value["error"]["retryable"], false);
-    assert_eq!(server.calls(), ["web_action"]);
+    assert_eq!(
+        server
+            .calls()
+            .iter()
+            .filter(|method| *method == "Runtime.evaluate")
+            .count(),
+        0
+    );
+    assert_eq!(
+        server
+            .calls()
+            .iter()
+            .filter(|method| *method == "debugger.sendCommand")
+            .count(),
+        1
+    );
 
-    let server = MockMcp::new(|_| json!({"structuredContent":{"success":true,"result":"legacy"}}));
+    let server = MockBridge::new(|method, _| {
+        (method == "debugger.sendCommand").then(|| json!({"result":{"value":"legacy"}}))
+    });
     let value = envelope(
         &invoke(
             &[
@@ -309,35 +413,43 @@ fn web_failed_action_and_legacy_raw_action_are_never_repeated() {
         ),
         0,
     );
-    assert_eq!(server.calls(), ["web_action"]);
+    assert_eq!(
+        server
+            .calls()
+            .iter()
+            .filter(|method| *method == "debugger.sendCommand")
+            .count(),
+        1
+    );
     assert_eq!(value["data"]["result"], "legacy");
 }
 
 #[test]
-fn web_fill_reports_the_actual_error_instead_of_selector_storage_confirmation() {
+fn web_fill_reports_the_actual_bridge_error() {
     let reason = "Error: locator.fill: Element is not an <input> or <textarea>";
     let detail =
         format!("{reason}\nCall log:\n  - waiting for locator('button')\n    at internal.js:1");
     for format in ["json", "text"] {
         let detail = detail.clone();
-        let server = MockMcp::new(move |request| {
-            assert_eq!(request["params"]["arguments"]["args"], json!(["111"]));
-            json!({"isError":true,"structuredContent":{
-                "success":false,
-                "error":detail,
-                "message":"临时元素_e74 selectors have been stored.",
-                "candidate_selectors":{"临时元素_e74":{"validate_match_count":1}}
-            }})
+        let server = MockBridge::new(move |method, _| {
+            (method == "debugger.sendCommand").then(|| json!({"__error":detail}))
         });
         let result = invoke(
             &["web", "fill", "e74", "111", "--format", format],
             None,
             Some(&server.endpoint),
         );
-        assert_eq!(server.calls(), ["web_action"]);
+        assert_eq!(
+            server
+                .calls()
+                .iter()
+                .filter(|method| *method == "debugger.sendCommand")
+                .count(),
+            1
+        );
         if format == "json" {
             let value = envelope(&result, 1);
-            assert_eq!(value["error"]["code"], "MCP_TOOL_FAILED");
+            assert_eq!(value["error"]["code"], "WEB_BRIDGE_FAILED");
             assert!(value["error"]["message"]
                 .as_str()
                 .unwrap()
@@ -347,11 +459,6 @@ fn web_fill_reports_the_actual_error_instead_of_selector_storage_confirmation() 
                 .unwrap()
                 .contains("internal.js"));
             assert_eq!(value["error"]["retryable"], false);
-            assert_eq!(value["data"]["result"]["success"], false);
-            assert!(value["data"]["result"]["message"]
-                .as_str()
-                .unwrap()
-                .contains("stored"));
             assert!(value["error"]["hint"]
                 .as_str()
                 .unwrap()
@@ -430,6 +537,16 @@ struct MockMcp {
 
 impl MockMcp {
     fn new(handler: impl Fn(&Value) -> Value + Send + 'static) -> Self {
+        Self::serve(move |request| {
+            let result = handler(request);
+            (
+                200,
+                json!({"jsonrpc":"2.0", "id":request["id"], "result":result}),
+            )
+        })
+    }
+
+    fn serve(handler: impl Fn(&Value) -> (u16, Value) + Send + 'static) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let endpoint = format!("http://{}/mcp", listener.local_addr().unwrap());
         listener.set_nonblocking(true).unwrap();
@@ -476,10 +593,9 @@ impl MockMcp {
                     }
                 };
                 log.lock().unwrap().push(request.clone());
-                let result = handler(&request);
-                let body =
-                    json!({"jsonrpc":"2.0", "id":request["id"], "result":result}).to_string();
-                write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
+                let (status, body) = handler(&request);
+                let body = body.to_string();
+                write!(stream, "HTTP/1.1 {status} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
             }
         });
         Self {
@@ -511,6 +627,169 @@ impl Drop for MockMcp {
                 }
             }
         }
+    }
+}
+
+struct MockBridge {
+    endpoint: String,
+    requests: Arc<Mutex<Vec<Value>>>,
+    stop: Arc<AtomicBool>,
+    worker: Option<JoinHandle<()>>,
+}
+
+impl MockBridge {
+    fn new(handler: impl Fn(&str, &Value) -> Option<Value> + Send + 'static) -> Self {
+        let endpoint = format!(
+            r"\\.\pipe\xbot-cli-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let log = Arc::clone(&requests);
+        let stop = Arc::new(AtomicBool::new(false));
+        let signal = Arc::clone(&stop);
+        let server_endpoint = endpoint.clone();
+        let worker = thread::spawn(move || {
+            use windows::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+            use windows::Win32::Storage::FileSystem::PIPE_ACCESS_DUPLEX;
+            use windows::Win32::System::Pipes::{
+                ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, PIPE_READMODE_BYTE,
+                PIPE_TYPE_BYTE, PIPE_WAIT,
+            };
+            while !signal.load(Ordering::SeqCst) {
+                let wide = server_endpoint
+                    .encode_utf16()
+                    .chain(Some(0))
+                    .collect::<Vec<_>>();
+                let handle = unsafe {
+                    CreateNamedPipeW(
+                        windows::core::PCWSTR(wide.as_ptr()),
+                        PIPE_ACCESS_DUPLEX,
+                        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                        1,
+                        1024 * 1024,
+                        1024 * 1024,
+                        0,
+                        None,
+                    )
+                };
+                assert_ne!(handle, INVALID_HANDLE_VALUE);
+                let connected = unsafe { ConnectNamedPipe(handle, None) };
+                if signal.load(Ordering::SeqCst) {
+                    let _ = unsafe { CloseHandle(handle) };
+                    break;
+                }
+                let _ = connected;
+                let mut file = unsafe {
+                    <std::fs::File as std::os::windows::io::FromRawHandle>::from_raw_handle(
+                        handle.0,
+                    )
+                };
+                loop {
+                    let Ok(request) = read_bridge_frame(&mut file) else {
+                        break;
+                    };
+                    let method = request["method"].as_str().unwrap().to_owned();
+                    let params = request["params"].clone();
+                    log.lock()
+                        .unwrap()
+                        .push(json!({"method":method,"params":params}));
+                    let response = handler(&method, &params)
+                        .unwrap_or_else(|| default_bridge_response(&method, &params));
+                    let response = if let Some(error) = response.get("__error") {
+                        json!({"code":200,"status":"ok","result":{"content":null,"error":{"code":-1,"message":error}}})
+                    } else {
+                        json!({"code":200,"status":"ok","result":{"content":response,"error":null}})
+                    };
+                    if write_bridge_frame(&mut file, &response).is_err() {
+                        break;
+                    }
+                }
+                drop(file);
+                let _ = unsafe { DisconnectNamedPipe(handle) };
+            }
+        });
+        Self {
+            endpoint,
+            requests,
+            stop,
+            worker: Some(worker),
+        }
+    }
+
+    fn calls(&self) -> Vec<String> {
+        self.requests
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|request| request["method"].as_str().unwrap().to_owned())
+            .collect()
+    }
+}
+
+impl Drop for MockBridge {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        let _ = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&self.endpoint);
+        if let Some(worker) = self.worker.take() {
+            if let Err(failure) = worker.join() {
+                if !thread::panicking() {
+                    std::panic::resume_unwind(failure);
+                }
+            }
+        }
+    }
+}
+
+fn read_bridge_frame(file: &mut std::fs::File) -> std::io::Result<Value> {
+    let mut length = [0_u8; 4];
+    file.read_exact(&mut length)?;
+    let length = u32::from_le_bytes(length) as usize;
+    let mut payload = vec![0_u8; length];
+    file.read_exact(&mut payload)?;
+    Ok(serde_json::from_slice(&payload).unwrap())
+}
+
+fn write_bridge_frame(file: &mut std::fs::File, value: &Value) -> std::io::Result<()> {
+    let payload = serde_json::to_vec(value).unwrap();
+    file.write_all(&(payload.len() as u32).to_le_bytes())?;
+    file.write_all(&payload)?;
+    file.flush()
+}
+
+fn default_bridge_response(method: &str, params: &Value) -> Value {
+    match method {
+        "KeepAlive" => json!("KeepAlive"),
+        "Extension.GetVersion" => json!("test-extension"),
+        "chrome.query" => json!([1]),
+        "chrome.create" => json!(1),
+        "browser.getInfo" => {
+            json!({"url":"https://example.com/","title":"Example Domain","active":true})
+        }
+        "debugger.sendCommand" if params["method"] == "Runtime.evaluate" => {
+            let expression = params["commandParam"]["expression"].as_str().unwrap_or("");
+            let value = if expression.contains("document.readyState") {
+                json!("complete")
+            } else if expression.contains("ariaSnapshot(document.body") {
+                json!("### AccTree\n- textbox Name [ref=e4]\n")
+            } else if expression.contains("document.title") {
+                json!("Example Domain")
+            } else if expression.contains("location.href") {
+                json!("https://example.com/")
+            } else if expression.contains("window.__pwIS") {
+                json!("cached")
+            } else {
+                json!(true)
+            };
+            json!({"result":{"value":value}})
+        }
+        _ => json!({}),
     }
 }
 

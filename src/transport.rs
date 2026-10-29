@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Map, Value};
 
-use super::{browser_mcp_endpoint, mcp_endpoint, shell_cli_path, truncate, BackendError, Res};
+use super::{mcp_endpoint, shell_cli_path, truncate, BackendError, Res};
 
 #[derive(Debug)]
 struct ProcessOutput {
@@ -290,28 +290,15 @@ fn backend_error(value: &Value, fallback: &str, message: &str) -> BackendError {
 }
 
 pub fn mcp(tool: &str, args: Value, timeout_secs: u64) -> Res<Value> {
-    mcp_on(&mcp_endpoint(), tool, args, timeout_secs, false)
-}
-
-pub fn mcp_browser(tool: &str, mut args: Value, timeout_secs: u64) -> Res<Value> {
-    let object = args
-        .as_object_mut()
-        .ok_or_else(|| BackendError::new("BAD_ARGS", "MCP arguments 必须是 JSON 对象"))?;
-    if !["web_get_api_reference", "web_review"].contains(&tool) {
-        object
-            .entry("explanation")
-            .or_insert_with(|| json!("agent 经 xbot-cli 调用;成功判据:返回结果可用"));
-    }
-    mcp_on(&browser_mcp_endpoint(), tool, args, timeout_secs, true)
+    mcp_on(&mcp_endpoint(), tool, args, timeout_secs)
 }
 
 pub fn mcp_list(browser: bool, timeout_secs: u64) -> Res<Vec<Value>> {
-    let endpoint = if browser {
-        browser_mcp_endpoint()
-    } else {
-        mcp_endpoint()
-    };
-    let response = rpc_on(&endpoint, "tools/list", json!({}), timeout_secs, browser)?;
+    if browser {
+        return Ok(crate::bridge::tools());
+    }
+    let endpoint = mcp_endpoint();
+    let response = rpc_on(&endpoint, "tools/list", json!({}), timeout_secs)?;
     response
         .get("tools")
         .and_then(Value::as_array)
@@ -322,7 +309,7 @@ pub fn mcp_list(browser: bool, timeout_secs: u64) -> Res<Vec<Value>> {
         })
 }
 
-fn mcp_on(endpoint: &str, tool: &str, args: Value, timeout_secs: u64, browser: bool) -> Res<Value> {
+fn mcp_on(endpoint: &str, tool: &str, args: Value, timeout_secs: u64) -> Res<Value> {
     if !args.is_object() {
         return Err(BackendError::new(
             "BAD_ARGS",
@@ -334,7 +321,6 @@ fn mcp_on(endpoint: &str, tool: &str, args: Value, timeout_secs: u64, browser: b
         "tools/call",
         json!({"name": tool, "arguments": args}),
         timeout_secs,
-        browser,
     )?)
 }
 
@@ -383,13 +369,7 @@ fn decode_tool_result(response: Value) -> Res<Value> {
     Ok(output)
 }
 
-fn rpc_on(
-    endpoint: &str,
-    method: &str,
-    params: Value,
-    timeout_secs: u64,
-    browser: bool,
-) -> Res<Value> {
+fn rpc_on(endpoint: &str, method: &str, params: Value, timeout_secs: u64) -> Res<Value> {
     let payload = json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
     let client = ureq::AgentBuilder::new()
         .timeout(Duration::from_secs(timeout_secs))
@@ -415,11 +395,7 @@ fn rpc_on(
             return Err(error);
         }
         Err(ureq::Error::Transport(error)) => {
-            let backend = if browser {
-                "browser-use-mcp"
-            } else {
-                "studio-mcp"
-            };
+            let backend = "studio-mcp";
             return Err(BackendError::new(
                 "MCP_OFFLINE",
                 format!("{backend} 不可达或响应中断: {error}"),
@@ -734,7 +710,7 @@ mod tests {
             "application/json",
             r#"{"jsonrpc":"2.0","id":1.0,"result":{"content":[{"type":"text","text":"{\"success\":true,\"value\":42}"}]}}"#,
         );
-        let result = mcp_on(&endpoint, "fake.read", json!({}), 5, false);
+        let result = mcp_on(&endpoint, "fake.read", json!({}), 5);
         server.join().unwrap();
         assert_eq!(result.unwrap()["value"], 42);
     }
@@ -746,7 +722,7 @@ mod tests {
             "application/json",
             r#"{"jsonrpc":"2.0","id":1,"result":{"success":true}}"#,
         );
-        let error = rpc_on(&endpoint, "tools/list", json!({}), 5, false).unwrap_err();
+        let error = rpc_on(&endpoint, "tools/list", json!({}), 5).unwrap_err();
         server.join().unwrap();
         assert_eq!(error.code, "MCP_HTTP");
         assert_eq!(error.data.unwrap()["http_status"], 503);
@@ -759,7 +735,7 @@ mod tests {
             "application/json",
             r#"{"error":{"code":"studio_busy","message":"already open"}}"#,
         );
-        let error = rpc_on(&endpoint, "tools/call", json!({}), 5, false).unwrap_err();
+        let error = rpc_on(&endpoint, "tools/call", json!({}), 5).unwrap_err();
         server.join().unwrap();
         assert_eq!(error.code, "studio_busy");
         assert_eq!(error.message, "already open");

@@ -281,7 +281,10 @@ fn render_error(envelope: &Value) -> String {
     let message = error["message"].as_str().unwrap_or("命令执行失败");
     // Playwright call logs can contain long DOM excerpts and stack traces.
     // Keep the failure reason in text; JSON retains the complete backend error.
-    let message = if code == "MCP_TOOL_FAILED" {
+    let message = if matches!(
+        code,
+        "MCP_TOOL_FAILED" | "WEB_BRIDGE_FAILED" | "WEB_BRIDGE_EVAL_FAILED"
+    ) {
         message
             .split_once("\nCall log:")
             .map_or(message, |(reason, _)| reason.trim_end())

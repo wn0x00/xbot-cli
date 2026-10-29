@@ -39,7 +39,6 @@ impl Scratch {
             .env("USERPROFILE", &self.home)
             .env("XBOT_SHELL_CLI", self.root.join("missing-backend.exe"))
             .env("XBOT_MCP_ENDPOINT", "http://127.0.0.1:1/mcp")
-            .env("XBOT_BROWSER_MCP_ENDPOINT", "http://127.0.0.1:1/mcp")
             .output()
             .unwrap()
     }

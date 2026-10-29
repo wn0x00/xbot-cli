@@ -39,7 +39,6 @@ fn invoke(args: &[&str]) -> Output {
         .args(args)
         .env("XBOT_SHELL_CLI", "__xbot_test_missing_shell__.exe")
         .env("XBOT_MCP_ENDPOINT", &endpoint)
-        .env("XBOT_BROWSER_MCP_ENDPOINT", &endpoint)
         .env("NO_COLOR", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

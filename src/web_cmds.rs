@@ -1,4 +1,4 @@
-//! Small web commands translated to the existing ShadowBot browser MCP contract.
+//! Playwright-style web commands executed through ShadowBot Chrome Bridge.
 //! No browser action is retried, including when its following snapshot fails.
 
 use std::fs::OpenOptions;
@@ -47,7 +47,7 @@ impl PreparedWeb {
     pub fn execute(self) -> Res<CmdOut> {
         let response = core::mcp_browser(self.tool, self.arguments, self.timeout).map_err(|error| {
             if self.command == "web.fill"
-                && error.code == "MCP_TOOL_FAILED"
+                && matches!(error.code.as_str(), "MCP_TOOL_FAILED" | "WEB_BRIDGE_FAILED")
                 && error.hint.is_none()
             {
                 error.with_hint("先运行 xbot-cli web snapshot 查看当前页面，确认使用最新快照中可编辑元素（例如 textbox）的编号；选择器已保存不代表填写成功，不要盲目重试")

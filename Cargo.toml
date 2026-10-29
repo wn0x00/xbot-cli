@@ -17,6 +17,8 @@ serde_json = "1"
 ureq = { version = "2", features = ["json"] }
 url = "2"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+base64 = "0.22"
+windows = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Pipes"] }
 
 [profile.release]
 lto = true

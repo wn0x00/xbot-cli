@@ -1,8 +1,8 @@
 # 浏览器自动化：xbot-cli web
 
-`xbot-cli web` 提供类似 Playwright CLI 的命令交互，通过影刀内置 browser-use-mcp 执行。`browser` 是 `web` 的兼容别名。
+`xbot-cli web` 提供 Playwright CLI 风格的命令交互，全部通过影刀 Chrome Bridge 命名管道和 CDP 执行，不调用 browser-use-mcp。`browser` 是 `web` 的兼容别名。
 
-前提：已打开 Studio 应用，并有安装影刀扩展的浏览器；或使用内置影刀浏览器。CLI 自动补充后端要求的 `explanation`。这里使用影刀当前浏览器上下文，没有独立的命名会话。
+前提：已打开带影刀扩展的 Chrome、Edge 或影刀浏览器，不要求 Studio 应用工作区。这里使用影刀当前浏览器上下文，没有独立的命名会话。可用 `XBOT_WEB_PIPE` 显式指定管道；管道前缀仅用于发现和排序，不作为浏览器产品身份判据。
 
 ## 从快照到操作
 
@@ -64,7 +64,7 @@ xbot-cli web snapshot --output after-click.txt --json
 
 探索阶段的 `web` 命令仍按当前快照 ref 操作；它们不接受 XPath 作为 ref。交付的网页 Flow 优先直接 XPath 定位，不因探索动作产生了暂存 selector 就默认持久化进元素库。
 
-确需准备元素库资产时，元素操作可传 `--name "百度_搜索_按钮"` 指定符合 [项目命名规范](project-conventions.md) 的暂存名称。省略时 CLI 自动生成唯一中文临时名；操作会将选择器暂存在后端，调用 `web_review` 前不会写入项目元素库。`press` 只有指定 `--ref` 时才接受 `--name`。
+`--name` 仅为旧调用保留兼容参数，Chrome Bridge 不会暂存选择器或写入影刀元素库；不要据此推断资产已持久化。`press` 只有指定 `--ref` 时才接受 `--name`。
 
 ```bash
 xbot-cli web click e4 --name "百度_搜索_按钮" --json

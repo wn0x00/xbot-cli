@@ -18,11 +18,10 @@ use serde_json::{json, Map, Value};
 
 #[path = "transport.rs"]
 mod transport;
-pub use transport::{mcp, mcp_browser, mcp_list, shell_cli, shell_cli_raw};
+pub use transport::{mcp, mcp_list, shell_cli, shell_cli_raw};
 
 pub const DEFAULT_SHELL_CLI: &str = r"C:\Program Files\ShadowBot\shadowbot.shell-cli.exe";
 pub const DEFAULT_MCP_ENDPOINT: &str = "http://127.0.0.1:42500/api/v1/mcp";
-pub const DEFAULT_BROWSER_MCP_ENDPOINT: &str = "http://127.0.0.1:42500/api/v1/browser-use-mcp/mcp";
 pub const DEFAULT_LAUNCHER: &str = r"C:\Program Files\ShadowBot\ShadowBot.exe";
 
 pub fn shell_cli_path() -> String {
@@ -33,9 +32,9 @@ pub fn mcp_endpoint() -> String {
     std::env::var("XBOT_MCP_ENDPOINT").unwrap_or_else(|_| DEFAULT_MCP_ENDPOINT.into())
 }
 
-pub fn browser_mcp_endpoint() -> String {
-    std::env::var("XBOT_BROWSER_MCP_ENDPOINT")
-        .unwrap_or_else(|_| DEFAULT_BROWSER_MCP_ENDPOINT.into())
+/// 兼容既有调用方；实际传输全部使用 Chrome Bridge 命名管道。
+pub fn mcp_browser(tool: &str, args: Value, _timeout_secs: u64) -> Res<Value> {
+    crate::bridge::call(tool, args)
 }
 
 pub fn launcher_path() -> String {
