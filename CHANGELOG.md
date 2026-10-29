@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0](https://github.com/wn0x00/xbot-cli/compare/v0.8.3...v0.9.0) (2026-10-29)
+
+- Replace browser-use-mcp with Chrome Bridge named-pipe transport for all Playwright-style web commands, including navigation, element interaction, snapshots, and read-only evaluation.
+- Add CDP trusted input, ARIA refs, on-demand browser engine initialization, multi-browser pipe discovery, bounded reads, and `XBOT_WEB_PIPE` selection.
+- Preserve action/snapshot recovery contracts and structured errors, and add isolated named-pipe contract tests alongside real Chrome and ShadowBot Browser verification.
+- Update browser documentation and Windows dependencies; Studio MCP behavior is unchanged.
+
+### Upgrade notes
+
+- Browser automation now requires Chrome, Edge, or ShadowBot Browser with a compatible ShadowBot extension and named pipe. Set `XBOT_WEB_PIPE` to select a pipe explicitly; pipe prefixes are not browser product identities.
+- The legacy `--name` option is accepted for compatibility but no longer stores selectors in the element library.
+- Raw browser compatibility is limited to `web_create`, `web_get_active`, `web_snapshot`, `web_action`, and `web_evaluate_playwright` implemented by Chrome Bridge.
+
 ## [0.8.3](https://github.com/wn0x00/xbot-cli/compare/v0.8.2...v0.8.3) (2026-10-23)
 
 - Reorder root help: business commands (app, flow, task, web, win32, tool, wiki, oapi) come first, followed by discovery, diagnostics and self-management (schema, guide, install, status, doctor, version, update, help).
