@@ -688,10 +688,7 @@ impl MockBridge {
                         handle.0,
                     )
                 };
-                loop {
-                    let Ok(request) = read_bridge_frame(&mut file) else {
-                        break;
-                    };
+                while let Ok(request) = read_bridge_frame(&mut file) {
                     let method = request["method"].as_str().unwrap().to_owned();
                     let params = request["params"].clone();
                     log.lock()
