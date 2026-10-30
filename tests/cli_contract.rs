@@ -277,7 +277,7 @@ fn web_open_takes_a_snapshot_and_preserves_backend_fields_and_refs() {
             .iter()
             .filter(|method| *method == "chrome.query")
             .count(),
-        1
+        0
     );
     assert_eq!(value["data"]["success"], true);
     assert_eq!(value["data"]["backend"], "chrome-bridge");
@@ -368,6 +368,78 @@ fn web_snapshot_failure_does_not_turn_a_successful_click_into_a_retry() {
 }
 
 #[test]
+fn python_capture_failure_never_replays_an_action_or_changes_its_success() {
+    let server = MockBridge::new(|method, params| {
+        (method == "debugger.sendCommand"
+            && params["method"] == "Runtime.evaluate"
+            && params["commandParam"]["expression"]
+                .as_str()
+                .unwrap_or("")
+                .contains("return window.__xbotPythonLocator"))
+        .then(|| json!({"__error":"locator capture unavailable"}))
+    });
+    let value = envelope(
+        &invoke(
+            &["web", "click", "e4", "--no-snapshot"],
+            None,
+            Some(&server.endpoint),
+        ),
+        0,
+    );
+    assert_eq!(value["data"]["applied"], true);
+    assert_eq!(value["data"]["python"]["status"], "unavailable");
+    let requests = server.requests.lock().unwrap();
+    let capture = requests
+        .iter()
+        .position(|r| {
+            r["params"]["commandParam"]["expression"]
+                .as_str()
+                .unwrap_or("")
+                .contains("return window.__xbotPythonLocator")
+        })
+        .unwrap();
+    let clicks: Vec<_> = requests
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| {
+            r["params"]["method"] == "Input.dispatchMouseEvent"
+                && r["params"]["commandParam"]["type"] == "mousePressed"
+        })
+        .collect();
+    assert_eq!(clicks.len(), 1);
+    assert!(capture < clicks[0].0);
+}
+
+#[test]
+fn no_python_skips_locator_capture_without_disabling_the_action() {
+    let server = MockBridge::new(|_, _| None);
+    let value = envelope(
+        &invoke(
+            &["web", "click", "e4", "--no-snapshot", "--no-python"],
+            None,
+            Some(&server.endpoint),
+        ),
+        0,
+    );
+    assert!(value["data"].get("python").is_none());
+    let requests = server.requests.lock().unwrap();
+    assert!(!requests
+        .iter()
+        .any(|r| r["params"]["commandParam"]["expression"]
+            .as_str()
+            .unwrap_or("")
+            .contains("return window.__xbotPythonLocator")));
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|r| r["params"]["method"] == "Input.dispatchMouseEvent"
+                && r["params"]["commandParam"]["type"] == "mousePressed")
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn web_failed_action_and_legacy_raw_action_are_never_repeated() {
     let server = MockBridge::new(|method, _| {
         (method == "debugger.sendCommand").then(|| json!({"__error":"stale ref"}))
@@ -395,7 +467,7 @@ fn web_failed_action_and_legacy_raw_action_are_never_repeated() {
             .iter()
             .filter(|method| *method == "debugger.sendCommand")
             .count(),
-        1
+        2
     );
 
     let server = MockBridge::new(|method, _| {
@@ -419,7 +491,7 @@ fn web_failed_action_and_legacy_raw_action_are_never_repeated() {
             .iter()
             .filter(|method| *method == "debugger.sendCommand")
             .count(),
-        1
+        2
     );
     assert_eq!(value["data"]["result"], "legacy");
 }
@@ -445,7 +517,7 @@ fn web_fill_reports_the_actual_bridge_error() {
                 .iter()
                 .filter(|method| *method == "debugger.sendCommand")
                 .count(),
-            1
+            2
         );
         if format == "json" {
             let value = envelope(&result, 1);
@@ -771,10 +843,20 @@ fn default_bridge_response(method: &str, params: &Value) -> Value {
         }
         "debugger.sendCommand" if params["method"] == "Runtime.evaluate" => {
             let expression = params["commandParam"]["expression"].as_str().unwrap_or("");
-            let value = if expression.contains("document.readyState") {
-                json!("complete")
+            let value = if expression.contains("JSON.stringify({ua:") {
+                json!("{\"ua\":\"Edg/130.0\",\"brands\":[]}")
+            } else if expression.contains("$$.rect(el)") {
+                json!({"x":100,"y":100,"w":20,"h":20})
+            } else if expression.contains("return window.__xbotPythonLocator") {
+                json!({"steps":[{"kind":"element","xpath":"//*[@id='test']","css":"#test"}],"origin":"https://example.com"})
+            } else if expression.contains("__xbotPreviewFrames") {
+                json!([])
+            } else if expression == "location.origin" {
+                json!("https://example.com")
             } else if expression.contains("ariaSnapshot(document.body") {
                 json!("### AccTree\n- textbox Name [ref=e4]\n")
+            } else if expression.contains("document.readyState") {
+                json!("complete")
             } else if expression.contains("document.title") {
                 json!("Example Domain")
             } else if expression.contains("location.href") {

@@ -1,7 +1,5 @@
 //! 杂项命令:diag / state / doctor / mcp 能力与调用。
 
-use std::path::Path;
-
 use serde_json::{json, Value};
 
 use crate::app_cmds::CmdOut;
@@ -55,13 +53,24 @@ pub fn cmd_status() -> Res<CmdOut> {
 
 pub fn cmd_doctor() -> Res<CmdOut> {
     let mut report = json!({});
+    let backend = crate::installation::shell();
+    let mut hints = Vec::new();
     match core::shell_cli(&["system", "state"], 10) {
         Ok(st) => {
             report["shell_cli"] = json!({"ok": true,
+                "backend":backend.evidence(),
                 "hasStudioOpened": st.get("hasStudioOpened"),
                 "mode": st.get("currentMode")});
         }
-        Err(e) => report["shell_cli"] = json!({"ok": false, "error": e.message}),
+        Err(e) => {
+            if let Some(hint) = &e.hint {
+                hints.push(hint.clone());
+            }
+            report["shell_cli"] = json!({
+                "ok":false, "error":e.message, "code":e.code, "hint":e.hint,
+                "backend":backend.evidence(), "details":e.data
+            });
+        }
     }
     // 服务可达即可;"No Studio workspace" 只是当前没开应用,属正常态。
     match core::mcp("app.get_info", json!({}), 8) {
@@ -69,8 +78,11 @@ pub fn cmd_doctor() -> Res<CmdOut> {
             report["studio_mcp"] = json!({"ok": true,
                 "app": info.pointer("/app/app_id")});
         }
-        Err(e) if e.code == "MCP_OFFLINE" => {
-            report["studio_mcp"] = json!({"ok": false, "error": e.message});
+        Err(e) if !e.message.contains("No Studio workspace is opened") => {
+            let hint = format!("Studio MCP 通道失败，地址: {}。根据具体错误检查客户端服务与 XBOT_MCP_ENDPOINT；未打开应用不等于服务离线。", core::mcp_endpoint());
+            hints.push(hint.clone());
+            report["studio_mcp"] = json!({"ok": false, "error": e.message, "code":e.code,
+                "endpoint":core::mcp_endpoint(), "hint":hint});
         }
         Err(e) => {
             report["studio_mcp"] = json!({"ok": true, "app": Value::Null,
@@ -78,9 +90,9 @@ pub fn cmd_doctor() -> Res<CmdOut> {
         }
     }
     // View 是可选只读入口,缺失不影响 MCP 开发主链路。
-    let launcher = core::launcher_path();
+    let launcher = crate::installation::launcher();
     report["url_protocol_view_only"] = json!({"ok": true,
-        "available": Path::new(&launcher).exists(), "launcher": launcher});
+        "available": launcher.exists, "launcher": launcher.path, "source":launcher.source});
     let ok = report
         .as_object()
         .map(|m| {
@@ -92,9 +104,7 @@ pub fn cmd_doctor() -> Res<CmdOut> {
         return Err(
             BackendError::new("DOCTOR_FAILED", "一项或多项必需通道不可用")
                 .with_data(report)
-                .with_hint(
-                    "确认影刀客户端已启动并登录;开发前先用 xbot-cli app open <app-id> 打开应用",
-                ),
+                .with_hint(hints.join("\n")),
         );
     }
     Ok((report, vec![]))

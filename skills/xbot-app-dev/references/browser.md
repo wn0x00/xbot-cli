@@ -2,7 +2,7 @@
 
 `xbot-cli web` 提供 Playwright CLI 风格的命令交互，全部通过影刀 Chrome Bridge 命名管道和 CDP 执行，不调用 browser-use-mcp。`browser` 是 `web` 的兼容别名。
 
-前提：已打开带影刀扩展的 Chrome、Edge 或影刀浏览器，不要求 Studio 应用工作区。这里使用影刀当前浏览器上下文，没有独立的命名会话。可用 `XBOT_WEB_PIPE` 显式指定管道；管道前缀仅用于发现和排序，不作为浏览器产品身份判据。
+前提：已打开带影刀扩展的 Chrome、Edge 或影刀浏览器，不要求 Studio 应用工作区。`web open/active` 将后续命令绑定到调用端的管道和标签页，切换活动标签不会自动换页；`web active` 显式重新绑定。可用 `XBOT_WEB_PIPE`、`XBOT_WEB_TAB_ID` 指定上下文；多进程脚本用独立的 `XBOT_WEB_SESSION` 名称隔离绑定，这不创建独立浏览器 profile。会话记录位于 `%LOCALAPPDATA%\xbot-cli\web-sessions`，24 小时后需重新绑定。管道前缀仅用于发现和排序，不作为浏览器产品身份判据。
 
 ## 从快照到操作
 
@@ -30,6 +30,7 @@ xbot-cli web click e7 --json
 | `xbot-cli web open [url]` | 打开页面并建立上下文 |
 | `xbot-cli web active` / `attach` | 附着当前活动页 |
 | `xbot-cli web snapshot` | 获取页面快照 |
+| `xbot-cli web xpath e4` / `xpath e4 e5` | 至多 5 组单元素备选或相似元素 XPath |
 | `xbot-cli web click e4` | 左键点击，可用 `--button right` 或 `middle` |
 | `xbot-cli web dblclick e4` | 双击 |
 | `xbot-cli web fill e4 "内容"` | 清空并填写输入框 |
@@ -49,6 +50,12 @@ xbot-cli web click e7 --json
 ## 输出与恢复
 
 打开、附着、导航和常用交互成功后会自动获取快照。需要减少输出时可加 `--no-snapshot`，之后再主动调用 `web snapshot`。`close` 不获取关闭后的快照；只读 `eval` 和底层兼容调用也不承诺自动快照。
+
+支持的页面和元素操作同时返回影刀 Python，文本标题为“影刀 Python：”，JSON 在 `data.python` 中保留 `status/code/requires/locator/warnings/runtime_verified`。`--no-python` 关闭代码生成，与 `--no-snapshot` 独立；键盘、快照或任意脚本不保证有等价代码。生成不可用不能当作动作失败，也不能据此重复操作。
+
+普通 DOM 代码使用已回查的语义 XPath；iframe 使用按层级排列的 `Selector.xpath.segments` 和 `web_page.find`。纯 open ShadowRoot 的部分动作仍使用已注明的 JavaScript 合成事件适配器，不能等同原生可信输入。敏感输入参数化，缺少可靠定位时不输出可复用代码；`runtime_verified: false` 不是影刀执行通过。
+
+默认文本快照保留完整元素树和分支层级，不隐式折叠、截断或分页。用 `web snapshot --snapshot-view raw` 查看原始文本；`--role/--filter/--limit/--offset` 是显式筛选/部分显示，保留祖先上下文，JSON 仍含完整树。iframe ref 的文档前缀及 Shadow Host 链也是结构信息，不要删除。
 
 动作已经成功，但后续快照失败时，CLI 仍返回成功（`ok: true`、退出 0），并带有 warning 和 `applied: true`。先读取警告，再单独执行 `web snapshot`，不要为了获得快照而重复点击、输入或提交。操作本身超时或响应中断时也不要自动重试，先确认页面状态。
 
@@ -75,13 +82,16 @@ xbot-cli web eval "return await activePage.title();" --json
 
 ## XPath 优先与验证
 
-- ref 转 XPath、旧 XPath 零匹配或自动修复时读取 [locator-repair.md](locator-repair.md)，用真实句柄确定目标并运行生成器；不依据快照文字由 Agent 手写猜测路径。
+- 简单 ref 转 XPath 可直接用 `web xpath <ref...>`，不要求另外提供 ROBULA+ 源码。旧 XPath 零匹配、正式修复或需要身份/用途合同的任务读取 [locator-repair.md](locator-repair.md)；内置候选生成不替代该修复验收链路。不依据快照文字由 Agent 手写猜测路径。
+- 单 ref 至多返回 5 条备选，多 ref 返回同类型元素的共同规则；选样可能覆盖其他相似成员，不证明完整业务集合。不同类型或无法找到可靠共同规则时拒绝，歧义结果为 `needs_review`，不得直接用于单元素点击。文本每行一组，JSON 保留匹配数、作用域证据和警告。
 - 从当前页面的真实 DOM 提取稳定属性、精确业务文本和父区域关系，验证 XPath 后再写入流程；优先业务属性、稳定 id 或名称，避免版本化样式类、绝对层级路径和无业务依据的序号。
 - 快照不足以确定 XPath 时，用只读 `web eval` 检查 DOM、匹配数量、可见性和所属区域。记录页面条件、frame/父区域、候选版本和验证时间；未观察到的旧页面只能标为未验证。
 - 点击或输入前，在正确的页面/弹窗/行作用域内确认唯一、可见、可操作的业务目标。多个命中时先缩小作用域；不追加 `[1]`、不直接取列表首项来掩盖歧义。
 - 等待和存在性判断使用表示业务状态的标志；页面跳转后重新获取元素对象，不跨页面复用旧对象。等待与兼容分支共用有界时间预算。
 - iframe、Shadow DOM 先查 SDK 的上下文能力；普通 XPath 不会自动穿过它们。不支持直接 XPath 的场景可保留经过验证的工程 selector，并按项目规范命名。
-- 影刀分段 XPath 用数组表达 iframe 链，段内以 `/xbotShadowRoot` 表达 open ShadowRoot；这是 Selector 上下文协议，不是标准 XPath。closed ShadowRoot、ShadowRoot 内 iframe 不能声明支持。每层 frame/host 都保存业务身份；跨域测试通过不等于所有跨域页面均已支持。
+- iframe 候选每行是一个按外层 iframe、内层 iframe、目标元素排序的 XPath 列表，JSON 另有 `xpath_lists` 及 `candidates[].segments`。该列表用于 `Selector.xpath.segments`，不可直接传给 `find_by_xpath`。段内以 `/xbotShadowRoot` 表达 open ShadowRoot；纯 shadow 候选仍是一条字符串，不是数组。
+- open ShadowRoot 表达式和 iframe Selector 统一标注“影刀语法，请使用影刀验证”，仅保留逐作用域 DOM 证据，不声称整条影刀语法已由浏览器验证。ShadowRoot 内 iframe 的捕获及分层代码生成不等于影刀运行验收；每层 frame/host 都保存业务身份，跨域样例通过不代表所有跨域页面。
+- **目标或任何外层上下文经过 shadow-root(closed) 时，影刀无法使用该元素，必须显著提示且不生成 XPath 或等价 Python。** 不使用位置路径或 JavaScript 绕过。仅对实际观察到的节点判断模式，`host.shadowRoot === null` 不能单独证明 closed，无法观察的 closed 内部节点不保证出现在快照中。
 - `web_build_selector_by_xpath` 构建的是元素库候选，不是直接 XPath 执行入口；不为了实现 XPath 优先而滥用它。确需建库时遵守该工具 schema 的使用条件；已有 ref 的捕获方式也只限确需建库的场景。
 
 VisualFlow 通过“获取元素对象（web）”的 XPath 模式得到对象后再操作；CodeFlow 使用 `find_by_xpath` / `find_all_by_xpath`。新旧版本共存的处理见 [维护指南](web-maintenance.md)。

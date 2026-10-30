@@ -31,9 +31,13 @@ xbot-cli flow wait <run-id> --timeout 600 --expect-app <app-id>
 
 `flow visual enable/disable <block-id...> --flow <flow-id>` 用明确的操作代替 toggle；省略 `--flow` 时采用同样的上下文解析规则。
 
-`web open [url]` 建立浏览器上下文，`web active`（别名 `attach`）附着当前活动页，`web goto <url>` 在受控页内跳转。它们使用影刀当前浏览器上下文，不提供 Playwright CLI 的命名会话隔离。`web` 依赖的 Studio 和浏览器条件见 [browser.md](browser.md)。
+`web open [url]` 建立浏览器上下文，`web active`（别名 `attach`）附着当前活动页，`web goto <url>` 在受控页内跳转。后续命令绑定调用端的管道和标签页，切换活动标签不自动换页；多进程脚本可用 `XBOT_WEB_SESSION` 隔离绑定，但不创建独立浏览器 profile。显式管道和标签可通过 `XBOT_WEB_PIPE/XBOT_WEB_TAB_ID` 指定。`web` 依赖的 Studio 和浏览器条件见 [browser.md](browser.md)。
 
 打开、附着、导航和常用交互成功后自动读取快照，可加 `--no-snapshot` 跳过；`web close` 不读取快照。动作成功后取快照失败仍返回 `ok: true`、退出 0，并提供 warning 和 `applied: true`。此时只补取 `web snapshot`，不要重放动作。快照保留后端元数据，可能是增量；ref 必须来自当前页面证据。`web snapshot --output <file>`（别名 `--filename`）保存文本，不覆盖已有文件。
+
+支持的网页操作还返回影刀 Python，JSON 字段为 `data.python`；`--no-python` 与 `--no-snapshot` 独立。代码生成不可用不否定已成功动作，`runtime_verified: false` 不代表影刀执行通过。`web xpath <ref...>` 只读生成至多 5 组单元素备选或相似元素规则，不标记 `applied`，不持久化元素库。iframe 返回有序 Selector 分段列表，open shadow 为未执行验证的影刀语法，closed shadow 明确拒绝生成；具体输出见 [browser.md](browser.md)。
+
+客户端后端支持非默认安装目录自动发现；`XBOT_SHELL_CLI/XBOT_LAUNCHER` 是权威覆盖，错误路径不会静默回退。`doctor` 提供实际路径、发现来源及针对性提示，路径错误不能仅建议启动、登录或打开应用。
 
 `--name` 仅为旧调用保留兼容参数，Chrome Bridge 不暂存选择器，也不写入影刀元素库。`web eval` 是注入 `activePage` 的只读 Playwright 函数体，不接受任意写入脚本来代替交互命令。
 

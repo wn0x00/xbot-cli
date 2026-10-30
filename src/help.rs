@@ -167,6 +167,8 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli web fill e4 \"hello\"",
             "xbot-cli web click e5",
             "xbot-cli web snapshot --output page.txt",
+            "xbot-cli web xpath e4",
+            "xbot-cli web xpath e4 e5",
         ],
         ["wiki"] => &["xbot-cli wiki list", "xbot-cli wiki search CodeFlow"],
         _ => &[],

@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Map, Value};
 
-use super::{mcp_endpoint, shell_cli_path, truncate, BackendError, Res};
+use super::{mcp_endpoint, truncate, BackendError, Res};
 
 #[derive(Debug)]
 struct ProcessOutput {
@@ -124,11 +124,24 @@ fn run_capture(mut cmd: Command, timeout_secs: u64) -> Res<ProcessOutput> {
 
 /// Preserve the backend envelope and task summary, while rejecting contradictory process success.
 pub fn shell_cli_raw(args: &[&str], timeout_secs: u64) -> Res<Value> {
-    let mut cmd = Command::new(shell_cli_path());
+    let backend = crate::installation::shell();
+    if !backend.exists {
+        return Err(backend.annotate(BackendError::new(
+            "SHELL_CLI_MISSING",
+            "后端可执行文件不存在或不是文件",
+        )));
+    }
+    let mut cmd = Command::new(&backend.path);
     cmd.args(args)
         .arg("--timeout")
         .arg(format!("{timeout_secs}s"));
-    decode_shell_output(run_capture(cmd, timeout_secs.saturating_add(15))?)
+    let output = run_capture(cmd, timeout_secs.saturating_add(15))
+        .map_err(|error| backend.annotate(error))?;
+    let mut value = decode_shell_output(output).map_err(|error| backend.annotate(error))?;
+    if value["ok"] != true {
+        value["backend"] = backend.evidence();
+    }
+    Ok(value)
 }
 
 fn decode_shell_output(output: ProcessOutput) -> Res<Value> {
@@ -209,7 +222,15 @@ pub fn shell_cli(args: &[&str], timeout_secs: u64) -> Res<Value> {
     {
         return Ok(value.get("data").cloned().unwrap_or_else(|| json!({})));
     }
-    Err(backend_error(&value, "SHELL_CLI_FAILED", "后端操作失败"))
+    let mut error = backend_error(&value, "SHELL_CLI_FAILED", "后端操作失败");
+    if let Some(backend) = value.get("backend") {
+        error.hint = Some(format!(
+            "实际后端: {}（来源: {}）。文件已启动，请根据后端错误检查客户端连接、版本或登录状态。",
+            backend["path"].as_str().unwrap_or(""),
+            backend["source"].as_str().unwrap_or("")
+        ));
+    }
+    Err(error)
 }
 
 fn parse_mixed_json(raw: &str) -> Option<Value> {

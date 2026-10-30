@@ -9,6 +9,7 @@ mod flow_cmds;
 mod guide_cmds;
 mod help;
 mod input;
+mod installation;
 mod misc_cmds;
 mod oapi;
 mod oapi_cli;
@@ -16,6 +17,9 @@ mod output;
 mod plan;
 mod schema_cmds;
 mod web_cmds;
+mod web_python;
+mod web_session;
+mod web_snapshot;
 mod win32_cmds;
 
 use clap::FromArgMatches;

@@ -379,10 +379,33 @@ pub(crate) enum VisualSub {
 }
 
 #[derive(Args)]
+pub(crate) struct SnapshotDisplay {
+    /// 快照显示样式：完整元素树或原始 ARIA 树；JSON 始终保留完整证据
+    #[arg(long, value_parser = ["tree", "raw"], default_value = "tree")]
+    pub snapshot_view: String,
+    /// 显式限制树的显示行数；默认完整显示，不截断
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+    pub limit: Option<u32>,
+    #[arg(long, default_value_t = 0)]
+    pub offset: u32,
+    /// 按 ref、名称、角色筛选，保留匹配元素的祖先层级
+    #[arg(long)]
+    pub filter: Option<String>,
+    /// 按 ARIA 角色筛选，例如 textbox、button、link
+    #[arg(long)]
+    pub role: Option<String>,
+}
+
+#[derive(Args)]
 pub(crate) struct WebOptions {
     /// 操作成功后不获取页面快照
     #[arg(long)]
     pub no_snapshot: bool,
+    /// 不附加影刀 Python 代码
+    #[arg(long)]
+    pub no_python: bool,
+    #[command(flatten)]
+    pub display: SnapshotDisplay,
 }
 
 #[derive(Args)]
@@ -414,6 +437,13 @@ pub(crate) enum BrowserSub {
     Snapshot {
         #[arg(long, visible_alias = "filename")]
         output: Option<String>,
+        #[command(flatten)]
+        display: SnapshotDisplay,
+    },
+    /// 单元素返回最多 5 条 XPath；多元素生成相似元素集合 XPath
+    Xpath {
+        #[arg(required = true, num_args = 1..=20)]
+        refs: Vec<String>,
     },
     /// 点击快照中的元素
     Click {

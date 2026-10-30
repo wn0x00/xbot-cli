@@ -146,6 +146,10 @@ async function updateNotice() {
   return formatNotice(latest);
 }
 
+function nativeEnvironment(env = process.env, launcherPid = process.pid) {
+  return { ...env, XBOT_CLI_LAUNCHER_PID: String(launcherPid) };
+}
+
 async function main() {
   if (process.platform !== 'win32' || process.arch !== 'x64') {
     process.stderr.write('xbot-cli currently supports Windows x64 with ShadowBot installed.\n');
@@ -166,6 +170,7 @@ async function main() {
     stdio: 'inherit',
     shell: false,
     windowsHide: true,
+    env: nativeEnvironment(),
   });
   if (result.error) {
     process.stderr.write(`Unable to start xbot-cli (${result.error.code}). Reinstall the npm package.\n`);
@@ -180,4 +185,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { compareVersions, notifierEnabled, updateNotice, formatNotice, selfUpdate };
+module.exports = { compareVersions, notifierEnabled, updateNotice, formatNotice, selfUpdate, nativeEnvironment };

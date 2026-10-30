@@ -4,6 +4,10 @@
 
 v10 在网页探索、CodeFlow/VisualFlow 开发与验收基础上，新增算法生成 XPath、定位修复辅助、用途分析、相似元素组验证和 Python Windows 单控件修复模块。
 
+## 2026-10-30 CLI 0.9.1 补充
+
+Skill 版本仍为 v10。浏览器契约补充 Web 操作附带影刀 Python、`web xpath <ref...>` 至多 5 组备选/相似元素规则、iframe Selector 分层、open shadow 待影刀验证与 closed shadow 拒绝生成。CLI 契约同步说明安装目录自动发现和具体路径诊断。本次随 CLI 0.9.1 更新，不把候选生成或离线测试写成影刀运行通过。
+
 ## 升级基础
 
 v9 提供从真实 DOM 获取和验证 XPath 的工作规范，未配套算法生成器和可执行修复脚本。v10 新增 ROBULA+ 与加权生成器，以及相应分析、提议和复核链路。

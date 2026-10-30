@@ -59,7 +59,15 @@ try {
     assert.equal(webData.dry_run, true);
     assert.equal(webData.arguments.url, 'https://example.com/');
     assert.equal(webData.snapshot_after, true);
+    assert.equal(webData.python_after, true);
     assert.equal(webPreview.stderr, '');
+    const xpathPreview = invokeShim(['web', 'xpath', 'e4', 'e5', '--dry-run', '--json']);
+    const xpathData = JSON.parse(xpathPreview.stdout).data;
+    assert.deepEqual(xpathData.arguments.refs, ['e4', 'e5']);
+    assert.deepEqual(xpathData.effects, ['read']);
+    assert.equal(xpathData.python_after, false);
+    const noPython = invokeShim(['web', 'open', 'example.com', '--no-python', '--dry-run', '--json']);
+    assert.equal(JSON.parse(noPython.stdout).data.python_after, false);
   }
   function invoke(args, input) {
     const result = spawnSync(process.execPath, [launcher, ...args], {

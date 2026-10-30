@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.9.1](https://github.com/wn0x00/xbot-cli/compare/v0.9.0...v0.9.1) (2026-10-30)
+
+### Added
+
+- Return ShadowBot Python alongside supported web action results and snapshots. Ordinary DOM actions use semantic XPath; iframe actions use ordered `Selector.xpath.segments` with `web_page.find`. Text output is headed `影刀 Python：`; JSON exposes `data.python`, including dependencies, locator evidence, warnings and validation status. Use `--no-python` to disable generation independently of `--no-snapshot`.
+- Add `xbot-cli web xpath <ref...>`: return up to five single-element alternatives, or shared similar-element rules for multiple refs. Reject incompatible element types or contexts; retain match counts and review warnings for ambiguous candidates.
+- Generate ordered iframe XPath lists and open-ShadowRoot proposals, labeled as ShadowBot syntax requiring validation in ShadowBot. Explicitly refuse XPath and equivalent Python when the target or an outer context crosses a closed ShadowRoot.
+- Preserve the complete snapshot element tree with clearer branch layout, refs, names and states. Filtering and pagination are explicit rather than silently hiding nodes.
+
+### Fixed
+
+- Keep refs bound to the selected browser tab across CLI invocations, including short-lived npm launchers; changing the active tab no longer silently redirects ref actions.
+- Discover non-default ShadowBot installations from the running client, registry and known directories. Report the actual backend path, discovery source and targeted repair advice instead of blindly using the default path or only suggesting startup/login.
+- Preserve successful web actions when code generation or the follow-up snapshot fails; do not replay an action to recover generated output.
+
+### Upgrade notes
+
+- Reattach with `web active` or open a page before using fresh refs. Browser bindings now live in `%LOCALAPPDATA%\xbot-cli\web-sessions`; independent-preview bindings are not imported.
+- Generated code and candidates are proposals, not completed ShadowBot runtime verification (`runtime_verified: false`). iframe lists are Selector segments, not a single XPath for `find_by_xpath`; open ShadowRoot expressions must be tested in ShadowBot. Closed ShadowRoot elements cannot be used.
+- Page-keyboard and arbitrary-script operations do not yet emit equivalent Python. Some pure open-ShadowRoot operations use explicitly labeled JavaScript synthetic-event adapters rather than trusted native input.
+- Explicit `XBOT_SHELL_CLI` / `XBOT_LAUNCHER` overrides remain authoritative; an invalid override is reported instead of silently falling back.
+- The bundled Skill remains v10 with updated Web and diagnostic guidance. See the [Chinese release notes](docs/updates/2026-10-30-web-python-xpath.md) for examples and verification scope.
+
 ## [0.9.0](https://github.com/wn0x00/xbot-cli/compare/v0.8.3...v0.9.0) (2026-10-29)
 
 - Replace browser-use-mcp with Chrome Bridge named-pipe transport for all Playwright-style web commands, including navigation, element interaction, snapshots, and read-only evaluation.

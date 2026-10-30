@@ -7,6 +7,22 @@ const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { version } = require('../../package.json');
 const launcher = join(__dirname, '..', '..', 'bin', 'xbot-cli.cjs');
+const { nativeEnvironment } = require(launcher);
+
+test('npm launcher identifies itself without overriding explicit browser context', () => {
+  const original = Object.freeze({
+    XBOT_CLI_LAUNCHER_PID: 'old-launcher',
+    XBOT_WEB_SESSION: 'isolated-workflow',
+    XBOT_WEB_PIPE: 'explicit-pipe',
+    XBOT_WEB_TAB_ID: '123',
+    PATH: 'unchanged',
+  });
+  assert.deepEqual(nativeEnvironment(original, 456), {
+    ...original, XBOT_CLI_LAUNCHER_PID: '456',
+  });
+  assert.equal(original.XBOT_CLI_LAUNCHER_PID, 'old-launcher');
+  assert.equal(nativeEnvironment().XBOT_CLI_LAUNCHER_PID, String(process.pid));
+});
 
 function invoke(args, input) {
   const result = spawnSync(process.execPath, [launcher, ...args], {

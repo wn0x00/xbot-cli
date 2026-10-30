@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{json, Value};
 
 use crate::app_cmds::CmdOut;
-use crate::cli::{BrowserSub, WebElement, WebOptions};
+use crate::cli::{BrowserSub, SnapshotDisplay, WebElement, WebOptions};
 use crate::core::{self, BackendError, Res};
 
 #[derive(Debug)]
@@ -20,12 +20,14 @@ pub struct PreparedWeb {
     arguments: Value,
     timeout: u64,
     snapshot_after: bool,
+    python_after: bool,
     output: Option<PathBuf>,
+    display: Value,
 }
 
 impl PreparedWeb {
     pub fn preview(&self) -> Value {
-        let mut effects = vec![if self.command == "web.snapshot" {
+        let mut effects = vec![if matches!(self.command, "web.snapshot" | "web.xpath") {
             "read"
         } else {
             "browser-action"
@@ -40,12 +42,17 @@ impl PreparedWeb {
             "arguments": self.arguments,
             "effects": effects,
             "snapshot_after": self.snapshot_after,
+            "python_after": self.python_after,
             "output": self.output,
         })
     }
 
     pub fn execute(self) -> Res<CmdOut> {
-        let response = core::mcp_browser(self.tool, self.arguments, self.timeout).map_err(|error| {
+        let mut arguments = self.arguments.clone();
+        if !self.python_after {
+            arguments["no_python"] = json!(true);
+        }
+        let response = core::mcp_browser(self.tool, arguments, self.timeout).map_err(|error| {
             if self.command == "web.fill"
                 && matches!(error.code.as_str(), "MCP_TOOL_FAILED" | "WEB_BRIDGE_FAILED")
                 && error.hint.is_none()
@@ -57,15 +64,22 @@ impl PreparedWeb {
         })?;
         let mut data = response_object(response);
         data["command"] = json!(self.command);
+        data["snapshot_display"] = self.display;
+        if self.python_after {
+            data["python"] = crate::web_python::generate(self.command, &self.arguments, &data);
+        }
+        data.as_object_mut().unwrap().remove("python_locator");
         if self.command == "web.snapshot" {
             if let Some(path) = self.output {
                 save_snapshot(&path, &data)?;
                 data["snapshot_file"] = json!(path);
             }
-        } else {
+        } else if self.command != "web.xpath" {
             data["applied"] = json!(true);
             if self.snapshot_after {
-                match core::mcp_browser("web_snapshot", json!({}), 60) {
+                let context = &data["browser_context"];
+                let snapshot_args = json!({"tab_id":context["tab_id"],"pipe":context["pipe"]});
+                match core::mcp_browser("web_snapshot", snapshot_args, 60) {
                     Ok(snapshot) => data["snapshot"] = snapshot,
                     Err(error) => {
                         // The action succeeded. Reporting failure here could cause a caller
@@ -187,8 +201,15 @@ fn action(command: &'static str, arguments: Value, options: &WebOptions) -> Prep
         arguments,
         timeout: 60,
         snapshot_after: !options.no_snapshot,
+        python_after: !options.no_python,
         output: None,
+        display: display_options(&options.display),
     }
+}
+
+fn display_options(display: &SnapshotDisplay) -> Value {
+    json!({"view":display.snapshot_view,"limit":display.limit,"offset":display.offset,
+        "filter":display.filter,"role":display.role})
 }
 
 fn element_action(
@@ -276,7 +297,9 @@ pub fn prepare(sub: &BrowserSub) -> Res<Option<PreparedWeb>> {
                 arguments,
                 timeout: 120,
                 snapshot_after: !options.no_snapshot,
+                python_after: !options.no_python,
                 output: None,
+                display: display_options(&options.display),
             }
         }
         BrowserSub::Active { options } => PreparedWeb {
@@ -285,15 +308,29 @@ pub fn prepare(sub: &BrowserSub) -> Res<Option<PreparedWeb>> {
             arguments: json!({}),
             timeout: 60,
             snapshot_after: !options.no_snapshot,
+            python_after: !options.no_python,
             output: None,
+            display: display_options(&options.display),
         },
-        BrowserSub::Snapshot { output } => PreparedWeb {
+        BrowserSub::Snapshot { output, display } => PreparedWeb {
             command: "web.snapshot",
             tool: "web_snapshot",
             arguments: json!({}),
             timeout: 60,
             snapshot_after: false,
+            python_after: false,
             output: output_path(output)?,
+            display: display_options(display),
+        },
+        BrowserSub::Xpath { refs } => PreparedWeb {
+            command: "web.xpath",
+            tool: "web_xpath",
+            arguments: json!({"refs":refs}),
+            timeout: 60,
+            snapshot_after: false,
+            python_after: false,
+            output: None,
+            display: Value::Null,
         },
         BrowserSub::Click {
             element,
@@ -373,7 +410,17 @@ pub fn prepare(sub: &BrowserSub) -> Res<Option<PreparedWeb>> {
         BrowserSub::Close => action(
             "web.close",
             json!({"target": "page", "method": "close", "args": []}),
-            &WebOptions { no_snapshot: true },
+            &WebOptions {
+                no_snapshot: true,
+                no_python: false,
+                display: SnapshotDisplay {
+                    snapshot_view: "tree".into(),
+                    limit: None,
+                    offset: 0,
+                    filter: None,
+                    role: None,
+                },
+            },
         ),
         BrowserSub::Act { .. }
         | BrowserSub::Eval { .. }
@@ -510,6 +557,8 @@ mod tests {
         assert_eq!(command.preview()["snapshot_after"], false);
         assert!(parse(&["click", "e4"]).snapshot_after);
         assert!(!parse(&["close"]).snapshot_after);
+        assert!(!parse(&["click", "e4", "--no-python"]).python_after);
+        assert!(parse(&["click", "e4", "--no-snapshot"]).python_after);
         let path = std::env::temp_dir()
             .join(temporary_name("snapshot"))
             .with_extension("txt");

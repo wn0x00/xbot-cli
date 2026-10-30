@@ -18,7 +18,8 @@ xbot-cli 通过影刀客户端内置通道管理应用、编辑流程、运行�
 - **Agent 优先的输出契约。** 裸调用逐层返回帮助，`schema <path>` 给出机器可读的参数定义；成功写 stdout、失败写 stderr，配合明确的退出码与 `ok/data/error` JSON 信封。
 - **应用与流程全生命周期。** `app` 创建、打开、保存、同步、发布；`flow` 读取、静态检查、运行与等待；`task` 运行已发布应用。
 - **安全的写入边界。** `--dry-run` 离线预览，`--expect-app` 断言当前应用，高风险操作必须显式 `--yes`。
-- **浏览器自动化。** `xbot-cli web` 提供“打开页面 → 快照 → 操作元素”的短命令循环，无需手写 JSON。
+- **浏览器自动化。** `xbot-cli web` 提供“打开页面 → 快照 → 操作元素”的短命令循环，同时返回支持操作的影刀 Python；`web xpath <ref...>` 生成单元素或相似元素 XPath。
+- **安装环境自动发现。** 支持识别非默认影刀安装目录，诊断失败时显示实际后端路径和针对性修复建议。
 - **开放平台 Open API。** `oapi` 一条命令保存 AccessKey，token 自动刷新；应用、机器人、调度、日志、队列、企业账号全覆盖。
 - **内置 Agent Skill。** `xbot-cli install --skills` 安装开发规范、Web/Windows 修复辅助和排障指南。
 
@@ -37,7 +38,7 @@ xbot-cli version
 xbot-cli update          # 升级到最新版本;--check 只检查不升级
 ```
 
-不安装也可体验：`npx --yes --package '@guanzhu.me/xbot-cli' xbot --help`。历史版本与 `.tgz` 附件见 [GitHub Releases](https://github.com/wn0x00/xbot-cli/releases)。
+不安装也可体验：`npx --yes --package '@guanzhu.me/xbot-cli' xbot-cli --help`。历史版本与 `.tgz` 附件见 [GitHub Releases](https://github.com/wn0x00/xbot-cli/releases)。
 
 ## 快速上手
 
@@ -54,7 +55,12 @@ xbot-cli task run <app-id> --json         # 运行已发布应用
 xbot-cli web open baidu.com
 xbot-cli web fill e4 "影刀 RPA"
 xbot-cli web click e7
+# 使用当前快照中的实际 ref
+xbot-cli web xpath e7
+xbot-cli web xpath e7 e8
 ```
+
+网页操作保留 snapshot，并显示“影刀 Python：”；`--no-python` 关闭代码生成。XPath 每次最多返回 5 组候选；iframe 使用分层 Selector，open ShadowRoot 标明需要影刀验证，closed ShadowRoot 明确拒绝生成。详见 [0.9.1 更新说明](docs/updates/2026-10-30-web-python-xpath.md)。
 
 裸调用 `xbot-cli` 或任意分组（如 `xbot-cli flow`）会返回该层级的帮助和示例；`xbot-cli help <path>` 查看详细帮助。
 
@@ -93,6 +99,7 @@ xbot-cli oapi job logs <jobUuid> --json
 
 ## 文档
 
+- [0.9.1 更新说明](docs/updates/2026-10-30-web-python-xpath.md)：Web Python、XPath、安装环境发现及验证范围
 - [CLI 参考](docs/cli-reference.md)：完整命令、参数语义、输出契约与设计依据
 - [Skill v10 升级说明](docs/skill-v10-upgrade.md)：Skill 模块、依赖与限制
 - [平台指南](skills/xbot-app-dev/references/oapi.md)：开放 API 的配置、概念与排障

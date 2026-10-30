@@ -232,15 +232,21 @@ xbot-cli web click e5
 xbot-cli web press Enter
 xbot-cli web goto https://example.com/page
 xbot-cli web snapshot --output page.txt
+xbot-cli web xpath e4
+xbot-cli web xpath e4 e5
 ```
 
 示例编号必须替换为最近快照中的编号。`open` 自动为裸域名补全 HTTPS；`active`（别名 `attach`）附着活动页面。`click`、`dblclick`、`fill`、`hover`、`check`、`uncheck`、`select` 接受元素编号；`type` 和 `press` 默认作用于当前焦点，`press --ref <ref>` 指定元素。导航使用 `goto`、`reload`、`go-back`、`go-forward` 和 `close`。
 
-打开、附着、导航（除 `close`）及上述元素、键盘交互成功后默认获取快照，`--no-snapshot` 可关闭这一步；`eval` 和底层工具调用不追加快照。快照失败会保留操作成功及 `applied: true`，并返回 `warning`；不要因此重复点击或提交。快照正文及 full/diff 元数据来自后端，CLI 不改写编号。`snapshot --output` 保存正文且不覆盖已有文件。终端默认文本输出，管道默认 JSON；`--json` 显式保留完整结果，`--format text` 可强制输出文本。
+打开、附着、导航（除 `close`）及上述元素、键盘交互成功后默认获取快照，`--no-snapshot` 可关闭这一步；`eval` 和底层工具调用不追加快照。快照失败会保留操作成功及 `applied: true`，并返回 `warning`；不要因此重复点击或提交。默认文本快照以完整元素树展示，不隐式折叠或截断；iframe ref 带文档作用域前缀，不能去掉前缀或跨文档复用。`--snapshot-view raw` 显示原始快照；`--role/--filter/--limit/--offset` 显式筛选或分页，JSON 保留完整树。`snapshot --output` 保存正文且不覆盖已有文件。终端默认文本输出，管道默认 JSON；`--json` 显式保留完整结果，`--format text` 可强制输出文本。
+
+支持的页面及元素操作还返回影刀 Python，文本标题为“影刀 Python：”，JSON 字段为 `data.python`。`--no-python` 关闭代码生成，和 `--no-snapshot` 独立。代码生成失败不会重放或否定已成功的动作；`runtime_verified: false` 表示尚未在影刀运行时验证。
+
+`web xpath <ref...>` 只读生成至多 5 组候选：单 ref 返回同一元素的备选 XPath，多 ref 返回覆盖所选同类元素的共同规则。iframe 返回按外层到内层排序的 `Selector.xpath.segments` 列表，open ShadowRoot 输出影刀语法并提示需在影刀验证；closed ShadowRoot 明确拒绝生成。类型不一致、上下文不兼容或缺少可靠规则时给出原因，歧义候选为 `needs_review`，不能用于未经复核的单元素点击。
 
 全部网页命令均通过影刀 Chrome Bridge 命名管道和 CDP 执行，命令形式参考最新 Playwright CLI。`--name` 仅为旧调用保留兼容参数，不会写入影刀元素库。`eval` 保持注入 `activePage` 的只读异步函数体语法。完整参数见 `xbot-cli web --help` 和 [浏览器指南](../skills/xbot-app-dev/references/browser.md)。
 
-可用 `XBOT_WEB_PIPE` 显式指定管道，管道前缀不作为浏览器产品身份判据。快照失败保留已执行动作的证据，不自动重试。
+`web open/active` 将后续命令绑定到同一调用端的管道及标签页，切换活动标签不会暗中换页；`web active` 显式重新绑定。可用 `XBOT_WEB_PIPE`、`XBOT_WEB_TAB_ID` 指定上下文，多进程脚本可设置独立的 `XBOT_WEB_SESSION` 名称；这不是独立浏览器 profile。管道前缀不作为浏览器产品身份判据。快照失败保留已执行动作的证据，不自动重试。
 
 ## 原始工具
 
@@ -329,7 +335,7 @@ npm run test:package
 npm pack
 ```
 
-环境变量 `XBOT_SHELL_CLI`、`XBOT_MCP_ENDPOINT`、`XBOT_BROWSER_MCP_ENDPOINT`、`XBOT_LAUNCHER` 可覆盖标准安装默认值，用于非标准安装或隔离测试。离线单元测试和 mock 后端只能证明对应契约，不能代替真实客户端的开发、运行、同步或发布验收。
+客户端路径优先自动发现运行中客户端、注册表和有限已知安装目录，支持非默认盘符。`XBOT_SHELL_CLI`、`XBOT_LAUNCHER` 是权威覆盖项，即使路径无效也不会静默回退；`doctor` 保留实际路径、发现来源及具体修复建议。`XBOT_MCP_ENDPOINT`、`XBOT_BROWSER_MCP_ENDPOINT` 可覆盖对应通道配置，用于隔离测试。离线单元测试和 mock 后端只能证明对应契约，不能代替真实客户端的开发、运行、同步或发布验收。
 
 源码位于仓库根目录的 `src/`，集成测试位于 `tests/`。`npm run build` 将 Rust release 程序放入 `native/win32-x64/xbot-cli.exe`；`bin/xbot-cli.cjs` 是 npm 命令入口。`npm pack` 仅生成本地包，正式发布步骤见[发布说明](releasing.md)。
 

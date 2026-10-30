@@ -24,10 +24,6 @@ pub const DEFAULT_SHELL_CLI: &str = r"C:\Program Files\ShadowBot\shadowbot.shell
 pub const DEFAULT_MCP_ENDPOINT: &str = "http://127.0.0.1:42500/api/v1/mcp";
 pub const DEFAULT_LAUNCHER: &str = r"C:\Program Files\ShadowBot\ShadowBot.exe";
 
-pub fn shell_cli_path() -> String {
-    std::env::var("XBOT_SHELL_CLI").unwrap_or_else(|_| DEFAULT_SHELL_CLI.into())
-}
-
 pub fn mcp_endpoint() -> String {
     std::env::var("XBOT_MCP_ENDPOINT").unwrap_or_else(|_| DEFAULT_MCP_ENDPOINT.into())
 }
@@ -35,10 +31,6 @@ pub fn mcp_endpoint() -> String {
 /// 兼容既有调用方；实际传输全部使用 Chrome Bridge 命名管道。
 pub fn mcp_browser(tool: &str, args: Value, _timeout_secs: u64) -> Res<Value> {
     crate::bridge::call(tool, args)
-}
-
-pub fn launcher_path() -> String {
-    std::env::var("XBOT_LAUNCHER").unwrap_or_else(|_| DEFAULT_LAUNCHER.into())
 }
 
 // ---------- 错误 ----------
@@ -143,9 +135,12 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
     }
     if matches!(
         code,
-        "api_4011" | "SHELL_CLI_MISSING" | "AUTH_REQUIRED" | "PLATFORM_AUTH" | "PLATFORM_CONFIG"
+        "api_4011" | "AUTH_REQUIRED" | "PLATFORM_AUTH" | "PLATFORM_CONFIG"
     ) {
         return ("authentication", 3, false);
+    }
+    if matches!(code, "SHELL_CLI_MISSING" | "SPAWN_FAILED") {
+        return ("configuration", 3, false);
     }
     if matches!(
         code,

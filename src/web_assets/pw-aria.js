@@ -3903,10 +3903,10 @@ function computeAriaRef(ariaNode, options) {
   if (options.refs === "interactable" && (!ariaNode.box.visible || !ariaNode.receivesPointerEvents))
     return;
   const element = ariaNodeElement(ariaNode);
-  let ariaRef = element._ariaRef;
+  let ariaRef = element._xbotPreviewAriaRef;
   if (!ariaRef || ariaRef.role !== ariaNode.role || ariaRef.name !== ariaNode.name) {
     ariaRef = { role: ariaNode.role, name: ariaNode.name, ref: ((_a = options.refPrefix) != null ? _a : "") + "e" + ++lastRef };
-    element._ariaRef = ariaRef;
+    element._xbotPreviewAriaRef = ariaRef;
   }
   ariaNode.ref = ariaRef.ref;
 }

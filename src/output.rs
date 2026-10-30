@@ -97,6 +97,22 @@ fn render_success(data: Option<&Value>) -> String {
 /// Show the observed accessibility tree directly. The JSON renderer retains
 /// the complete action response, snapshot metadata, and warning evidence.
 fn render_web(data: &Value, command: &str) -> String {
+    if command == "web.xpath" {
+        if let Some(paths) = data["xpaths"].as_array().filter(|a| !a.is_empty()) {
+            let mut lines: Vec<&str> = data["warnings"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect();
+            lines.extend(paths.iter().filter_map(Value::as_str));
+            return lines.join("\n");
+        }
+        return format!(
+            "无法生成 XPath: {}",
+            data["reason"].as_str().unwrap_or("没有可靠的语义候选")
+        );
+    }
     let status = match command {
         "web.open" => "已打开网页",
         "web.active" => "已连接当前浏览器页",
@@ -134,6 +150,9 @@ fn render_web(data: &Value, command: &str) -> String {
         lines.push(format!("URL: {url}"));
     }
     if let Some(context) = context {
+        if let Some(tab) = context["tab_id"].as_i64() {
+            lines.push(format!("标签页: {tab}"));
+        }
         let product = context
             .get("product_name")
             .and_then(Value::as_str)
@@ -144,6 +163,36 @@ fn render_web(data: &Value, command: &str) -> String {
                 Some(id) => format!("浏览器: {product} ({})", scalar(id)),
                 None => format!("浏览器: {product}"),
             });
+        }
+    }
+    if let Some(python) = data.get("python") {
+        lines.push(String::new());
+        if let Some(code) = python["code"].as_str() {
+            lines.push("影刀 Python：".into());
+            lines.push("```python".into());
+            lines.push(code.to_owned());
+            lines.push("```".into());
+        } else if let Some(reason) = python["reason"].as_str() {
+            lines.push(format!("Python 未生成: {reason}"));
+        }
+        if let Some(requires) = python["requires"].as_array() {
+            lines.push(format!(
+                "依赖: {}",
+                requires
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ));
+        }
+        if let Some(warnings) = python["warnings"].as_array() {
+            for warning in warnings.iter().filter_map(Value::as_str) {
+                lines.push(format!("代码提示: {warning}"));
+            }
+        }
+        if let Some(xpath) = python["locator"]["shadowbot_xpath"].as_str() {
+            lines.push("XPath（影刀语法，请使用影刀验证；不是普通浏览器 XPath）:".into());
+            lines.push(xpath.to_owned());
         }
     }
     if let Some(snapshot) = snapshot {
@@ -162,8 +211,19 @@ fn render_web(data: &Value, command: &str) -> String {
         }
         if let Some(text) = crate::web_cmds::snapshot_text(snapshot) {
             lines.push(String::new());
-            lines.push(text.to_owned());
+            lines.push(
+                crate::web_snapshot::render(snapshot, &data["snapshot_display"])
+                    .unwrap_or_else(|| text.to_owned()),
+            );
         }
+        if let Some(warnings) = snapshot["frame_warnings"].as_array() {
+            for warning in warnings.iter().filter_map(Value::as_str) {
+                lines.push(format!("Frame 警告: {warning}"));
+            }
+        }
+    }
+    if let Some(warning) = data["session_warning"].as_str() {
+        lines.push(format!("会话警告: {warning}"));
     }
     if let Some(path) = data.get("snapshot_file").and_then(Value::as_str) {
         lines.push(format!("快照已保存: {path}"));
@@ -296,9 +356,33 @@ fn render_error(envelope: &Value) -> String {
         if let Some(usage) = data.get("usage").and_then(Value::as_str) {
             lines.push(format!("\n{usage}"));
         }
-        let mut recovery = Vec::new();
-        collect_recovery(data, "", &mut recovery);
-        lines.extend(recovery);
+        if code == "DOCTOR_FAILED" {
+            for channel in ["shell_cli", "studio_mcp"] {
+                let result = &data[channel];
+                lines.push(format!(
+                    "{channel}: {}",
+                    if result["ok"] == true {
+                        "正常"
+                    } else {
+                        "失败"
+                    }
+                ));
+                for (label, value) in [
+                    ("实际后端", &result["backend"]["path"]),
+                    ("发现来源", &result["backend"]["source"]),
+                    ("服务地址", &result["endpoint"]),
+                    ("原因", &result["error"]),
+                ] {
+                    if let Some(text) = value.as_str() {
+                        lines.push(format!("  {label}: {text}"));
+                    }
+                }
+            }
+        } else {
+            let mut recovery = Vec::new();
+            collect_recovery(data, "", &mut recovery);
+            lines.extend(recovery);
+        }
     }
     if let Some(hint) = error["hint"].as_str().filter(|hint| !hint.is_empty()) {
         lines.push(format!("提示: {hint}"));
@@ -349,7 +433,13 @@ fn collect_recovery(value: &Value, prefix: &str, lines: &mut Vec<String>) {
         } else {
             format!("{prefix}.{key}")
         };
-        if is_recovery_field(key) {
+        if key == "backend" {
+            for field in ["path", "source", "exists"] {
+                if let Some(value) = value.get(field) {
+                    lines.push(format!("{name}.{field}: {}", scalar(value)));
+                }
+            }
+        } else if is_recovery_field(key) {
             if is_single_line(value) {
                 let text = if key == "outcome" && value.as_str() == Some("unknown") {
                     "unknown (结果未知，请先查询状态，避免重复执行)".into()
@@ -375,6 +465,24 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn doctor_failure_prints_resolved_backend_and_specific_fix_in_text() {
+        let text = render(
+            &json!({
+                "ok":false,
+                "error":{"code":"DOCTOR_FAILED","message":"unavailable","hint":"修正 XBOT_SHELL_CLI 或移除覆盖"},
+                "data":{"shell_cli":{"ok":false,"backend":{"path":r"D:\Custom Dir\shell.exe","source":"environment"},"error":"not found"},
+                "studio_mcp":{"ok":true}}
+            }),
+            OutputMode::Text,
+        );
+        assert!(text.contains(r"D:\Custom Dir\shell.exe"));
+        assert!(text.contains("environment"));
+        assert!(text.contains("not found"));
+        assert!(text.contains("XBOT_SHELL_CLI"));
+        assert!(!text.contains("app open"));
+    }
 
     #[test]
     fn automatic_mode_only_uses_terminal_for_default() {
@@ -503,6 +611,54 @@ mod tests {
             assert!(!text.contains(hidden), "unexpected {hidden}: {text}");
         }
         assert!(render(&value, OutputMode::Json).contains("DO_NOT_PRINT"));
+    }
+
+    #[test]
+    fn python_code_precedes_snapshot_and_does_not_replace_it() {
+        let value = json!({"ok":true,"data":{"command":"web.click",
+            "python":{"status":"ready","code":"web_page.find_by_xpath(\"//button\").click()"},
+            "snapshot":{"result":"- button Example [ref=e4]"}}});
+        let text = render(&value, OutputMode::Text);
+        assert!(text.contains("影刀 Python："));
+        assert!(!text.contains("独立预览版"));
+        assert!(text.find("```python").unwrap() < text.find("[ref=e4]").unwrap());
+        assert_eq!(text.matches("[ref=e4]").count(), 1);
+    }
+
+    #[test]
+    fn shadowbot_paths_are_labeled_even_when_python_is_unavailable() {
+        let path = "//x-form/xbotShadowRoot//input";
+        let notice = "影刀语法，请使用影刀验证";
+        let xpath = json!({"ok":true,"data":{"command":"web.xpath",
+            "warnings":[notice],"xpaths":[path]}});
+        assert_eq!(
+            render(&xpath, OutputMode::Text),
+            format!("{notice}\n{path}")
+        );
+        let action = json!({"ok":true,"data":{"command":"web.fill",
+            "python":{"status":"unavailable","reason":"跨域适配器不可用",
+            "locator":{"shadowbot_xpath":path}}}});
+        let text = render(&action, OutputMode::Text);
+        assert!(text.contains(notice));
+        assert!(text.contains(path));
+    }
+
+    #[test]
+    fn closed_shadow_refusals_are_prominent_in_xpath_and_action_output() {
+        let reason = crate::web_python::CLOSED_SHADOW_REASON;
+        for data in [
+            json!({"command":"web.xpath","status":"unavailable","xpaths":[],
+                "error_code":"WEB_SHADOW_CLOSED","reason":reason}),
+            json!({"command":"web.fill","python":{"status":"unavailable",
+                "error_code":"WEB_SHADOW_CLOSED","reason":reason,"code":null}}),
+        ] {
+            let text = render(&json!({"ok":true,"data":data}), OutputMode::Text);
+            assert!(text.contains("【不支持 shadow-root(closed)】"));
+            assert!(text.contains("无法生成 XPath 或等价 Python"));
+            assert!(!text.contains("```python"));
+            assert!(!text.contains("find_by_xpath"));
+            assert!(!text.contains("/xbotShadowRoot"));
+        }
     }
 
     #[test]
