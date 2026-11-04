@@ -9,6 +9,37 @@ if (process.platform !== 'win32' || process.arch !== 'x64') {
   throw new Error('Build the npm package on Windows x64 with the MSVC Rust toolchain.');
 }
 checkVersions();
+// Build the in-process payload (shim + injectee) into payload/deploy before
+// compiling; the Rust build embeds it via include_bytes!. Machines without a
+// ShadowBot install (CI runners) can't compile the managed injectee — use the
+// committed payload/deploy artifacts instead; they are rebuilt and recommitted
+// on a ShadowBot machine whenever payload sources change.
+const { existsSync } = require('node:fs');
+const shadowbotDir = process.env.XBOT_SHADOWBOT_DIR || 'E:\\影刀\\shadowbot-6.3.39';
+if (existsSync(join(shadowbotDir, 'Caliburn.Micro.dll'))) {
+  run('pwsh', [
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    join(root, 'scripts', 'build-payload.ps1'),
+  ]);
+} else {
+  for (const name of [
+    'XbotShim.dll',
+    'XbotInjectee.dll',
+    'XbotInjectee.identity',
+    'XbotInjectee.runtimeconfig.json',
+  ]) {
+    if (!existsSync(join(root, 'payload', 'deploy', name))) {
+      throw new Error(
+        `payload/deploy/${name} missing and no ShadowBot install found; ` +
+          'run scripts/build-payload.ps1 on a ShadowBot machine or restore the committed artifacts',
+      );
+    }
+  }
+  console.log('ShadowBot refs not found; embedding committed payload/deploy artifacts');
+}
 // Use deterministic release flags and avoid embedding the maintainer's local paths
 // in dependency panic messages. Encoded flags preserve paths containing spaces.
 const flags = [

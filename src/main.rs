@@ -8,6 +8,7 @@ mod extra_cmds;
 mod flow_cmds;
 mod guide_cmds;
 mod help;
+mod inproc;
 mod input;
 mod installation;
 mod misc_cmds;

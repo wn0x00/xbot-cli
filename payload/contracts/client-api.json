@@ -1,0 +1,3723 @@
+[
+  {
+    "operation": "GroupApi.RemoveAppFromGroup",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/app/del",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUuid\"",
+        "exampleValue": "capture_groupUuid"
+      },
+      {
+        "Name": "robotUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_robotUuid\"",
+        "exampleValue": "capture_robotUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupUuid",
+        "type": "string"
+      },
+      {
+        "name": "robotUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "void",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetMarketListAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/user/group/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "page",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      },
+      {
+        "Name": "size",
+        "Type": "QueryString",
+        "JsonValue": "\"50\"",
+        "exampleValue": "50"
+      },
+      {
+        "Name": "isMergeMarket",
+        "Type": "QueryString",
+        "JsonValue": "\"True\"",
+        "exampleValue": "True"
+      }
+    ],
+    "argumentTypes": [],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.MarketInfo[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetEnterpriseUsersMarketListAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/user/owner/group/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "page",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      },
+      {
+        "Name": "size",
+        "Type": "QueryString",
+        "JsonValue": "\"300\"",
+        "exampleValue": "300"
+      }
+    ],
+    "argumentTypes": [],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.MarketInfo[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetImportableMarketListAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/config/robot/importableGroup/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "robotUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_robotUuid\"",
+        "exampleValue": "capture_robotUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.ImportableMarket[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetStandardMarketTagsAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/noauth/v1/sys/tag/queryTagList",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "type",
+        "Type": "QueryString",
+        "JsonValue": "\"robot\"",
+        "exampleValue": "robot"
+      },
+      {
+        "Name": "clientCode",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_clientCode\"",
+        "exampleValue": "capture_clientCode"
+      },
+      {
+        "Name": "tagClass",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_tagClass\"",
+        "exampleValue": "capture_tagClass"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "clientCode",
+        "type": "string"
+      },
+      {
+        "name": "tagClass",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.TagInfo[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetActivityTagsAsync",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/noauth/v1/sys/tag/queryTagList",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "type",
+        "Type": "QueryString",
+        "JsonValue": "\"activity\"",
+        "exampleValue": "activity"
+      },
+      {
+        "Name": "clientCode",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_clientCode\"",
+        "exampleValue": "capture_clientCode"
+      },
+      {
+        "Name": "tagClass ",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_tagClass\"",
+        "exampleValue": "capture_tagClass"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "clientCode",
+        "type": "string"
+      },
+      {
+        "name": "tagClass",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.TagInfo[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetHotAppsAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/official/queryPopularRobotList",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "page",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      },
+      {
+        "Name": "size",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "page",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.AppInfo[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetBannerListAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/official/querySuggestBannerList",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [],
+    "argumentTypes": [],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.BannerInfo[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetMarketUserListAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/config/user/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUuid\"",
+        "exampleValue": "capture_groupUuid"
+      },
+      {
+        "Name": "key",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_keywords\"",
+        "exampleValue": "capture_keywords"
+      },
+      {
+        "Name": "page",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      },
+      {
+        "Name": "size",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupUuid",
+        "type": "string"
+      },
+      {
+        "name": "keywords",
+        "type": "string"
+      },
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.MarketUser[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.InviteByEmailAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/user/inviteByEmail",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUuid\"",
+        "exampleValue": "capture_groupInfoUuid"
+      },
+      {
+        "Name": "email",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_email\"",
+        "exampleValue": "capture_email"
+      },
+      {
+        "Name": "userRole",
+        "Type": "QueryString",
+        "JsonValue": "\"user\"",
+        "exampleValue": "user"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUuid",
+        "type": "string"
+      },
+      {
+        "name": "email",
+        "type": "string"
+      },
+      {
+        "name": "userRole",
+        "type": "ShadowBot.Components.Protocol.Swagger.MarketUserRole"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.AddEnterpriseUserAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/user/addByName",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUuid\"",
+        "exampleValue": "capture_groupInfoUuid"
+      },
+      {
+        "Name": "userName",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_userName\"",
+        "exampleValue": "capture_userName"
+      },
+      {
+        "Name": "userRole",
+        "Type": "QueryString",
+        "JsonValue": "\"user\"",
+        "exampleValue": "user"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUuid",
+        "type": "string"
+      },
+      {
+        "name": "userName",
+        "type": "string"
+      },
+      {
+        "name": "role",
+        "type": "ShadowBot.Components.Protocol.Swagger.MarketUserRole"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.MarketUser>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetMarketInviteLinkAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/user/inviteByLink",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUuid\"",
+        "exampleValue": "capture_groupInfoUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<string>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.CreateMarketAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/group/add",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"name\":\"capture_name\",\"icon\":\"capture_icon\",\"description\":\"capture_description\"}",
+        "exampleValue": {
+          "name": "capture_name",
+          "icon": "capture_icon",
+          "description": "capture_description"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "icon",
+        "type": "string"
+      },
+      {
+        "name": "description",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.MarketInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.UpdateMarketAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/group/update",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUuid\"",
+        "exampleValue": "capture_groupUuid"
+      },
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"uuid\":\"capture_groupUuid\",\"name\":\"capture_name\",\"icon\":\"capture_icon\",\"description\":\"capture_description\"}",
+        "exampleValue": {
+          "uuid": "capture_groupUuid",
+          "name": "capture_name",
+          "icon": "capture_icon",
+          "description": "capture_description"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupUuid",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "icon",
+        "type": "string"
+      },
+      {
+        "name": "description",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.MarketInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.QuitMarketAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/user/retreatGroup",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUuid\"",
+        "exampleValue": "capture_groupUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.RemoveMarketAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/group/del",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUuid\"",
+        "exampleValue": "capture_groupUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.RemoveUserFromGroupAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/user/del",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUuid\"",
+        "exampleValue": "capture_groupUuid"
+      },
+      {
+        "Name": "userUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_userUuid\"",
+        "exampleValue": "capture_userUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupUuid",
+        "type": "string"
+      },
+      {
+        "name": "userUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.SwitchUserRoleAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/updateGroupUser",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUuid\"",
+        "exampleValue": "capture_groupInfoUuid"
+      },
+      {
+        "Name": "groupUserUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUserUuid\"",
+        "exampleValue": "capture_groupUserUuid"
+      },
+      {
+        "Name": "userGroupRole",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_userGroupRole\"",
+        "exampleValue": "capture_userGroupRole"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUuid",
+        "type": "string"
+      },
+      {
+        "name": "groupUserUuid",
+        "type": "string"
+      },
+      {
+        "name": "userGroupRole",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.QueryGroupConfigAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/config/queryGroupConfig",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_groupInfoUuid\"",
+        "exampleValue": "capture_groupInfoUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.GroupConfigInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.UpdateGroupConfigAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/updateGroupConfig",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUuid\"",
+        "exampleValue": "capture_groupInfoUuid"
+      },
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"forbidRobotShare\":false,\"groupInfoUuid\":\"capture_groupInfoUuid\",\"invitedByAdmin\":false}",
+        "exampleValue": {
+          "forbidRobotShare": false,
+          "groupInfoUuid": "capture_groupInfoUuid",
+          "invitedByAdmin": false
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUuid",
+        "type": "string"
+      },
+      {
+        "name": "forbidRobotShare",
+        "type": "bool"
+      },
+      {
+        "name": "invitedByAdmin",
+        "type": "bool"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.UpdateEnterpriseGroupConfigAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/updateGroupConfig",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUuid\"",
+        "exampleValue": "capture_groupInfoUuid"
+      },
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"groupInfoUuid\":\"capture_groupInfoUuid\",\"selectedFlag\":false}",
+        "exampleValue": {
+          "groupInfoUuid": "capture_groupInfoUuid",
+          "selectedFlag": false
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUuid",
+        "type": "string"
+      },
+      {
+        "name": "selectedFlag",
+        "type": "bool"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetAllMarketUsersAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/config/user/merge/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUuid\"",
+        "exampleValue": "capture_groupUuid"
+      },
+      {
+        "Name": "key",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_keywords\"",
+        "exampleValue": "capture_keywords"
+      },
+      {
+        "Name": "page",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      },
+      {
+        "Name": "size",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupUuid",
+        "type": "string"
+      },
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      },
+      {
+        "name": "keywords",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.MarketUser[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.MarketUserDeleteAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/merge/delete/groupUser",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUUID\"",
+        "exampleValue": "capture_groupInfoUUID"
+      },
+      {
+        "Name": "groupUserMergeUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUserMergeUUID\"",
+        "exampleValue": "capture_groupUserMergeUUID"
+      },
+      {
+        "Name": "mergeSource",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_mergeSource\"",
+        "exampleValue": "capture_mergeSource"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUUID",
+        "type": "string"
+      },
+      {
+        "name": "groupUserMergeUUID",
+        "type": "string"
+      },
+      {
+        "name": "mergeSource",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.MarketUserUpdateAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/merge/update/groupRole",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUUID\"",
+        "exampleValue": "capture_groupInfoUUID"
+      },
+      {
+        "Name": "groupUserMergeUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUserMergeUUID\"",
+        "exampleValue": "capture_groupUserMergeUUID"
+      },
+      {
+        "Name": "mergeSource",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_mergeSource\"",
+        "exampleValue": "capture_mergeSource"
+      },
+      {
+        "Name": "userGroupRole",
+        "Type": "QueryString",
+        "JsonValue": "\"user\"",
+        "exampleValue": "user"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUUID",
+        "type": "string"
+      },
+      {
+        "name": "groupUserMergeUUID",
+        "type": "string"
+      },
+      {
+        "name": "mergeSource",
+        "type": "string"
+      },
+      {
+        "name": "role",
+        "type": "ShadowBot.Components.Protocol.Swagger.MarketUserRole"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.MarketUserResetInviteLinkAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/group/config/reset/inviteLink",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupInfoUuid\"",
+        "exampleValue": "capture_groupInfoUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupInfoUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<string>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.SearchGroupUser",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/group/user/searchGroupUser",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "groupInfoUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_groupUuid\"",
+        "exampleValue": "capture_groupUuid"
+      },
+      {
+        "Name": "searchKey",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_keywords\"",
+        "exampleValue": "capture_keywords"
+      },
+      {
+        "Name": "page",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      },
+      {
+        "Name": "size",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "keywords",
+        "type": "string"
+      },
+      {
+        "name": "groupUuid",
+        "type": "string"
+      },
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.EnterpriseUser[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.AddAppToMarketAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/app/market/addMarketApp",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"marketId\":\"capture_marketId\",\"appId\":\"capture_appId\"}",
+        "exampleValue": {
+          "marketId": "capture_marketId",
+          "appId": "capture_appId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "marketId",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetMarketAppListAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/app/market/listByParam",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"marketId\":\"capture_marketId\",\"appType\":\"app\",\"marketUiTag\":\"capture_marketTag\",\"key\":\"capture_key\",\"page\":1,\"size\":1,\"uiTag\":\"capture_uiTag\"}",
+        "exampleValue": {
+          "marketId": "capture_marketId",
+          "appType": "app",
+          "marketUiTag": "capture_marketTag",
+          "key": "capture_key",
+          "page": 1,
+          "size": 1,
+          "uiTag": "capture_uiTag"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "marketId",
+        "type": "string"
+      },
+      {
+        "name": "appType",
+        "type": "ShadowBot.Components.Protocol.Swagger.MarketType"
+      },
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      },
+      {
+        "name": "marketTag",
+        "type": "string"
+      },
+      {
+        "name": "uiTag",
+        "type": "string"
+      },
+      {
+        "name": "key",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.MarketAppData[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.UpdateAppPasswordAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/app/market/updateMarketPassword",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"marketId\":\"capture_marketId\",\"password\":\"capture_password\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "marketId": "capture_marketId",
+          "password": "capture_password"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "marketId",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "password",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.QueryAppPasswordAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/app/market/queryAppPassword",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"marketId\":\"capture_marketId\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "marketId": "capture_marketId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "marketId",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<string>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.RemoveAppFromMarketAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/app/market/delMarketApp",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"marketId\":\"capture_marketId\",\"appId\":\"capture_appId\"}",
+        "exampleValue": {
+          "marketId": "capture_marketId",
+          "appId": "capture_appId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "marketId",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.SearchCoDeveloperUserAsync",
+    "category": "协作开发",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/user/relation/listRelationByUserName",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "userName",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_userName\"",
+        "exampleValue": "capture_userName"
+      },
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      },
+      {
+        "Name": "page",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      },
+      {
+        "Name": "size",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "userName",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.CoDeveloperUser[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.GetImportableListAsync",
+    "category": "拷贝与导入",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/app/market/importable/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "marketId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_marketId\"",
+        "exampleValue": "capture_marketId"
+      },
+      {
+        "Name": "key",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_keywords\"",
+        "exampleValue": "capture_keywords"
+      },
+      {
+        "Name": "appType",
+        "Type": "QueryString",
+        "JsonValue": "\"activity\"",
+        "exampleValue": "activity"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "marketId",
+        "type": "string"
+      },
+      {
+        "name": "keywords",
+        "type": "string"
+      },
+      {
+        "name": "isApp",
+        "type": "bool"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.ImportableApp[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "GroupApi.SubscribeAppAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/app/market/addMarketAppRelation",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"marketId\":\"capture_marketId\",\"password\":\"capture_password\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "marketId": "capture_marketId",
+          "password": "capture_password"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "marketId",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "password",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.PackageCurrentVersionAsync",
+    "category": "版本与发布",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/import/version/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "[]",
+        "exampleValue": []
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "packageRequests",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.PackageRequest[]"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<string[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.ResetShareLinkAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/share/resetShareLink",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "robotUuid",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_robotUuid\"",
+        "exampleValue": "capture_robotUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.ShareLinkInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.ChangeSharePasswordAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/share/changeSharePassword",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "password",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_password\"",
+        "exampleValue": "capture_password"
+      },
+      {
+        "Name": "robotUuid",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_robotUuid\"",
+        "exampleValue": "capture_robotUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "password",
+        "type": "string"
+      },
+      {
+        "name": "robotUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.ShareLinkInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CreateUserCustomTypeAsync",
+    "category": "个人分组",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/user/userCustomType/create",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "name",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_name\"",
+        "exampleValue": "capture_name"
+      },
+      {
+        "Name": "icon",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_icon\"",
+        "exampleValue": "capture_icon"
+      },
+      {
+        "Name": "purpose",
+        "Type": "GetOrPost",
+        "JsonValue": "\"appUse\"",
+        "exampleValue": "appUse"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "icon",
+        "type": "string"
+      },
+      {
+        "name": "kind",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.PurposeKind"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppCategory>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.DeleteUserCustomTypeAsync",
+    "category": "个人分组",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/user/userCustomType/delete",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "userCustomTypeUuid",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_categoryUuid\"",
+        "exampleValue": "capture_categoryUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "categoryUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.UserCustomTypelistAsync",
+    "category": "个人分组",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/user/userCustomType/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "page",
+        "Type": "GetOrPost",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      },
+      {
+        "Name": "size",
+        "Type": "GetOrPost",
+        "JsonValue": "\"50\"",
+        "exampleValue": "50"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "kind",
+        "type": "System.Nullable`1<ShadowBot.Components.Protocol.Swagger.Model.PurposeKind>"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppCategory[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.UpdateUserCustomTypeAsync",
+    "category": "个人分组",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/user/userCustomType/update",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "name",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_name\"",
+        "exampleValue": "capture_name"
+      },
+      {
+        "Name": "icon",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_icon\"",
+        "exampleValue": "capture_icon"
+      },
+      {
+        "Name": "userCustomTypeUuid",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_categoryUuid\"",
+        "exampleValue": "capture_categoryUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "icon",
+        "type": "string"
+      },
+      {
+        "name": "categoryUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAppPublishSettingsAsync",
+    "category": "版本与发布",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "/api/v1/ep/config/get",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"configKey\":\"appPublishSettings\"}",
+        "exampleValue": {
+          "configKey": "appPublishSettings"
+        }
+      }
+    ],
+    "argumentTypes": [],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppPublishSettings>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetActivityPackageVersionDetailAsync",
+    "category": "版本与发布",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/develop/package/version/versionDetail",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      },
+      {
+        "Name": "appVersionId",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_robotVersionUuid\"",
+        "exampleValue": "capture_robotVersionUuid"
+      },
+      {
+        "Name": "reSize",
+        "Type": "GetOrPost",
+        "JsonValue": "\"48\"",
+        "exampleValue": "48"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "robotVersionUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.ActivityVersionDetail>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.ShareActivityPackageToMarketAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/activity/share/activity/market",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "robotUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_robotUuid\"",
+        "exampleValue": "capture_robotUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.ShareActivityPackageToEnterpriseMarketAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/app/market/addEnterpriseDefault",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_robotUuid\",\"tenantId\":\"capture_enterpriseUuid\"}",
+        "exampleValue": {
+          "appId": "capture_robotUuid",
+          "tenantId": "capture_enterpriseUuid"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotUuid",
+        "type": "string"
+      },
+      {
+        "name": "enterpriseUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CheckPackageExistsAsync",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/package/exists",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "packageCode",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_packageCode\"",
+        "exampleValue": "capture_packageCode"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "packageCode",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<bool>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetActivityDetailBatchAsync",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/dependencyList",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"packageNameVersions\":\"capture_packageNameVersions\",\"iconResize\":48}",
+        "exampleValue": {
+          "packageNameVersions": "capture_packageNameVersions",
+          "iconResize": 48
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "packageNameVersions",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.ActivityDependency[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetCoDevRelationListAsync",
+    "category": "协作开发",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/user/relation/listDeveloperByOwner",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.RelationInfo[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.AddCoDevRelationAsync",
+    "category": "协作开发",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/user/relation/addDeveloperRelation",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"userId\":\"capture_userId\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "userId": "capture_userId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "userId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.RelationInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.DelCoDevRelationAsync",
+    "category": "协作开发",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/user/relation/delDeveloperRelation",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"userId\":\"capture_userId\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "userId": "capture_userId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "userId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.RecycleDiscardAsync",
+    "category": "回收站",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/recycle/recycle",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\"}",
+        "exampleValue": {
+          "appId": "capture_appId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.RecycleDeleteAsync",
+    "category": "回收站",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/recycle/delete",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\"}",
+        "exampleValue": {
+          "appId": "capture_appId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.IsValidToDeleteAppAsync",
+    "category": "回收站",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/user/relation/isGuest",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<bool>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.RecycleRecoverAsync",
+    "category": "回收站",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/recycle/recover",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\"}",
+        "exampleValue": {
+          "appId": "capture_appId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.PublishDevelopedAppAsync",
+    "category": "版本与发布",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/publish/publish",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"remark\":\"capture_versionLog\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "remark": "capture_versionLog"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "versionLog",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.VersionRollBackAsync",
+    "category": "版本与发布",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/publish/switchVersion",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"versionId\":\"capture_versionId\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "versionId": "capture_versionId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "versionId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetVersionListAsync",
+    "category": "版本与发布",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/historyVersionList",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"pageDTO\":{\"page\":1,\"size\":1}}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "pageDTO": {
+            "page": 1,
+            "size": 1
+          }
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "page",
+        "type": "int"
+      },
+      {
+        "name": "size",
+        "type": "int"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.VersionData[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAllDevelopedAppListAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/develop/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"name\":\"\",\"pageType\":1,\"pageDTO\":{\"page\":1,\"size\":50}}",
+        "exampleValue": {
+          "name": "",
+          "pageType": 1,
+          "pageDTO": {
+            "page": 1,
+            "size": 50
+          }
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "pageType",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.PageType"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppInfoLight[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetDevelopedAppListAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/develop/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"groupId\":\"capture_groupId\",\"name\":\"capture_searchKey\",\"pageType\":1,\"pageDTO\":{\"page\":1,\"size\":1},\"sortBy\":\"1\"}",
+        "exampleValue": {
+          "groupId": "capture_groupId",
+          "name": "capture_searchKey",
+          "pageType": 1,
+          "pageDTO": {
+            "page": 1,
+            "size": 1
+          },
+          "sortBy": "1"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupId",
+        "type": "string"
+      },
+      {
+        "name": "sortDescription",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.AppSortDescription"
+      },
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      },
+      {
+        "name": "pageType",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.PageType"
+      },
+      {
+        "name": "searchKey",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.AppInfoLight[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetSubscribedAppListAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/guest/allAuthority/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"groupId\":\"capture_groupId\",\"name\":\"capture_searchKey\",\"pageType\":2,\"pageDTO\":{\"page\":1,\"size\":1},\"sortBy\":\"1\"}",
+        "exampleValue": {
+          "groupId": "capture_groupId",
+          "name": "capture_searchKey",
+          "pageType": 2,
+          "pageDTO": {
+            "page": 1,
+            "size": 1
+          },
+          "sortBy": "1"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "groupId",
+        "type": "string"
+      },
+      {
+        "name": "sortDescription",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.AppSortDescription"
+      },
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      },
+      {
+        "name": "searchKey",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.AppInfoLight[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAllAuthorityList",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/allAuthority/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"groupId\":\"capture_groupId\",\"name\":\"capture_searchKey\",\"pageType\":6,\"pageDTO\":{\"page\":1,\"size\":1}}",
+        "exampleValue": {
+          "groupId": "capture_groupId",
+          "name": "capture_searchKey",
+          "pageType": 6,
+          "pageDTO": {
+            "page": 1,
+            "size": 1
+          }
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      },
+      {
+        "name": "searchKey",
+        "type": "string"
+      },
+      {
+        "name": "groupId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.AppInfoLight[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAvailableActivityPackageListAsync",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/package/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"key\":\"capture_key\",\"groupInfoUuid\":\"capture_groupUUId\",\"source\":\"capture_packageSource\",\"uiaType\":\"pc\",\"iconSize\":48,\"page\":1,\"size\":1,\"uiTag\":\"capture_tag\",\"marketUiTag\":\"capture_marketUiTag\"}",
+        "exampleValue": {
+          "key": "capture_key",
+          "groupInfoUuid": "capture_groupUUId",
+          "source": "capture_packageSource",
+          "uiaType": "pc",
+          "iconSize": 48,
+          "page": 1,
+          "size": 1,
+          "uiTag": "capture_tag",
+          "marketUiTag": "capture_marketUiTag"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "key",
+        "type": "string"
+      },
+      {
+        "name": "packageSource",
+        "type": "string"
+      },
+      {
+        "name": "uiaType",
+        "type": "ShadowBot.Components.Protocol.Swagger.UIAType"
+      },
+      {
+        "name": "groupUUId",
+        "type": "string"
+      },
+      {
+        "name": "marketUiTag",
+        "type": "string"
+      },
+      {
+        "name": "page",
+        "type": "int"
+      },
+      {
+        "name": "size",
+        "type": "int"
+      },
+      {
+        "name": "tag",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.ActivityPackageInfo[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAvailableIPaasPackageListAsync",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "/api/client/app/iPaas/package/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"key\":\"capture_key\",\"groupInfoUuid\":\"capture_groupUUId\",\"source\":\"capture_packageSource\",\"uiaType\":\"pc\",\"iconSize\":48,\"page\":1,\"size\":1,\"uiTag\":\"capture_tag\",\"marketUiTag\":\"capture_marketUiTag\"}",
+        "exampleValue": {
+          "key": "capture_key",
+          "groupInfoUuid": "capture_groupUUId",
+          "source": "capture_packageSource",
+          "uiaType": "pc",
+          "iconSize": 48,
+          "page": 1,
+          "size": 1,
+          "uiTag": "capture_tag",
+          "marketUiTag": "capture_marketUiTag"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "key",
+        "type": "string"
+      },
+      {
+        "name": "packageSource",
+        "type": "string"
+      },
+      {
+        "name": "uiaType",
+        "type": "ShadowBot.Components.Protocol.Swagger.UIAType"
+      },
+      {
+        "name": "groupUUId",
+        "type": "string"
+      },
+      {
+        "name": "marketUiTag",
+        "type": "string"
+      },
+      {
+        "name": "page",
+        "type": "int"
+      },
+      {
+        "name": "size",
+        "type": "int"
+      },
+      {
+        "name": "tag",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.IPaasActivityPackageInfo[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetIPaasConnectorDetail",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "/api/client/app/iPaas/detail",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "connectorCode",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_connectorCode\"",
+        "exampleValue": "capture_connectorCode"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "connectorCode",
+        "type": "string"
+      },
+      {
+        "name": "token",
+        "type": "System.Threading.CancellationToken"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.IPaasConnectorInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAppInviteLinkAsync",
+    "category": "分享与市场",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/app/share/createShareLink",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      },
+      {
+        "Name": "bizVersion",
+        "Type": "QueryString",
+        "JsonValue": "\"1\"",
+        "exampleValue": "1"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.CreateShareResult>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CreateDevelopedAppAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/develop/create",
+    "dispatchChannel": "ExecuteWithSignAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"packageMd5\":\"capture_packageMd5\",\"groupId\":\"capture_groupId\",\"appPackage\":{\"name\":\"CAPTURE_ONLY\"},\"elementLibraryStatus\":null}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "packageMd5": "capture_packageMd5",
+          "groupId": "capture_groupId",
+          "appPackage": {
+            "name": "CAPTURE_ONLY"
+          },
+          "elementLibraryStatus": null
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "packageMd5",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "appPackage",
+        "type": "object"
+      },
+      {
+        "name": "groupId",
+        "type": "string"
+      },
+      {
+        "name": "selectorSyncStatus",
+        "type": "System.Nullable`1<ShadowBot.Components.Protocol.Swagger.Model.Selectors.SelectorSyncStatus>"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.UpdateDevelopedAppAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/develop/update",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"packageMd5\":\"capture_packageMd5\",\"appPackage\":{\"name\":\"CAPTURE_ONLY\"},\"elementLibraryStatus\":null}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "packageMd5": "capture_packageMd5",
+          "appPackage": {
+            "name": "CAPTURE_ONLY"
+          },
+          "elementLibraryStatus": null
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "packageMd5",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "appPackage",
+        "type": "object"
+      },
+      {
+        "name": "selectorSyncStatus",
+        "type": "System.Nullable`1<ShadowBot.Components.Protocol.Swagger.Model.Selectors.SelectorSyncStatus>"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetDevAppDetailByAppIdAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/develop/app/detail",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      },
+      {
+        "Name": "checkAppRecycle",
+        "Type": "QueryString",
+        "JsonValue": "\"False\"",
+        "exampleValue": "False"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "checkAppRecycle",
+        "type": "bool"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppInfoLightDetail>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetDevAppRunningDetailByAppIdAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/run/develop/runningDetailByAppId",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppInfoLightDetail>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.MigrateRobotAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/user/relation/migrateApp",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"migrateCode\":\"capture_migrateCode\",\"appId\":\"capture_appId\"}",
+        "exampleValue": {
+          "migrateCode": "capture_migrateCode",
+          "appId": "capture_appId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "migrateCode",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetSuggestRobotNameAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/develop/suggestAppName",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appType",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_appType\"",
+        "exampleValue": "capture_appType"
+      },
+      {
+        "Name": "suggestType",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_suggestType\"",
+        "exampleValue": "capture_suggestType"
+      },
+      {
+        "Name": "appName",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_appName\"",
+        "exampleValue": "capture_appName"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appType",
+        "type": "string"
+      },
+      {
+        "name": "suggestType",
+        "type": "string"
+      },
+      {
+        "name": "appName",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<string>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CheckSourceAuth",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/develop/checkSourceAuth",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CheckCreateBenefitAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/develop/checkCreateBenefit",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appType",
+        "Type": "QueryString",
+        "JsonValue": "\"app\"",
+        "exampleValue": "app"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "type",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.RobotType"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<bool>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.UpdateAppGroupAsync",
+    "category": "个人分组",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/group/updateAppGroup",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"groupId\":\"capture_groupId\",\"appAuthority\":\"d\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "groupId": "capture_groupId",
+          "appAuthority": "d"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "groupId",
+        "type": "string"
+      },
+      {
+        "name": "appAuthority",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.AppKind"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.RecycleListAsync",
+    "category": "回收站",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/recycle/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"pageType\":3,\"name\":\"capture_searchKey\",\"pageDTO\":{\"page\":1,\"size\":1},\"iconResize\":1,\"sortBy\":\"1\"}",
+        "exampleValue": {
+          "pageType": 3,
+          "name": "capture_searchKey",
+          "pageDTO": {
+            "page": 1,
+            "size": 1
+          },
+          "iconResize": 1,
+          "sortBy": "1"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "sortDescription",
+        "type": "ShadowBot.Components.Protocol.Swagger.Model.AppSortDescription"
+      },
+      {
+        "name": "pageIndex",
+        "type": "int"
+      },
+      {
+        "name": "pageSize",
+        "type": "int"
+      },
+      {
+        "name": "iconSize",
+        "type": "int"
+      },
+      {
+        "name": "searchKey",
+        "type": "string"
+      },
+      {
+        "name": "isAppType",
+        "type": "bool"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Page`1<ShadowBot.Components.Protocol.Swagger.Model.RecycleItemInfo[]>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAppRuningDetailAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/run/appRunningDetail",
+    "dispatchChannel": "ExecuteWithSignAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"env\":\"online\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "env": "online"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "isDev",
+        "type": "bool"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppRunningDetail>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAppDetailByVersionIdAsync",
+    "category": "版本与发布",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/versionDetailByVersionId",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      },
+      {
+        "Name": "appVersionId",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_appVersionId\"",
+        "exampleValue": "capture_appVersionId"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "appVersionId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppInfoLightDetail>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.QueryDependenciesAsync",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/run/batch/query/version",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "[]",
+        "exampleValue": []
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "packages",
+        "type": "System.Collections.Generic.List`1<ShadowBot.Components.Protocol.Swagger.Model.PackageRequest>"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<System.Collections.Generic.List`1<ShadowBot.Components.Protocol.Swagger.Model.DependencyData>>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.ActivityExist",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/package/version/exist",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      },
+      {
+        "Name": "packageCode",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_packageCode\"",
+        "exampleValue": "capture_packageCode"
+      },
+      {
+        "Name": "version",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_version\"",
+        "exampleValue": "capture_version"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "packageCode",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<bool>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.PackageRenameCheck",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/package/rename/check",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "newPackageCode",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_newPackageCode\"",
+        "exampleValue": "capture_newPackageCode"
+      },
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "newPackageCode",
+        "type": "string"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "void",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetActivityCodeAsync",
+    "category": "指令与依赖",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/develop/generate/packageCode",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [],
+    "argumentTypes": [],
+    "returnType": "System.Threading.Tasks.Task`1<string>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.ImportRobot",
+    "category": "拷贝与导入",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/develop/import",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appPackage\":{\"name\":\"CAPTURE_ONLY\"},\"appId\":\"capture_appId\",\"packageMd5\":\"capture_packageMd5\",\"groupId\":\"capture_groupId\"}",
+        "exampleValue": {
+          "appPackage": {
+            "name": "CAPTURE_ONLY"
+          },
+          "appId": "capture_appId",
+          "packageMd5": "capture_packageMd5",
+          "groupId": "capture_groupId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appPackage",
+        "type": "object"
+      },
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "packageMd5",
+        "type": "string"
+      },
+      {
+        "name": "groupId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAppInfoByAppIdAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/app/detail",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "appId",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_appId\"",
+        "exampleValue": "capture_appId"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.AppInfoLightDetail>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetStudioSettingsAsync",
+    "category": "配置",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/ep/config/get",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"configKey\":\"studioSettings\"}",
+        "exampleValue": {
+          "configKey": "studioSettings"
+        }
+      }
+    ],
+    "argumentTypes": [],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.StudioSettingsInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CreateCopyRecordAsync",
+    "category": "拷贝与导入",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/app/develop/saveCopyRecord",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"sourceAppId\":\"capture_sourceAppId\",\"targetAppId\":\"capture_targetAppId\"}",
+        "exampleValue": {
+          "sourceAppId": "capture_sourceAppId",
+          "targetAppId": "capture_targetAppId"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "sourceAppId",
+        "type": "string"
+      },
+      {
+        "name": "targetAppId",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<bool>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetUITagListByTypeAsync",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/resource/client/tag/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "resourceTypeList",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_tagType\"",
+        "exampleValue": "capture_tagType"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "tagType",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.UITag[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetEmailServerConfigAsync",
+    "category": "配置",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "/api/v1/ep/config/get",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"configKey\":\"emailServerConfig\"}",
+        "exampleValue": {
+          "configKey": "emailServerConfig"
+        }
+      }
+    ],
+    "argumentTypes": [],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Common.Models.EmailServerConfig>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetRobotTriggerListAsync",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/robot/trigger/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "key",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_key\"",
+        "exampleValue": "capture_key"
+      },
+      {
+        "Name": "page",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_page\"",
+        "exampleValue": "capture_page"
+      },
+      {
+        "Name": "size",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_size\"",
+        "exampleValue": "capture_size"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "key",
+        "type": "string"
+      },
+      {
+        "name": "page",
+        "type": "string"
+      },
+      {
+        "name": "size",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.RobotTrigger[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetRobotJobListAsync",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/robot/task/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "key",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_key\"",
+        "exampleValue": "capture_key"
+      },
+      {
+        "Name": "page",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_page\"",
+        "exampleValue": "capture_page"
+      },
+      {
+        "Name": "size",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_size\"",
+        "exampleValue": "capture_size"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "key",
+        "type": "string"
+      },
+      {
+        "name": "page",
+        "type": "string"
+      },
+      {
+        "name": "size",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.RobotTask[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetCalendarListAsync",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/calendar/v1/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"calenderName\":\"capture_calenderName\"}",
+        "exampleValue": {
+          "calenderName": "capture_calenderName"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "calenderName",
+        "type": "string"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.CalendarData[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetValidCalendarDaysAsync",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/calendar/v1/date/list",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"size\":1,\"calendarCodes\":[],\"date\":\"capture_date\"}",
+        "exampleValue": {
+          "size": 1,
+          "calendarCodes": [],
+          "date": "capture_date"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "calendarCodes",
+        "type": "string[]"
+      },
+      {
+        "name": "date",
+        "type": "string"
+      },
+      {
+        "name": "size",
+        "type": "int"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.CalendarValidDates[]>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CreateRobotJob",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/task/create",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"name\":\"capture_name\",\"cronType\":\"capture_cronType\",\"cronExpression\":\"capture_cronExpression\",\"robotUuid\":\"capture_robotUuid\",\"description\":\"capture_description\",\"enabled\":false,\"config\":\"capture_config\"}",
+        "exampleValue": {
+          "name": "capture_name",
+          "cronType": "capture_cronType",
+          "cronExpression": "capture_cronExpression",
+          "robotUuid": "capture_robotUuid",
+          "description": "capture_description",
+          "enabled": false,
+          "config": "capture_config"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "cronType",
+        "type": "string"
+      },
+      {
+        "name": "cronExpression",
+        "type": "string"
+      },
+      {
+        "name": "robotUuid",
+        "type": "string"
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "type": "bool"
+      },
+      {
+        "name": "config",
+        "type": "string"
+      }
+    ],
+    "returnType": "ShadowBot.Components.Protocol.Swagger.Model.RobotTask",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.DeleteRobotJob",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/task/delete",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "robotTaskUuid",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_robotTaskUuid\"",
+        "exampleValue": "capture_robotTaskUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotTaskUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "void",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.UpdateRobotJob",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/task/update",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"robotTaskUuid\":\"capture_robotTaskUuid\",\"name\":\"capture_name\",\"cronType\":\"capture_cronType\",\"cronExpression\":\"capture_cronExpression\",\"robotUuid\":\"capture_robotUuid\",\"description\":\"capture_description\",\"enabled\":false,\"config\":\"capture_config\"}",
+        "exampleValue": {
+          "robotTaskUuid": "capture_robotTaskUuid",
+          "name": "capture_name",
+          "cronType": "capture_cronType",
+          "cronExpression": "capture_cronExpression",
+          "robotUuid": "capture_robotUuid",
+          "description": "capture_description",
+          "enabled": false,
+          "config": "capture_config"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotTaskUuid",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "robotUuid",
+        "type": "string"
+      },
+      {
+        "name": "cronType",
+        "type": "string"
+      },
+      {
+        "name": "cronExpression",
+        "type": "string"
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "type": "bool"
+      },
+      {
+        "name": "config",
+        "type": "string"
+      }
+    ],
+    "returnType": "ShadowBot.Components.Protocol.Swagger.Model.RobotTask",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.ChangeRobotJobEnabledStatus",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/task/changeEnabledStatus",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "robotTaskUuid",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_robotTaskUuid\"",
+        "exampleValue": "capture_robotTaskUuid"
+      },
+      {
+        "Name": "enabled",
+        "Type": "GetOrPost",
+        "JsonValue": "\"False\"",
+        "exampleValue": "False"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotTaskUuid",
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "type": "bool"
+      }
+    ],
+    "returnType": "void",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CreateRobotTrigger",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/trigger/create",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"name\":\"capture_name\",\"type\":\"capture_type\",\"robotUuid\":\"capture_robotUuid\",\"description\":\"capture_description\",\"enabled\":false,\"config\":\"capture_config\"}",
+        "exampleValue": {
+          "name": "capture_name",
+          "type": "capture_type",
+          "robotUuid": "capture_robotUuid",
+          "description": "capture_description",
+          "enabled": false,
+          "config": "capture_config"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "type": "string"
+      },
+      {
+        "name": "config",
+        "type": "string"
+      },
+      {
+        "name": "robotUuid",
+        "type": "string"
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "type": "bool"
+      }
+    ],
+    "returnType": "ShadowBot.Components.Protocol.Swagger.Model.RobotTrigger",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.DeleteRobotTrigger",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/trigger/delete",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "robotTriggerUuid",
+        "Type": "GetOrPost",
+        "JsonValue": "\"capture_robotTriggerUuid\"",
+        "exampleValue": "capture_robotTriggerUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotTriggerUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "void",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.UpdateRobotTrigger",
+    "category": "任务与触发器",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/trigger/update",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"robotTriggerUuid\":\"capture_robotTriggerUuid\",\"name\":\"capture_name\",\"type\":\"capture_type\",\"robotUuid\":\"capture_robotUuid\",\"description\":\"capture_description\",\"enabled\":false,\"config\":\"capture_config\"}",
+        "exampleValue": {
+          "robotTriggerUuid": "capture_robotTriggerUuid",
+          "name": "capture_name",
+          "type": "capture_type",
+          "robotUuid": "capture_robotUuid",
+          "description": "capture_description",
+          "enabled": false,
+          "config": "capture_config"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "robotTriggerUuid",
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "type": "string"
+      },
+      {
+        "name": "config",
+        "type": "string"
+      },
+      {
+        "name": "robotUuid",
+        "type": "string"
+      },
+      {
+        "name": "description",
+        "type": "string"
+      },
+      {
+        "name": "enabled",
+        "type": "bool"
+      }
+    ],
+    "returnType": "ShadowBot.Components.Protocol.Swagger.Model.RobotTrigger",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetPlates",
+    "category": "快捷面板",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/v1/robot/quick/plate/list",
+    "dispatchChannel": "Execute",
+    "parameters": [],
+    "argumentTypes": [],
+    "returnType": "System.Collections.Generic.IEnumerable`1<ShadowBot.Components.Protocol.Swagger.Model.PlateInfo>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.SavePlatesAsync",
+    "category": "快捷面板",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/quick/plate/save",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "[]",
+        "exampleValue": []
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "plates",
+        "type": "System.Collections.Generic.IEnumerable`1<ShadowBot.Components.Protocol.Swagger.Model.PlateInfo>"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetAppModel",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "/api/college/v1/console/user/queryAppModel",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "userOperateUuid",
+        "Type": "QueryString",
+        "JsonValue": "\"capture_userOperateUuid\"",
+        "exampleValue": "capture_userOperateUuid"
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "userOperateUuid",
+        "type": "string"
+      }
+    ],
+    "returnType": "ShadowBot.Components.Protocol.Swagger.Model.HomeWorkTemplate",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetRuntimeLimitAsync",
+    "category": "配置",
+    "status": "request_constructed_offline",
+    "method": "GET",
+    "relativePath": "api/client/run/runtimeLimitConfig",
+    "dispatchChannel": "ExecuteAsync",
+    "parameters": [],
+    "argumentTypes": [
+      {
+        "name": "sceneCode",
+        "type": "System.Nullable`1<int>"
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task`1<ShadowBot.Components.Protocol.Swagger.Model.RuntimeLimitConfig>",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.CheckRunBenefit",
+    "category": "应用与其他",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/client/run/checkRunBenefit",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "",
+        "Type": "RequestBody",
+        "JsonValue": "{\"appId\":\"capture_appId\",\"blockCount\":1,\"sourceLineCount\":1,\"internalDependencies\":[],\"uiTags\":\"capture_uiTags\",\"source\":\"capture_source\"}",
+        "exampleValue": {
+          "appId": "capture_appId",
+          "blockCount": 1,
+          "sourceLineCount": 1,
+          "internalDependencies": [],
+          "uiTags": "capture_uiTags",
+          "source": "capture_source"
+        }
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "appId",
+        "type": "string"
+      },
+      {
+        "name": "blockCount",
+        "type": "int"
+      },
+      {
+        "name": "sourceLineCount",
+        "type": "int"
+      },
+      {
+        "name": "internalDependencies",
+        "type": "string[]"
+      },
+      {
+        "name": "uiTags",
+        "type": "string"
+      },
+      {
+        "name": "source",
+        "type": "string"
+      }
+    ],
+    "returnType": "void",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  },
+  {
+    "operation": "RobotApi.GetQuickModeApps",
+    "category": "快捷面板",
+    "status": "request_constructed_offline",
+    "method": "POST",
+    "relativePath": "api/v1/robot/quick/info/list",
+    "dispatchChannel": "Execute",
+    "parameters": [
+      {
+        "Name": "robotUuidTypes",
+        "Type": "GetOrPost",
+        "JsonValue": "\"\"",
+        "exampleValue": ""
+      }
+    ],
+    "argumentTypes": [
+      {
+        "name": "infos",
+        "type": "System.Collections.Generic.IEnumerable`1<ShadowBot.Components.Protocol.Swagger.Model.PlateItemInfo>"
+      }
+    ],
+    "returnType": "ShadowBot.Components.Protocol.Swagger.AppInfo[]",
+    "evidence": "captured-requests.json",
+    "serverExecuted": false
+  }
+]
