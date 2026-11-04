@@ -9,8 +9,7 @@ use windows::core::{PCSTR, PCWSTR};
 use windows::Win32::Foundation::{CloseHandle, GetLastError, HANDLE};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Diagnostics::ToolHelp::{
-    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
-    TH32CS_SNAPPROCESS,
+    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
 use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
 use windows::Win32::System::Memory::{
@@ -25,14 +24,12 @@ use windows::Win32::System::Threading::{
 use crate::core::{BackendError, Res};
 
 pub fn inject_into_shell(shim_path: &Path) -> Res<u32> {
-    let shim_path = strip_unc(
-        std::fs::canonicalize(shim_path).map_err(|e| {
-            BackendError::new(
-                "INPROC_INJECT",
-                format!("canonicalize {}: {e}", shim_path.display()),
-            )
-        })?,
-    );
+    let shim_path = strip_unc(std::fs::canonicalize(shim_path).map_err(|e| {
+        BackendError::new(
+            "INPROC_INJECT",
+            format!("canonicalize {}: {e}", shim_path.display()),
+        )
+    })?);
     if !shim_path.is_file() {
         return Err(BackendError::new(
             "INPROC_INJECT",
@@ -46,9 +43,8 @@ pub fn inject_into_shell(shim_path: &Path) -> Res<u32> {
         | PROCESS_VM_OPERATION
         | PROCESS_VM_WRITE
         | PROCESS_VM_READ;
-    let proc = unsafe { OpenProcess(access, false, pid) }.map_err(|e| {
-        BackendError::new("INPROC_INJECT", format!("OpenProcess({pid}): {e}"))
-    })?;
+    let proc = unsafe { OpenProcess(access, false, pid) }
+        .map_err(|e| BackendError::new("INPROC_INJECT", format!("OpenProcess({pid}): {e}")))?;
     let r = do_inject(proc, &shim_path);
     unsafe {
         let _ = CloseHandle(proc);
@@ -98,19 +94,23 @@ fn do_inject(proc: HANDLE, shim_path: &Path) -> Res<()> {
         ));
     }
 
-    let kernel32 = unsafe { GetModuleHandleW(PCWSTR(wide("kernel32.dll").as_ptr())) }
-        .map_err(|e| BackendError::new("INPROC_INJECT", format!("GetModuleHandle kernel32: {e}")))?;
-    let load_library_w = unsafe { GetProcAddress(kernel32, PCSTR(b"LoadLibraryW\0".as_ptr())) }
+    let kernel32 =
+        unsafe { GetModuleHandleW(PCWSTR(wide("kernel32.dll").as_ptr())) }.map_err(|e| {
+            BackendError::new("INPROC_INJECT", format!("GetModuleHandle kernel32: {e}"))
+        })?;
+    let load_library_w =
+        unsafe { GetProcAddress(kernel32, PCSTR(c"LoadLibraryW".as_ptr().cast())) }
         .ok_or_else(|| BackendError::new("INPROC_INJECT", "GetProcAddress LoadLibraryW"))?;
     let load_library_fn: LPTHREAD_START_ROUTINE = unsafe { std::mem::transmute(load_library_w) };
 
-    let thread = unsafe { CreateRemoteThread(proc, None, 0, load_library_fn, Some(remote), 0, None) }
-        .map_err(|e| {
-            unsafe {
-                let _ = VirtualFreeEx(proc, remote, 0, MEM_RELEASE);
-            }
-            BackendError::new("INPROC_INJECT", format!("CreateRemoteThread: {e}"))
-        })?;
+    let thread =
+        unsafe { CreateRemoteThread(proc, None, 0, load_library_fn, Some(remote), 0, None) }
+            .map_err(|e| {
+                unsafe {
+                    let _ = VirtualFreeEx(proc, remote, 0, MEM_RELEASE);
+                }
+                BackendError::new("INPROC_INJECT", format!("CreateRemoteThread: {e}"))
+            })?;
     unsafe {
         let _ = WaitForSingleObject(thread, INFINITE);
         let _ = CloseHandle(thread);
@@ -156,14 +156,7 @@ fn creation_time(pid: u32) -> Option<u64> {
         let mut exit = Default::default();
         let mut kernel = Default::default();
         let mut user = Default::default();
-        let ok = GetProcessTimes(
-            proc,
-            &mut create,
-            &mut exit,
-            &mut kernel,
-            &mut user,
-        )
-        .is_ok();
+        let ok = GetProcessTimes(proc, &mut create, &mut exit, &mut kernel, &mut user).is_ok();
         let _ = CloseHandle(proc);
         if !ok {
             return None;

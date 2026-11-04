@@ -110,9 +110,8 @@ pub fn code_edit_prepared(
     let current = source_content(&flow_id)?;
     let matches = current.matches(old).count();
     if matches == 0 {
-        return Err(BackendError::new("BAD_INPUT", "old 在当前源码中不存在").with_data(
-            json!({"flow_id": flow_id, "occurrences": 0}),
-        ));
+        return Err(BackendError::new("BAD_INPUT", "old 在当前源码中不存在")
+            .with_data(json!({"flow_id": flow_id, "occurrences": 0})));
     }
     if !replace_all && matches > 1 {
         return Err(BackendError::new(

@@ -328,13 +328,13 @@ fn guard_protected_tool(tool: &str) -> Res<()> {
         return Ok(());
     }
     if tool == "app.reload" {
-        return Err(
-            BackendError::new(
-                "MCP_TOOL_BLOCKED",
-                "指令库工作区禁止 app.reload:整工作区重载会把内存公开标志替换为当前打开标签集合",
-            )
-            .with_hint("源码改动用 xbot-cli flow code write/edit;元数据走备份+受控重开,不要保存或同步异常内存"),
-        );
+        return Err(BackendError::new(
+            "MCP_TOOL_BLOCKED",
+            "指令库工作区禁止 app.reload:整工作区重载会把内存公开标志替换为当前打开标签集合",
+        )
+        .with_hint(
+            "源码改动用 xbot-cli flow code write/edit;元数据走备份+受控重开,不要保存或同步异常内存",
+        ));
     }
     Err(BackendError::new(
         "MCP_TOOL_BLOCKED",

@@ -87,6 +87,13 @@ internal static class HttpHost
         var req = ctx.Request;
         var path = req.Url?.AbsolutePath?.TrimEnd('/') ?? "";
         var method = req.HttpMethod.ToUpperInvariant();
+        // Loopback-only control surface: any browser-initiated write carries an
+        // Origin header, so reject it once for every route instead of per route.
+        if (method == "POST" && !string.IsNullOrEmpty(req.Headers["Origin"]))
+        {
+            WriteJson(ctx, 403, new { ok = false, detail = "browser-origin request rejected" });
+            return;
+        }
         if(method=="POST" && path=="/control/stop") {
             bool accepted;
             lock(Admission){accepted=string.IsNullOrEmpty(req.Headers["Origin"])&&_activeRequests==1&&!_stopping;if(accepted)_stopping=true;}

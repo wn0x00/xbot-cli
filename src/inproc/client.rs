@@ -55,8 +55,10 @@ fn request(method: &str, path: &str, body: Option<Value>, timeout_secs: u64) -> 
                 .or_else(|| value.get("message"))
                 .and_then(Value::as_str)
                 .unwrap_or("inproc 操作失败");
-            Err(BackendError::new("INPROC_FAILED", format!("HTTP {status}: {detail}"))
-                .with_data(json!({"url": url, "status": status, "response": value})))
+            Err(
+                BackendError::new("INPROC_FAILED", format!("HTTP {status}: {detail}"))
+                    .with_data(json!({"url": url, "status": status, "response": value})),
+            )
         }
         Err(ureq::Error::Transport(error)) => Err(BackendError::new(
             "INPROC_OFFLINE",
@@ -123,7 +125,9 @@ pub fn ensure_bridge() -> Res<()> {
             "INPROC_NO_SHELL",
             "ShadowBot.Shell.exe 未运行,无法加载进程内组件",
         )
-        .with_hint("先启动影刀客户端并用编辑模式打开目标应用;源码写入不回退官方 codeflow.write/edit"));
+        .with_hint(
+            "先启动影刀客户端并用编辑模式打开目标应用;源码写入不回退官方 codeflow.write/edit",
+        ));
     }
     let pid = inject::inject_into_shell(&shim)?;
     wait_ready(pid)
@@ -151,7 +155,10 @@ fn wait_listener_down(timeout: Duration) -> Res<()> {
         }
         std::thread::sleep(Duration::from_millis(250));
     }
-    Err(BackendError::new("INPROC_TIMEOUT", "旧 inproc 监听器未退出"))
+    Err(BackendError::new(
+        "INPROC_TIMEOUT",
+        "旧 inproc 监听器未退出",
+    ))
 }
 
 #[cfg(test)]

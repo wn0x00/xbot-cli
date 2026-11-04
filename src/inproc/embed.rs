@@ -17,8 +17,9 @@ pub fn build_id() -> &'static str {
 
 pub fn ensure_extracted() -> Res<PathBuf> {
     let cache = cache_dir()?;
-    std::fs::create_dir_all(&cache)
-        .map_err(|e| BackendError::new("INPROC_EXTRACT", format!("mkdir {}: {e}", cache.display())))?;
+    std::fs::create_dir_all(&cache).map_err(|e| {
+        BackendError::new("INPROC_EXTRACT", format!("mkdir {}: {e}", cache.display()))
+    })?;
     // A unique native-module path retriggers DllMain even when returning to an older managed build.
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -32,7 +33,10 @@ pub fn ensure_extracted() -> Res<PathBuf> {
     write_if_changed(&cache.join("XbotInjectee.dll"), INJECTEE)?;
     write_if_changed(&cache.join(format!("{}.dll", build_id())), INJECTEE)?;
     write_if_changed(&cache.join("XbotInjectee.identity"), IDENTITY.as_bytes())?;
-    write_if_changed(&cache.join("XbotInjectee.runtimeconfig.json"), RUNTIMECONFIG)?;
+    write_if_changed(
+        &cache.join("XbotInjectee.runtimeconfig.json"),
+        RUNTIMECONFIG,
+    )?;
     Ok(shim)
 }
 
@@ -43,8 +47,9 @@ fn write_if_changed(path: &Path, expected: &[u8]) -> Res<()> {
         }
     }
     let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, expected)
-        .map_err(|e| BackendError::new("INPROC_EXTRACT", format!("write {}: {e}", tmp.display())))?;
+    std::fs::write(&tmp, expected).map_err(|e| {
+        BackendError::new("INPROC_EXTRACT", format!("write {}: {e}", tmp.display()))
+    })?;
     match std::fs::rename(&tmp, path) {
         Ok(_) => Ok(()),
         Err(_) => {
@@ -58,7 +63,10 @@ fn write_if_changed(path: &Path, expected: &[u8]) -> Res<()> {
             }
             Err(BackendError::new(
                 "INPROC_EXTRACT",
-                format!("could not replace {} (loaded by another process)", path.display()),
+                format!(
+                    "could not replace {} (loaded by another process)",
+                    path.display()
+                ),
             ))
         }
     }

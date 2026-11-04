@@ -1,7 +1,6 @@
 /.local-archive/
 /.backups/
 /target/
-/payload/deploy/
 /payload/shim/target/
 /payload/shim/Cargo.lock
 /native/**/*.exe
