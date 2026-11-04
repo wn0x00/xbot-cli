@@ -100,7 +100,7 @@ fn do_inject(proc: HANDLE, shim_path: &Path) -> Res<()> {
         })?;
     let load_library_w =
         unsafe { GetProcAddress(kernel32, PCSTR(c"LoadLibraryW".as_ptr().cast())) }
-        .ok_or_else(|| BackendError::new("INPROC_INJECT", "GetProcAddress LoadLibraryW"))?;
+            .ok_or_else(|| BackendError::new("INPROC_INJECT", "GetProcAddress LoadLibraryW"))?;
     let load_library_fn: LPTHREAD_START_ROUTINE = unsafe { std::mem::transmute(load_library_w) };
 
     let thread =

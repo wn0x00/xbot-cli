@@ -913,6 +913,10 @@ impl MockInproc {
                 } else {
                     handler(&path, &body)
                 };
+                if status == 0 {
+                    // Simulate a write delivered, then the response lost.
+                    continue;
+                }
                 let body = response.to_string();
                 write!(stream, "HTTP/1.1 {status} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
             }
@@ -1220,6 +1224,31 @@ fn write_keeps_applied_evidence_when_followup_diagnostics_fail() {
     assert_eq!(value["error"]["retryable"], false);
     assert_eq!(value["data"]["applied"], true);
     assert_eq!(value["data"]["result"]["data"]["md5"], "applied-md5");
+    let posts: Vec<Value> = inproc
+        .calls()
+        .into_iter()
+        .filter(|call| call["path"] == "/studio/codeflow/source")
+        .collect();
+    assert_eq!(posts.len(), 1);
+}
+
+#[test]
+fn code_write_response_loss_is_unknown_not_retryable() {
+    // 桥接端收到写入后断开响应:重复发送 edit/write 会二次应用,
+    // 必须返回不可重试的未知结果而不是 INPROC_OFFLINE。
+    let inproc = MockInproc::new(|_path, _body| (0, json!({})));
+    let server = MockMcp::new(studio_fixture);
+    let value = envelope(
+        &invoke_inproc(
+            &["flow", "code", "write", "main", "--file", "-"],
+            Some("print('once')\n"),
+            Some(&server.endpoint),
+            Some(&inproc.endpoint),
+        ),
+        6,
+    );
+    assert_eq!(value["error"]["code"], "INPROC_WRITE_UNKNOWN");
+    assert_eq!(value["error"]["retryable"], false);
     let posts: Vec<Value> = inproc
         .calls()
         .into_iter()

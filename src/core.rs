@@ -167,7 +167,11 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
     if matches!(code, "INPROC_PORT_CONFLICT" | "MCP_TOOL_BLOCKED") {
         return ("conflict", 5, false);
     }
-    if matches!(code, "INPROC_BAD_RESPONSE" | "INPROC_READ") {
+    if matches!(
+        code,
+        "INPROC_BAD_RESPONSE" | "INPROC_READ" | "INPROC_WRITE_UNKNOWN"
+    ) {
+        // A write request whose response was lost may already have applied.
         return ("protocol", 6, false);
     }
     if matches!(

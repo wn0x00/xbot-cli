@@ -60,10 +60,24 @@ fn request(method: &str, path: &str, body: Option<Value>, timeout_secs: u64) -> 
                     .with_data(json!({"url": url, "status": status, "response": value})),
             )
         }
-        Err(ureq::Error::Transport(error)) => Err(BackendError::new(
-            "INPROC_OFFLINE",
-            format!("inproc 控制面不可达: {error}"),
-        )),
+        Err(ureq::Error::Transport(error)) => {
+            if method == "POST" {
+                // 请求可能已送达监听器,只是回执在传输中丢失——写入状态未知,
+                // 不得自动重试(重复 edit 会二次应用,如 replace-all 翻倍)。
+                return Err(BackendError::new(
+                    "INPROC_WRITE_UNKNOWN",
+                    format!("写入请求发出后响应丢失: {error}"),
+                )
+                .with_data(json!({"url": url}))
+                .with_hint(
+                    "实际写入可能已生效;先回读目标状态(如 flow code read),确认后再决定是否重发",
+                ));
+            }
+            Err(BackendError::new(
+                "INPROC_OFFLINE",
+                format!("inproc 控制面不可达: {error}"),
+            ))
+        }
     }
 }
 
