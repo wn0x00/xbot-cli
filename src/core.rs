@@ -159,6 +159,19 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
     }
     if matches!(
         code,
+        "INPROC_OFFLINE" | "INPROC_TIMEOUT" | "INPROC_NO_SHELL"
+    ) {
+        // Bridge never reached: nothing was written, retrying is safe.
+        return ("network", 4, true);
+    }
+    if matches!(code, "INPROC_PORT_CONFLICT" | "MCP_TOOL_BLOCKED") {
+        return ("conflict", 5, false);
+    }
+    if matches!(code, "INPROC_BAD_RESPONSE" | "INPROC_READ") {
+        return ("protocol", 6, false);
+    }
+    if matches!(
+        code,
         "STUDIO_BUSY"
             | "OPEN_MISMATCH"
             | "VIEW_MODE_READONLY"

@@ -311,7 +311,36 @@ fn backend_error(value: &Value, fallback: &str, message: &str) -> BackendError {
 }
 
 pub fn mcp(tool: &str, args: Value, timeout_secs: u64) -> Res<Value> {
+    guard_protected_tool(tool)?;
     mcp_on(&mcp_endpoint(), tool, args, timeout_secs)
+}
+
+/// 指令库(robot_type=activity)工作区的危险工具拦截,覆盖全部 tools/call 入口
+/// (flow code、tool studio call、mcp call 逃生舱都经过这里)。
+/// 普通应用工作区不受影响;无 app/robot_type 信息按非指令库放行。
+fn guard_protected_tool(tool: &str) -> Res<()> {
+    const PROTECTED: [&str; 3] = ["app.reload", "codeflow.write", "codeflow.edit"];
+    if !PROTECTED.contains(&tool) {
+        return Ok(());
+    }
+    let info = mcp_on(&mcp_endpoint(), "app.get_info", json!({}), 10)?;
+    if info.pointer("/app/robot_type").and_then(Value::as_str) != Some("activity") {
+        return Ok(());
+    }
+    if tool == "app.reload" {
+        return Err(
+            BackendError::new(
+                "MCP_TOOL_BLOCKED",
+                "指令库工作区禁止 app.reload:整工作区重载会把内存公开标志替换为当前打开标签集合",
+            )
+            .with_hint("源码改动用 xbot-cli flow code write/edit;元数据走备份+受控重开,不要保存或同步异常内存"),
+        );
+    }
+    Err(BackendError::new(
+        "MCP_TOOL_BLOCKED",
+        "指令库源码写入禁止走 codeflow.write/edit:官方接口会重建参数并重置中文表单与调用方传参",
+    )
+    .with_hint("使用 xbot-cli flow code write/edit —— 底层走进程内通道,只替换源码"))
 }
 
 pub fn mcp_list(browser: bool, timeout_secs: u64) -> Res<Vec<Value>> {

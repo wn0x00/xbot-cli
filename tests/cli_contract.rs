@@ -12,6 +12,17 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 fn invoke(args: &[&str], stdin: Option<&str>, endpoint: Option<&str>) -> Output {
+    invoke_inproc(args, stdin, endpoint, None)
+}
+
+/// `inproc` overrides XBOT_INPROC_ENDPOINT; tests default to a dead port so the
+/// suite can never reach a live injected listener.
+fn invoke_inproc(
+    args: &[&str],
+    stdin: Option<&str>,
+    endpoint: Option<&str>,
+    inproc: Option<&str>,
+) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_xbot-cli"));
     command
         .args(args)
@@ -19,6 +30,10 @@ fn invoke(args: &[&str], stdin: Option<&str>, endpoint: Option<&str>) -> Output 
         // Enterprise credentials must not select the transport for ordinary commands.
         .env("XBOT_PLATFORM_BASE_URL", "http://127.0.0.1:1")
         .env("XBOT_PLATFORM_ACCESS_TOKEN", "unused-enterprise-token")
+        .env(
+            "XBOT_INPROC_ENDPOINT",
+            inproc.unwrap_or("http://127.0.0.1:1/unavailable"),
+        )
         .env(
             "XBOT_MCP_ENDPOINT",
             endpoint.unwrap_or("http://127.0.0.1:1/unavailable"),
@@ -816,6 +831,129 @@ impl Drop for MockBridge {
     }
 }
 
+/// Plain-REST fake for the in-process control surface: GET /health reports a
+/// ready listener with the payload identity baked into this build; other
+/// requests go to the handler so tests can simulate route results.
+struct MockInproc {
+    endpoint: String,
+    requests: Arc<Mutex<Vec<Value>>>,
+    stop: Arc<AtomicBool>,
+    worker: Option<JoinHandle<()>>,
+}
+
+impl MockInproc {
+    fn new(handler: impl Fn(&str, &Value) -> (u16, Value) + Send + 'static) -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let endpoint = format!("http://{}", listener.local_addr().unwrap());
+        listener.set_nonblocking(true).unwrap();
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let log = Arc::clone(&requests);
+        let stop = Arc::new(AtomicBool::new(false));
+        let signal = Arc::clone(&stop);
+        let worker = thread::spawn(move || {
+            while !signal.load(Ordering::SeqCst) {
+                let (mut stream, _) = match listener.accept() {
+                    Ok(connection) => connection,
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(5));
+                        continue;
+                    }
+                    Err(e) => panic!("inproc mock accept: {e}"),
+                };
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut buf = Vec::new();
+                let mut chunk = [0; 4096];
+                let request = loop {
+                    let count = stream.read(&mut chunk).unwrap();
+                    assert!(count > 0, "incomplete inproc request");
+                    buf.extend_from_slice(&chunk[..count]);
+                    if let Some(at) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let head = String::from_utf8_lossy(&buf[..at]).into_owned();
+                        let length: usize = head
+                            .lines()
+                            .find_map(|line| {
+                                let (name, value) = line.split_once(':')?;
+                                name.eq_ignore_ascii_case("content-length")
+                                    .then(|| value.trim().parse().unwrap())
+                            })
+                            .unwrap_or(0);
+                        if buf.len() >= at + 4 + length {
+                            let body = if length > 0 {
+                                serde_json::from_slice::<Value>(&buf[at + 4..at + 4 + length])
+                                    .unwrap()
+                            } else {
+                                json!({})
+                            };
+                            let mut line = head.lines().next().unwrap().split_whitespace();
+                            break (
+                                line.next().unwrap().to_owned(),
+                                line.next().unwrap_or("").to_owned(),
+                                body,
+                            );
+                        }
+                    }
+                };
+                let (method, path, body) = request;
+                let path = path.split('?').next().unwrap_or("").to_owned();
+                log.lock()
+                    .unwrap()
+                    .push(json!({"method": method, "path": path, "body": body}));
+                let (status, response) = if method == "GET" && path == "/health" {
+                    (
+                        200,
+                        json!({
+                            "ok": true, "pid": 1, "hasApplication": true,
+                            "windowCount": 1, "controlProtocol": 2,
+                            "buildId": payload_identity(),
+                        }),
+                    )
+                } else {
+                    handler(&path, &body)
+                };
+                let body = response.to_string();
+                write!(stream, "HTTP/1.1 {status} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", body.len(), body).unwrap();
+            }
+        });
+        Self {
+            endpoint,
+            requests,
+            stop,
+            worker: Some(worker),
+        }
+    }
+
+    fn calls(&self) -> Vec<Value> {
+        self.requests.lock().unwrap().clone()
+    }
+}
+
+impl Drop for MockInproc {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(worker) = self.worker.take() {
+            if let Err(failure) = worker.join() {
+                if !thread::panicking() {
+                    std::panic::resume_unwind(failure);
+                }
+            }
+        }
+    }
+}
+
+/// The managed payload identity embedded in the binary under test.
+fn payload_identity() -> String {
+    std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/payload/deploy/XbotInjectee.identity"
+    ))
+    .expect("payload/deploy must be built before running tests")
+    .trim()
+    .to_owned()
+}
+
 fn read_bridge_frame(file: &mut std::fs::File) -> std::io::Result<Value> {
     let mut length = [0_u8; 4];
     file.read_exact(&mut length)?;
@@ -1051,10 +1189,18 @@ fn wait_uses_existing_run_without_starting_a_second_run() {
 
 #[test]
 fn write_keeps_applied_evidence_when_followup_diagnostics_fail() {
+    let inproc = MockInproc::new(|path, body| {
+        assert_eq!(path, "/studio/codeflow/source");
+        assert_eq!(body["flow"], "main");
+        assert_eq!(body["source"], "print('once')\n");
+        (
+            200,
+            json!({"ok":true,"detail":"ok","data":{"name":"main","md5":"applied-md5"}}),
+        )
+    });
     let server = MockMcp::new(|request| match request["params"]["name"].as_str() {
-        Some("codeflow.write") => {
-            assert_eq!(request["params"]["arguments"]["content"], "print('once')\n");
-            json!({"structuredContent":{"success":true,"revision":"written-once"}})
+        Some("codeflow.read") => {
+            json!({"structuredContent":{"content":"print('once')\n"}})
         }
         Some("diagnostics.snapshot") => {
             json!({"isError":true,"content":[{"type":"text","text":"diagnostics unavailable"}]})
@@ -1062,25 +1208,43 @@ fn write_keeps_applied_evidence_when_followup_diagnostics_fail() {
         _ => studio_fixture(request),
     });
     let value = envelope(
-        &invoke(
+        &invoke_inproc(
             &["flow", "code", "write", "main", "--file", "-"],
             Some("print('once')\n"),
             Some(&server.endpoint),
+            Some(&inproc.endpoint),
         ),
         1,
     );
     assert_eq!(value["error"]["code"], "MUTATION_DIAGNOSTICS_FAILED");
     assert_eq!(value["error"]["retryable"], false);
     assert_eq!(value["data"]["applied"], true);
-    assert_eq!(value["data"]["result"]["revision"], "written-once");
-    assert_eq!(
-        server
-            .calls()
-            .iter()
-            .filter(|name| name.as_str() == "codeflow.write")
-            .count(),
-        1
+    assert_eq!(value["data"]["result"]["data"]["md5"], "applied-md5");
+    let posts: Vec<Value> = inproc
+        .calls()
+        .into_iter()
+        .filter(|call| call["path"] == "/studio/codeflow/source")
+        .collect();
+    assert_eq!(posts.len(), 1);
+}
+
+#[test]
+fn code_write_fails_closed_without_inproc_bridge() {
+    let server = MockMcp::new(studio_fixture);
+    let value = envelope(
+        &invoke(
+            &["flow", "code", "write", "main", "--file", "-"],
+            Some("print('once')\n"),
+            Some(&server.endpoint),
+        ),
+        4,
     );
+    // 不可用时硬报错,绝不落到官方 codeflow.write
+    assert_eq!(value["error"]["code"], "INPROC_OFFLINE");
+    assert!(!server
+        .calls()
+        .iter()
+        .any(|name| name.as_str() == "codeflow.write" || name.as_str() == "codeflow.edit"));
 }
 
 #[test]

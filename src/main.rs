@@ -9,6 +9,7 @@ mod flow_cmds;
 mod guide_cmds;
 mod help;
 mod input;
+mod inproc;
 mod installation;
 mod misc_cmds;
 mod oapi;

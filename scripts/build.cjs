@@ -9,6 +9,15 @@ if (process.platform !== 'win32' || process.arch !== 'x64') {
   throw new Error('Build the npm package on Windows x64 with the MSVC Rust toolchain.');
 }
 checkVersions();
+// Build the in-process payload (shim + injectee) into payload/deploy before
+// compiling; the Rust build embeds it via include_bytes!.
+run('pwsh', [
+  '-NoProfile',
+  '-ExecutionPolicy',
+  'Bypass',
+  '-File',
+  join(root, 'scripts', 'build-payload.ps1'),
+]);
 // Use deterministic release flags and avoid embedding the maintainer's local paths
 // in dependency panic messages. Encoded flags preserve paths containing spaces.
 const flags = [

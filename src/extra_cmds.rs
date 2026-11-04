@@ -27,11 +27,8 @@ pub fn code_write(flow_id: Option<&str>, file: &str) -> Res<CmdOut> {
 pub fn code_write_prepared(flow_id: Option<&str>, content: &str) -> Res<CmdOut> {
     let flow_id = core::resolve_flow_id(flow_id, Some("code"))?;
     core::require_current_edit_mode()?;
-    let r = core::mcp(
-        "codeflow.write",
-        json!({"flow_id": flow_id, "content": content}),
-        130,
-    )?;
+    let r = codeflow_source_write(&flow_id, content, None)?;
+    verify_source_applied(&flow_id, content)?;
     let errs = flow_cmds::diagnose_after_mutation("write", &r)?;
     let empty = errs.as_array().map(|a| a.is_empty()).unwrap_or(true);
     let nxt = if empty {
@@ -40,6 +37,49 @@ pub fn code_write_prepared(flow_id: Option<&str>, content: &str) -> Res<CmdOut> 
         vec!["# 存在静态错误,先修复再运行".into()]
     };
     Ok((json!({"write": r, "static_errors": errs}), nxt))
+}
+
+/// 源码替换只走进程内通道(CodeFlow.SetSourceCode),官方 codeflow.write/edit
+/// 会重建参数并重置中文表单与调用方传参;不可用时硬失败,不回退。
+fn codeflow_source_write(flow_id: &str, source: &str, expect_md5: Option<String>) -> Res<Value> {
+    crate::inproc::client::ensure_bridge()?;
+    let mut body = json!({"flow": flow_id, "source": source});
+    if let Some(md5) = expect_md5 {
+        body["expectMd5"] = json!(md5);
+    }
+    crate::inproc::client::post("/studio/codeflow/source", &body, 130)
+}
+
+fn source_content(flow_id: &str) -> Res<String> {
+    let read = core::mcp("codeflow.read", json!({"flow_id": flow_id}), 130)?;
+    read.get("content")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            BackendError::new("MCP_BAD_RESPONSE", "codeflow.read 响应缺少 content 文本")
+                .with_data(read)
+        })
+}
+
+fn md5_hex(text: &str) -> String {
+    format!("{:x}", md5::compute(text.as_bytes()))
+}
+
+fn verify_source_applied(flow_id: &str, expected: &str) -> Res<()> {
+    let actual = source_content(flow_id)?;
+    if actual != expected {
+        return Err(BackendError::new(
+            "CODE_SOURCE_MISMATCH",
+            "源码写入已返回成功，但回读内容与请求不一致",
+        )
+        .with_data(json!({
+            "flow_id": flow_id,
+            "expected": {"chars": expected.chars().count(), "md5": md5_hex(expected)},
+            "actual": {"chars": actual.chars().count(), "md5": md5_hex(&actual)},
+        }))
+        .with_hint("不要自动重复写入;先 code read 检查当前内存源码状态"));
+    }
+    Ok(())
 }
 
 /// 部分替换:exact-text(与 codeflow.edit 语义一致,old 默认须唯一)。
@@ -66,14 +106,29 @@ pub fn code_edit_prepared(
     }
     let flow_id = core::resolve_flow_id(flow_id, Some("code"))?;
     core::require_current_edit_mode()?;
-    let r = core::mcp(
-        "codeflow.edit",
-        json!({
-            "flow_id": flow_id, "old_string": old, "new_string": new,
-            "replace_all": replace_all,
-        }),
-        130,
-    )?;
+    // 与官方 codeflow.edit 同一语义:读出原文后精确替换;old 默认须唯一。
+    let current = source_content(&flow_id)?;
+    let matches = current.matches(old).count();
+    if matches == 0 {
+        return Err(BackendError::new("BAD_INPUT", "old 在当前源码中不存在").with_data(
+            json!({"flow_id": flow_id, "occurrences": 0}),
+        ));
+    }
+    if !replace_all && matches > 1 {
+        return Err(BackendError::new(
+            "BAD_INPUT",
+            format!("old 在当前源码中出现 {matches} 次，不唯一"),
+        )
+        .with_data(json!({"flow_id": flow_id, "occurrences": matches}))
+        .with_hint("提供更多上下文使 old 唯一，或传 --replace-all"));
+    }
+    let updated = if replace_all {
+        current.replace(old, new)
+    } else {
+        current.replacen(old, new, 1)
+    };
+    let r = codeflow_source_write(&flow_id, &updated, Some(md5_hex(&current)))?;
+    verify_source_applied(&flow_id, &updated)?;
     let errs = flow_cmds::diagnose_after_mutation("edit", &r)?;
     let empty = errs.as_array().map(|a| a.is_empty()).unwrap_or(true);
     let nxt = if empty {
