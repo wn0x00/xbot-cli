@@ -119,19 +119,20 @@ pub fn ensure_bridge() -> Res<()> {
         )
         .with_hint("确认监听已启动且与本 exe 内嵌 payload 同源;或清除 XBOT_INPROC_ENDPOINT 让 CLI 自动注入"));
     }
-    if let Ok(health) = health() {
-        if health.get("controlProtocol").and_then(Value::as_u64) == Some(2) {
-            // Same-protocol listener with a stale/absent build — ask it to step
-            // down, then reinject the embedded build.
-            let _ = post("/control/stop", &json!({}), 5);
-            wait_listener_down(Duration::from_secs(5))?;
-        } else {
-            return Err(BackendError::new(
-                "INPROC_PORT_CONFLICT",
-                format!("{} 被未知服务占用", endpoint()),
-            )
-            .with_hint("不终止未知进程;释放该端口或设置 XBOT_INPROC_ENDPOINT 指向其他端口"));
+    match health() {
+        Ok(health) => {
+            if health.get("controlProtocol").and_then(Value::as_u64) == Some(2) {
+                // Same-protocol listener with a stale/absent build — ask it to
+                // step down, then reinject the embedded build.
+                let _ = post("/control/stop", &json!({}), 5);
+                wait_listener_down(Duration::from_secs(5))?;
+            } else {
+                return Err(port_conflict());
+            }
         }
+        // HTTP 有响应但不是我们的监听:端口被外来服务占用,注入也只会超时。
+        Err(error) if error.code != "INPROC_OFFLINE" => return Err(port_conflict()),
+        Err(_) => {}
     }
     let shim = embed::ensure_extracted()?;
     if inject::find_shell_pid().is_none() {
@@ -145,6 +146,14 @@ pub fn ensure_bridge() -> Res<()> {
     }
     let pid = inject::inject_into_shell(&shim)?;
     wait_ready(pid)
+}
+
+fn port_conflict() -> BackendError {
+    BackendError::new(
+        "INPROC_PORT_CONFLICT",
+        format!("{} 被未知服务占用", endpoint()),
+    )
+    .with_hint("不终止未知进程;释放该端口或设置 XBOT_INPROC_ENDPOINT 指向其他端口")
 }
 
 fn wait_ready(pid: u32) -> Res<()> {
