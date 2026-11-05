@@ -75,6 +75,33 @@ fn render_success(data: Option<&Value>) -> String {
     let Some(data) = data else {
         return "完成".into();
     };
+    if data["command"] == "flow.params.types" {
+        let rows: Vec<Value> = data["types"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|item| {
+                serde_json::json!({
+                    "id":item["id"],"name":item["name"],
+                    "scope":match item["scope"].as_str() {
+                        Some("appMainFlowParameter") => "应用主流程参数",
+                        Some(scope) => scope,
+                        None => "未声明"
+                    }
+                })
+            })
+            .collect();
+        let mut lines = Vec::new();
+        render_value(
+            &serde_json::json!({"count":rows.len(),"types":rows}),
+            0,
+            &mut lines,
+        );
+        if let Some(note) = data["note"].as_str() {
+            lines.push(note.into());
+        }
+        return lines.join("\n");
+    }
     if let Some(command) = data
         .get("command")
         .and_then(Value::as_str)
@@ -556,6 +583,22 @@ mod tests {
             ),
             source
         );
+    }
+
+    #[test]
+    fn parameter_types_are_a_table_with_unspecified_scopes_labeled_honestly() {
+        let value = json!({"ok":true,"data":{
+            "command":"flow.params.types","types":[
+                {"id":"list","name":"列表","scope":null,"source":"long resource name"},
+                {"id":"file","name":"文件路径","scope":"appMainFlowParameter","source":"long resource name"}
+            ],"note":"static catalog"
+        }});
+        let text = render(&value, OutputMode::Text);
+        assert!(text.contains("id | name | scope"));
+        assert!(text.contains("list | 列表 | 未声明"));
+        assert!(text.contains("file | 文件路径 | 应用主流程参数"));
+        assert!(!text.contains("long resource name"));
+        assert_eq!(render(&value, OutputMode::Json), value.to_string());
     }
 
     #[test]

@@ -66,6 +66,7 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
             FlowSub::Create { name, kind } => f::flow_new(&name, &kind),
             FlowSub::Get { flow_id } => f::flow_get(flow_id.as_deref()),
             FlowSub::Params(params) => match params {
+                FlowParamsSub::Types => crate::flow_parameters::types(),
                 FlowParamsSub::List { flow_id } => f::flow_params(flow_id.as_deref()),
                 FlowParamsSub::Set {
                     flow_id,

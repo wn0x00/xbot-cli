@@ -119,14 +119,18 @@ pub fn normalize_parameters(value: Value) -> Res<Value> {
                 if !matches!(required_text(operation, "direction", &label)?, "In" | "Out") {
                     return Err(bad(format!("{label}.direction 必须是 In 或 Out")));
                 }
-                if !matches!(
-                    required_text(operation, "type", &label)?,
-                    "str" | "file" | "int" | "bool" | "float" | "any"
-                ) {
-                    return Err(bad(format!("{label}.type 无效；集合参数请使用 any")));
+                if required_text(operation, "type", &label)? == "password" {
+                    return Err(bad(format!("{label}: password 不是支持的流程参数类型")));
                 }
             }
-            "remove" => {}
+            "remove" => {
+                if operation
+                    .as_object()
+                    .is_some_and(|fields| fields.len() != 2)
+                {
+                    return Err(bad(format!("{label}: remove 只接受 op 和 name")));
+                }
+            }
             _ => return Err(bad(format!("{label}.op 必须是 upsert 或 remove"))),
         }
         if let Some(kind) = operation.get("kind") {
@@ -295,10 +299,22 @@ mod tests {
             json!(true),
             json!([]),
             json!({}),
-            json!([{"op":"upsert","name":"x","direction":"In","type":"dict"}]),
+            json!([{"op":"upsert","name":"x","direction":"In","type":""}]),
+            json!([{"op":"upsert","name":"x","direction":"In","type":"password"}]),
             json!({"operations":[{"op":"remove","name":"x"}],"flow_id":"other"}),
         ] {
             assert!(normalize_parameters(value).is_err());
+        }
+        for id in [
+            "dict",
+            "list",
+            "xbot._web.browser.WebBrowser",
+            "list<custom>",
+        ] {
+            assert!(normalize_parameters(json!([{
+                "op":"upsert","name":"x","direction":"In","type":id
+            }]))
+            .is_ok());
         }
     }
 

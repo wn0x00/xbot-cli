@@ -1,0 +1,7 @@
+{
+  "sourceSha256": "643b6f328930786988838c5555086fd6e642643250ecb731a8b421027a6c1ba6",
+  "assets": {
+    "FlowParameters.dll": "e36ce2009408d741d1fa9884de419ebc70bd465ab13715dd4e30d1c49d75696a",
+    "FlowParameters.runtimeconfig.json": "aeb46a15366e38511c192ccf65312442c64e8753b3c16fd2ca0b4cb34a5c59f3"
+  }
+}

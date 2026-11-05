@@ -130,9 +130,11 @@ xbot-cli oapi job logs <jobUuid> --json
 
 ## 文档
 
+- [0.9.3 更新说明](docs/updates/2026-11-05-flow-parameters.md)：不受 MCP 六类型白名单限制的流程参数写入、类型查询和使用文档
 - [0.9.2 更新说明](docs/updates/2026-11-05-browser-development-standards.md)：浏览器列表、指定浏览器、自动启动及指令集/应用开发规范 Skill
 - [0.9.1 更新说明](docs/updates/2026-10-30-web-python-xpath.md)：Web Python、XPath、安装环境发现及验证范围
 - [CLI 参考](docs/cli-reference.md)：完整命令、参数语义、输出契约与设计依据
+- [流程参数使用文档](docs/flow-parameters.md)：真实类型 ID、批量增改删、默认值及 reload 回读
 - [Skill v10 升级说明](docs/skill-v10-upgrade.md)：Skill 模块、依赖与限制
 - [平台指南](skills/xbot-app-dev/references/oapi.md)：开放 API 的配置、概念与排障
 - [发布说明](docs/releasing.md)：版本同步与发布流程

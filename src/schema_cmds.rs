@@ -91,8 +91,14 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         ["oapi", ..] => (&["read"], "platform", true, "none"),
         ["flow", "run" | "verify"] => (&["execute"], "studio", true, "none"),
         ["flow", "stop"] => (&["stop_execution"], "studio", true, "none"),
+        ["flow", "params", "types"] => (&["read"], "local", false, "none"),
+        ["flow", "params", "set"] => (
+            &["write_files", "save_existing_edits", "reload_studio_app"],
+            "studio",
+            true,
+            "none",
+        ),
         ["flow", "create"]
-        | ["flow", "params", "set"]
         | ["flow", "code", "write" | "edit"]
         | ["flow", "visual", "edit" | "fill" | "toggle" | "enable" | "disable"] => {
             (&["write"], "studio", true, "none")
@@ -173,6 +179,7 @@ pub fn cmd_schema(root: &Command, path: &[String]) -> Res<CmdOut> {
             "routing": {
                 "default_application_backend": "shell-cli",
                 "default_flow_backend": "studio-mcp",
+                "flow_parameter_write_backend": "local-metadata+studio-reload",
                 "platform_requires_explicit_command": true,
                 "automatic_platform_fallback": false,
             },
@@ -313,8 +320,9 @@ fn parameter_operations_shape() -> Value {
             "if":{"properties":{"op":{"const":"upsert"}}},
             "then":{"required":["direction","type"], "properties":{
                 "direction":{"enum":["In","Out"]},
-                "type":{"enum":["str","file","int","bool","float","any"]}
-            }}
+                "type":{"type":"string","minLength":1,"not":{"const":"password"}}
+            }},
+            "else":{"additionalProperties":false,"properties":{"op":{"const":"remove"},"name":nonempty_text()}}
         }),
         1,
     )
@@ -373,7 +381,20 @@ fn input_shapes(path: &[&str]) -> Value {
                 "type":"object", "additionalProperties":false, "required":["operations"],
                 "properties":{"operations":parameter_operations_shape()}
             }]},
-            "examples":[[{"op":"upsert","name":"text","direction":"In","type":"str","value":"hello"}], [{"op":"remove","name":"old_parameter"}]]
+            "constraints":[
+                "type is an exact installed-client type ID; discover with flow params types",
+                "client types are checked at execution, not in offline dry-run; main-flow scopes warn outside main because subflow loading was verified in 6.3.39; unknown new scopes fail",
+                "validates the whole batch, saves existing edits if needed, writes only parameters, reloads once, then verifies readback",
+                "no-op batches do not write or reload; does not sync, close the editor, or rewrite generated Python/signatures",
+                "reload/readback success is not runtime verification; write failures may have a partial or unknown outcome",
+                "remove accepts only op and name; computed Out omits value"
+            ],
+            "examples":[
+                [{"op":"upsert","name":"text","direction":"In","type":"str","value":"hello"}],
+                [{"op":"upsert","name":"items","direction":"In","type":"list","value":"[]","kind":"Expression"}],
+                [{"op":"upsert","name":"page","direction":"In","type":"xbot._web.browser.WebBrowser"}],
+                [{"op":"remove","name":"old_parameter"}]
+            ]
         }}),
         ["flow", "visual", "fill"] => {
             let mut fills = visual_fills_shape();
@@ -422,7 +443,7 @@ fn dynamic_schema_hint(path: &[&str]) -> Option<&'static str> {
         | "uncheck" | "goto" | "reload" | "go-back" | "go-forward" | "close"] => {
             Some("xbot-cli tool browser schema web_action")
         }
-        ["flow", "params", "set"] => Some("xbot-cli tool studio schema flow.write_parameters"),
+        ["flow", "params", "set"] => Some("xbot-cli flow params types --json"),
         ["flow", "visual", "edit"] => Some("xbot-cli tool studio schema flow.edit_blocks"),
         ["flow", "visual", "fill"] => Some("xbot-cli tool studio schema flow.fill_blocks"),
         _ => None,
@@ -473,6 +494,7 @@ fn examples(command: &Command, path: &[&str]) -> Vec<String> {
             &["xbot-cli flow code edit main --old @before.txt --new @after.txt"]
         }
         ["flow", "params", "set"] => &["xbot-cli flow params set main --operations @params.json"],
+        ["flow", "params", "types"] => &["xbot-cli flow params types --json"],
         ["flow", "visual", "edit"] => &["xbot-cli flow visual edit main --file ops.json"],
         ["flow", "visual", "fill"] => &["xbot-cli flow visual fill main --fills @fills.json"],
         ["flow", "visual", "enable"] => &["xbot-cli flow visual enable <block-id> --flow main"],

@@ -100,6 +100,14 @@ try {
   const preview = invoke(['flow', 'code', 'write', 'main', '--file', '-', '--dry-run', '--json'], 'print("npm stdin")\n');
   assert.equal(preview.status, 0, preview.stderr);
   assert.equal(JSON.parse(preview.stdout).data.dry_run, true);
+  const parameterPreview = invoke(['flow', 'params', 'set', 'main', '--operations', '-', '--dry-run', '--json'],
+    JSON.stringify([{ op: 'upsert', name: 'items', type: 'list', direction: 'In' }]));
+  assert.equal(parameterPreview.status, 0, parameterPreview.stderr);
+  assert.equal(JSON.parse(parameterPreview.stdout).data.arguments.operations[0].type, 'list');
+  const parameterGuide = invoke(['guide', 'flow-parameters', '--json']);
+  assert.equal(parameterGuide.status, 0, parameterGuide.stderr);
+  assert.equal(JSON.parse(parameterGuide.stdout).data.markdown,
+    readFileSync(join(root, 'docs/flow-parameters.md'), 'utf8'));
   const skill = invoke(['install', '--skills', '--json']);
   assert.equal(skill.status, 0, skill.stderr);
   const skillRoot = join(workdir, '.agents', 'skills', 'xbot-app-dev');

@@ -1,4 +1,4 @@
-//! flow 命令组:Studio 内开发调试(走 studio-mcp)。
+//! flow 命令组:Studio 内开发调试；参数写入使用本地元数据适配器。
 
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -144,16 +144,7 @@ pub fn flow_params_set(flow_id: Option<&str>, operations: &str) -> Res<CmdOut> {
 }
 
 pub fn flow_params_set_prepared(flow_id: Option<&str>, payload: Value) -> Res<CmdOut> {
-    let mut payload = input::normalize_parameters(payload)?;
-    let flow_id = core::resolve_flow_id(flow_id, None)?;
-    core::require_current_edit_mode()?;
-    payload["flow_id"] = json!(flow_id);
-    Ok((
-        core::mcp("flow.write_parameters", payload, 130)?,
-        vec![format!(
-            "xbot-cli flow params list {flow_id}   # 回读参数确认"
-        )],
-    ))
+    crate::flow_parameters::set(flow_id, payload)
 }
 
 pub fn flow_blocks_set(flow_id: Option<&str>, file: &str) -> Res<CmdOut> {

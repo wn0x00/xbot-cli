@@ -9,6 +9,7 @@ xbot-cli status
 xbot-cli app open <app-id>
 xbot-cli flow list
 xbot-cli flow get main                       # 自动读取 VisualFlow 详细块
+xbot-cli flow params types
 xbot-cli flow params list main
 xbot-cli flow visual variables main
 xbot-cli wiki read wiki/guides/visualflow wiki/guides/visualflow/value-types
@@ -54,6 +55,12 @@ xbot-cli flow visual list report --detail
 - 长流程分页：`flow visual list main --detail --offset 0 --limit 20`。
 - `flow visual variables` 是静态作用域，`flow visual snapshots` 是运行值，不要混淆。
 - 流程 In/Out 使用 `flow params list/set`；Visual Out 的产出块输出须与参数同名。
+- `type` 使用 `flow params types` 的真实 ID，列表/字典/对象不再改成 `any`。
+  CLI 内部整批校验并仅写参数区域，必要时先保存已有编辑，再 reload 一次并回读；
+  无变化不写入或 reload，不 sync、不关闭编辑器。用户不要直接编辑应用目录。
+  计算型 Out 省略 `value`，客户端回读的空表达式不表示空字符串初值。
+  对象的 `None` 默认值不创建真实对象；类型目录的 scope 与未知类型限制见 CodeFlow 指南。
+  写入、reload、回读和实际运行分开报告，失败后不整批重试。
 
 ## 流程组织与 XPath
 

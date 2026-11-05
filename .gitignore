@@ -3,6 +3,8 @@
 /target/
 /helpers/browser-query/bin/
 /helpers/browser-query/obj/
+/helpers/flow-parameters/bin/
+/helpers/flow-parameters/obj/
 /native/**/*.exe
 /dist/
 /node_modules/
