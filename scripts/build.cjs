@@ -10,6 +10,7 @@ if (process.platform !== 'win32' || process.arch !== 'x64') {
 }
 checkVersions();
 require('./build-browser-query.cjs').verify();
+require('./build-flow-parameters.cjs').verify();
 // Use deterministic release flags and avoid embedding the maintainer's local paths
 // in dependency panic messages. Encoded flags preserve paths containing spaces.
 const flags = [

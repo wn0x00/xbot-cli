@@ -128,6 +128,7 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
         ],
         ["flow", "params"] => &[
             "xbot-cli flow params list main",
+            "xbot-cli flow params types",
             "xbot-cli flow params set main --operations @params.json --dry-run",
         ],
         ["task"] => &[

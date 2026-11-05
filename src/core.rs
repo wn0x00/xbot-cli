@@ -1,6 +1,6 @@
 //! 三通道后端封装 + 统一输出 envelope。
 //!
-//! 通道(全部为影刀内置/官方能力,零注入零反射):
+//! 官方通道及本地适配器(参数元数据适配独立于官方 MCP,零注入零反射):
 //!   shell-cli  官方 shadowbot.shell-cli.exe — 应用生命周期/任务/发布/版本
 //!              studio open --app-id <uuid> 以【编辑模式】打开应用到 Studio
 //!              studio open --builder custom --name X 新建并打开(编辑模式)
@@ -147,6 +147,7 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
             | "BROWSER_DLL_MISSING"
             | "BROWSER_RUNTIME_MISSING"
             | "WEB_BROWSER_EXECUTABLE_MISSING"
+            | "PARAMETER_RUNTIME_MISSING"
     ) {
         return ("configuration", 3, false);
     }
@@ -173,6 +174,8 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
             | "VIEW_MODE_READONLY"
             | "already_running"
             | "SKILL_CONFLICT"
+            | "PARAMETER_CONFLICT"
+            | "PARAMETER_APP_AMBIGUOUS"
             | "APP_MISMATCH"
             | "APP_CONTEXT_REQUIRED"
             | "WEB_BROWSER_CONFLICT"

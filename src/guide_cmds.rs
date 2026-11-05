@@ -23,6 +23,7 @@ const CLI_CONTRACT: &str = include_str!("../skills/xbot-app-dev/references/cli-c
 const OAPI: &str = include_str!("../skills/xbot-app-dev/references/oapi.md");
 const CODEFLOW: &str = include_str!("../skills/xbot-app-dev/references/codeflow.md");
 const VISUALFLOW: &str = include_str!("../skills/xbot-app-dev/references/visualflow.md");
+const FLOW_PARAMETERS: &str = include_str!("../docs/flow-parameters.md");
 const BROWSER: &str = include_str!("../skills/xbot-app-dev/references/browser.md");
 const RECOVERY: &str = include_str!("../skills/xbot-app-dev/references/recovery.md");
 const PROJECT_CONVENTIONS: &str =
@@ -93,6 +94,11 @@ const TOPICS: &[(&str, &str, &str)] = &[
     ),
     ("codeflow", "CodeFlow 开发、维护、参数和验收", CODEFLOW),
     ("visualflow", "VisualFlow 块、参数、快照和验收", VISUALFLOW),
+    (
+        "flow-parameters",
+        "流程参数类型、批量增改删、默认值和 reload",
+        FLOW_PARAMETERS,
+    ),
     ("browser", "浏览器快照、交互、选择器和专用工具", BROWSER),
     ("recovery", "维护、排障、发布与回收边界", RECOVERY),
     (

@@ -76,6 +76,45 @@ xbot-cli flow visual snapshots report --expect-app <app-id>
 
 `flow check` 检查整个应用的静态诊断（`scope: app`），传入流程时先核验目标，不启动流程。`flow verify` 解析目标并检查后实际运行，再读取 Out；失败时附日志尾部，用户暂停或停止则立即返回。修改操作成功、静态检查通过和实际运行成功是不同的结果，不应混为一谈。
 
+### 流程参数类型与写入
+
+```bash
+xbot-cli flow params types --json
+xbot-cli flow params list process2 --expect-app <app-id> --json
+xbot-cli flow params set process2 --operations @params.json --expect-app <app-id> --json
+```
+
+`types` 离线读取已安装客户端 DLL 内的类型资源，不加载或执行该 DLL，文本输出为表格。
+使用返回的真实 `id`，例如 `list`、`dict`、`xbot._web.browser.WebBrowser`、
+`openpyxl.Workbook`，不再用 `any` 代替集合或对象。目录是静态类型定义，不等同于所有
+场景的可选参数清单，也不保证包含扩展或动态类型；未知的新类型明确拒绝，既有未知类型可保留或删除。
+保留目录声明的 scope；`file/directory` 标注为应用主流程参数用途。不提供 `password` 参数类型。
+6.3.39 子流程实测可加载并运行，因此 CLI 允许写入但给出范围 warning，不推断编辑器一定提供该选项。
+未知的新 scope 明确拒绝，既有同类型同方向参数可保留并提示。
+
+CodeFlow 和 VisualFlow 共用本地参数元数据适配器：先整批校验，必要时保存已有编辑，
+仅替换 `.dev/*.flow.json` 的 `parameters` 区域，然后调用一次 `app.reload` 并通过
+MCP 回读。无净变化时不写入、不 reload。不调用 sync，不关闭编辑器，不手工修改
+Python、PDB 或签名文件。原始 `tool studio call flow.write_parameters` 仍受客户端自身限制。
+
+`operations` 继续接受数组或 `{"operations":[...]}`；`upsert` 需要
+`name/direction/type`，可选 `kind/value/description`。同类型同方向更新时省略字段保留旧值，
+改变类型或方向时重置不兼容的初始值；`remove` 仅接受 `op/name`。
+In 常用默认值为：字符串/路径为空文本，整数 `0`、小数 `0.0`、布尔 `False`、
+列表 `[]`、字典 `{}`、字节 `b''`；其他对象默认 `None`，类型化列表按目录的 `base=list` 使用 `[]`。
+`None` 只表示未取得对象，不会创建浏览器、Excel 或数据库连接。
+`any` 显式提供非空 `value` 时必须同时指定 `kind`。表达式作为文本保存，不由 CLI 求值。
+计算型 Out 省略 `value`，使用无初始化表达式语义；VisualFlow 的产出变量须与 Out 同名。
+
+成功结果区分 `written/reloaded/readback_verified/runtime_verified`。
+reload 丢弃未保存的内存编辑，因此保存已有工作必须发生在外部写入之前。
+目标切换、并发编辑、磁盘与内存不一致时拒绝继续；写入后失败会保留阶段和已知/未知结果，
+不自动回滚或整批重试。`--dry-run` 仍保持离线，只校验输入结构，
+不验证当前流程、类型目录、scope 或客户端接受性。参数回读成功不等同实际运行通过。
+
+完整示例、默认值和故障处理见[流程参数使用文档](flow-parameters.md)，
+也可离线运行 `xbot-cli guide flow-parameters`。
+
 已有运行超时时，使用返回的 `run_id` 继续等待，不重新启动：
 
 ```bash

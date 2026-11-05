@@ -7,6 +7,7 @@ mod commands;
 mod core;
 mod extra_cmds;
 mod flow_cmds;
+mod flow_parameters;
 mod guide_cmds;
 mod help;
 mod input;

@@ -9,6 +9,7 @@ xbot-cli status
 xbot-cli app open <app-id>                 # 维护已有应用；新建用 app create
 xbot-cli flow list
 xbot-cli flow create hello --kind code     # 记录返回的 flow_id
+xbot-cli flow params types                # 本机客户端的真实类型 ID
 xbot-cli flow params list hello
 xbot-cli flow params set hello --operations @params.json
 xbot-cli flow code write hello --file hello.py  # 新流程全量写
@@ -32,6 +33,19 @@ xbot-cli flow verify hello --timeout 600
   {"op":"upsert","name":"result","direction":"Out","type":"str"}
 ]
 ```
+
+`type` 使用 `flow params types` 返回的真实 ID，支持列表、字典及网页/Excel/窗口等对象，
+不再降级为 `any`。静态目录不保证包含扩展或动态类型，CLI 保留声明的 scope；
+文件路径、文件夹路径标注主流程用途，但 6.3.39 子流程实测可用，因此允许并给出 warning，
+不据此保证编辑器可选性或跨版本兼容。对象默认 `None` 只是空占位，不会创建对象。
+
+`flow params set` 使用 CLI 本地元数据适配器，不是扩展原生 MCP 的六类型接口：
+整批校验，必要时先保存已有编辑，仅写参数区域，调用一次 reload 后回读。
+同类型同方向更新时未提供的字段保留旧值；类型或方向变化时重置不兼容初值。
+无变化不写入、不 reload，不 sync 或关闭编辑器，不手工改 Python 或签名文件。
+写入后失败先读阶段和 `written/reloaded/readback_verified`，不整批重试；
+`runtime_verified:false` 表示尚未运行。不要自行照搬该方法直接编辑应用目录。
+完整参数使用说明可离线读取 `xbot-cli guide flow-parameters`；不提供 `password` 参数类型。
 
 ## 源码契约
 

@@ -295,9 +295,11 @@ pub(crate) enum FlowSub {
 
 #[derive(Subcommand)]
 pub(crate) enum FlowParamsSub {
+    /// 从已安装客户端资源列出真实参数类型 ID 和声明的适用范围
+    Types,
     /// 查看流程参数
     List { flow_id: Option<String> },
-    /// 添加、更新或删除流程参数
+    /// 添加、更新或删除参数，写入本地元数据后 reload 并回读确认
     Set {
         flow_id: Option<String>,
         /// operations 数组或完整 JSON,@文件 / '-' stdin

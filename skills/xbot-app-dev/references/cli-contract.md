@@ -11,6 +11,12 @@ npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 No
 - `app` 管应用生命周期；`flow` 管当前 Studio 流程，源码使用 `flow code`，块使用 `flow visual`。
 - `app sync` 调用原生 `shadowbot.shell-cli.exe studio current sync`，同步当前编辑应用并关闭编辑器，不发布应用；支持 `--expect-app` 和离线 `--dry-run`。
 - `flow check` 检查整个应用的静态诊断，传入流程时先核验目标（`scope: app`），不启动流程；`flow verify` = 静态诊断 + 实际运行 + Out；已有运行用 `flow wait <run-id>` 继续等待。
+- `flow params types` 离线读取客户端类型资源；`flow params set` 是 CLI 本地参数适配能力，
+  不是原生 MCP 写参接口：先校验、必要时保存已有编辑，仅写参数区域，再 reload 一次并回读。
+  运行中、目标有歧义或出现并发编辑时拒绝继续；无变化不 reload，不 sync 或关闭编辑器。
+  新参数使用真实类型 ID；目录标注主流程用途但实测可用于子流程的类型保留 scope warning，
+  不推断编辑器可选性；结果区分 `written/reloaded/readback_verified/runtime_verified`，
+  失败时先核对阶段和已应用状态，不整批重试。详细默认值与 Out 语义见 CodeFlow/VisualFlow 指南。
 - `task run/stop/status/logs` 管已发布应用的运行任务，使用 task_id，不与 Studio run_id 混用。
 - `oapi` 是企业版可选备用入口（`platform` 为兼容别名），只有用户明确选择开放 API 运行/调度或平台日志时才使用。`oapi auth <AccessKeyId> <AccessKeySecret>` 一条命令登录并保存凭据，token 自动刷新，`oapi auth logout` 清除授权。普通命令不读取企业凭据来选择通道，报错后不自动切换；应用仍用 `task run/status/logs`，流程仍用 `flow run/verify/wait`。备用入口的配置及标识关系见 [oapi.md](oapi.md)。
 - `web` 管浏览器上下文、快照与交互，`browser` 是兼容别名。使用 `web click <ref>`、`web fill <ref> <text>`、`web press <key>` 等高层命令，不为常用动作编写 JSON。
