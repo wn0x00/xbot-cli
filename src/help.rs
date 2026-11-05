@@ -107,6 +107,11 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli app list",
             "xbot-cli app open <app-id>",
             "xbot-cli app save",
+            "xbot-cli app sync",
+        ],
+        ["app", "sync"] => &[
+            "xbot-cli app sync --expect-app <app-id> --dry-run --json",
+            "xbot-cli app sync --expect-app <app-id> --json",
         ],
         ["flow"] => &[
             "xbot-cli flow list",
@@ -163,12 +168,18 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli tool browser schema web_get_active",
         ],
         ["web"] => &[
+            "xbot-cli web browser list",
             "xbot-cli web open example.com",
+            "xbot-cli web active --browser edge",
             "xbot-cli web fill e4 \"hello\"",
             "xbot-cli web click e5",
             "xbot-cli web snapshot --output page.txt",
             "xbot-cli web xpath e4",
             "xbot-cli web xpath e4 e5",
+        ],
+        ["web", "browser"] | ["web", "browser", "list"] => &[
+            "xbot-cli web browser list --json",
+            "xbot-cli web browser list --all --json",
         ],
         ["wiki"] => &["xbot-cli wiki list", "xbot-cli wiki search CodeFlow"],
         _ => &[],

@@ -18,10 +18,10 @@ xbot-cli 通过影刀客户端内置通道管理应用、编辑流程、运行�
 - **Agent 优先的输出契约。** 裸调用逐层返回帮助，`schema <path>` 给出机器可读的参数定义；成功写 stdout、失败写 stderr，配合明确的退出码与 `ok/data/error` JSON 信封。
 - **应用与流程全生命周期。** `app` 创建、打开、保存、同步、发布；`flow` 读取、静态检查、运行与等待；`task` 运行已发布应用。
 - **安全的写入边界。** `--dry-run` 离线预览，`--expect-app` 断言当前应用，高风险操作必须显式 `--yes`。
-- **浏览器自动化。** `xbot-cli web` 提供“打开页面 → 快照 → 操作元素”的短命令循环，同时返回支持操作的影刀 Python；`web xpath <ref...>` 生成单元素或相似元素 XPath。
+- **浏览器自动化。** `xbot-cli web` 提供“打开页面 → 快照 → 操作元素”的短命令循环，同时返回支持操作的影刀 Python；`web browser list` 查询插件安装与浏览器注册信息，`--browser <id>` 指定目标，打开网页时可自动启动目标浏览器；`web xpath <ref...>` 生成单元素或相似元素 XPath。
 - **安装环境自动发现。** 支持识别非默认影刀安装目录，诊断失败时显示实际后端路径和针对性修复建议。
 - **开放平台 Open API。** `oapi` 一条命令保存 AccessKey，token 自动刷新；应用、机器人、调度、日志、队列、企业账号全覆盖。
-- **内置 Agent Skill。** `xbot-cli install --skills` 安装开发规范、Web/Windows 修复辅助和排障指南。
+- **内置 Agent Skill。** `xbot-cli install --skills` 同时安装 `xbot-app-dev` 和 `xbot-development-standards`，包含应用/指令集开发规范、Web/Windows 修复辅助和排障指南。
 
 ## 安装
 
@@ -49,9 +49,19 @@ xbot-cli flow verify <flow-id> --json     # 静态检查并运行流程
 xbot-cli task run <app-id> --json         # 运行已发布应用
 ```
 
+同步当前应用并关闭编辑器：
+
+```powershell
+xbot-cli app sync --expect-app <app-id> --json
+```
+
+该命令调用 `shadowbot.shell-cli.exe studio current sync`，将当前编辑应用同步到云端并关闭
+Studio，不发布应用。`--dry-run` 可离线预览；结果分别报告同步、编辑器关闭和上传日志证据。
+
 浏览器交互：
 
 ```powershell
+xbot-cli web browser list --json
 xbot-cli web open baidu.com
 xbot-cli web fill e4 "影刀 RPA"
 xbot-cli web click e7
@@ -62,6 +72,27 @@ xbot-cli web xpath e7 e8
 
 网页操作保留 snapshot，并显示“影刀 Python：”；`--no-python` 关闭代码生成。XPath 每次最多返回 5 组候选；iframe 使用分层 Selector，open ShadowRoot 标明需要影刀验证，closed ShadowRoot 明确拒绝生成。详见 [0.9.1 更新说明](docs/updates/2026-10-30-web-python-xpath.md)。
 
+`web browser list` 通过影刀 DLL 查询 Chrome、Edge、360、Firefox 插件状态和自定义浏览器注册，
+文本输出与 `app list` 一样使用表格，始终排除 `exePath` 为空的项。默认隐藏未安装项，
+`--all` 也显示有程序路径的未安装项。`installed` 为 DLL 判定，`registered` 仅代表注册，
+不保证插件启用或已连接。全部网页操作可用 `--browser <id>`，例如：
+
+```bash
+xbot-cli web active --browser edge --json
+xbot-cli web snapshot --browser edge --json
+xbot-cli web click e7 --browser edge --json
+xbot-cli web open example.com --browser ziniaobrowser --json
+```
+
+`web open --browser <id>` 在目标未运行时按 DLL 的 `exePath` 启动浏览器，等待最多 20 秒
+连接其影刀插件后再打开目标 URL；失败不回退到其他浏览器。不传浏览器或显式指定
+`XBOT_WEB_PIPE` 时不自动启动，其他网页动作也不会因断开而自动重启或重放。
+
+使用列表中的 `id`，每个浏览器独立保存页面会话；不传参数沿用原默认上下文。
+指定浏览器未连接时明确报错，不回退其他浏览器。旧 `web open --mode` 仍兼容。
+查询适配器需要影刀自带的 .NET 6 Windows Desktop 运行时，已在影刀 6.3.39 验证；
+它不是稳定 SDK，影刀升级可能需要重新适配。Firefox 可查询安装状态，当前 Web 管道不支持操作。
+
 裸调用 `xbot-cli` 或任意分组（如 `xbot-cli flow`）会返回该层级的帮助和示例；`xbot-cli help <path>` 查看详细帮助。
 
 ## 给 AI Agent 使用
@@ -71,7 +102,7 @@ xbot-cli web xpath e7 e8
 ```text
 请使用 xbot-cli 帮我操作影刀 RPA。步骤：
 1. 全局安装：npm install -g '@guanzhu.me/xbot-cli'（需要 Windows x64、Node.js 22+，且本机影刀客户端已启动登录）；
-2. 在我的项目目录运行 xbot-cli install --skills --json 安装开发 Skill，并阅读生成的 .agents/skills/xbot-app-dev/SKILL.md，按其规范工作；
+2. 在我的项目目录运行 xbot-cli install --skills --json 安装两份 Skill，并阅读生成的 .agents/skills/xbot-app-dev/SKILL.md 和 .agents/skills/xbot-development-standards/SKILL.md，先区分应用与指令集，再按对应规范工作；
 3. 先运行 xbot-cli status --json 确认环境，用 xbot-cli help <path> / schema <path> / guide <topic> 逐层了解命令；
 4. 解析结果一律显式加 --json；修改前先读现状，写入前先用 --dry-run 预览；
 5. 发布、回收等不可逆操作必须经我明确授权，未经确认不要执行。
@@ -99,6 +130,7 @@ xbot-cli oapi job logs <jobUuid> --json
 
 ## 文档
 
+- [0.9.2 更新说明](docs/updates/2026-11-05-browser-development-standards.md)：浏览器列表、指定浏览器、自动启动及指令集/应用开发规范 Skill
 - [0.9.1 更新说明](docs/updates/2026-10-30-web-python-xpath.md)：Web Python、XPath、安装环境发现及验证范围
 - [CLI 参考](docs/cli-reference.md)：完整命令、参数语义、输出契约与设计依据
 - [Skill v10 升级说明](docs/skill-v10-upgrade.md)：Skill 模块、依赖与限制

@@ -44,8 +44,14 @@ pub(crate) enum Group {
     #[command(subcommand)]
     Task(TaskSub),
     /// 网页操作:打开、快照、点击、填写与导航
-    #[command(name = "web", visible_alias = "browser", subcommand)]
-    Browser(BrowserSub),
+    #[command(name = "web", visible_alias = "browser")]
+    Browser {
+        /// 指定 web browser list 中的浏览器 ID；不自动回退到其他浏览器
+        #[arg(long, global = true)]
+        browser: Option<String>,
+        #[command(subcommand)]
+        command: BrowserSub,
+    },
     /// 实验性 Windows UIA 只读能力,独立于影刀原生选择器引擎
     #[command(subcommand)]
     Win32(Win32Sub),
@@ -70,8 +76,9 @@ pub(crate) enum Group {
     },
     /// 按需阅读内置开发与排障指南
     Guide { topic: Option<String> },
-    /// 安装 Agent Skill 和 references
+    /// 安装应用开发与开发规范两份 Agent Skill 及配套资源
     Install {
+        /// 同时安装 xbot-app-dev 和 xbot-development-standards
         #[arg(long)]
         skills: bool,
         /// 安装到 ~/.agents;缺省安装到当前工作区 .agents
@@ -180,7 +187,10 @@ pub(crate) enum AppSub {
     Current,
     /// 保存、编译并静态检查
     Save,
-    /// 上传云端并关闭 Studio
+    /// 同步当前应用到云端并关闭编辑器
+    #[command(
+        long_about = "同步当前应用到云端并关闭 Studio 编辑器。\n\n调用影刀原生命令 shadowbot.shell-cli.exe studio current sync；不发布应用。\n需要当前应用处于编辑模式，可用 --expect-app <app-id> 锁定目标。\n结果分别保留 synced、studio_closed、uploaded 和原生 response；关闭编辑器不能单独证明同步成功。"
+    )]
     Sync,
     /// 发布并轮询版本确认(需 --yes)
     Publish {
@@ -419,10 +429,14 @@ pub(crate) struct WebElement {
 
 #[derive(Subcommand)]
 pub(crate) enum BrowserSub {
+    /// 查询本机影刀浏览器插件和自定义浏览器注册信息
+    #[command(subcommand)]
+    Browser(BrowserInventorySub),
     /// 打开 URL 并建立浏览器上下文;缺省打开 about:blank
     Open {
         url: Option<String>,
-        #[arg(long, visible_alias = "browser")]
+        /// 兼容参数；推荐所有网页命令统一使用 --browser
+        #[arg(long)]
         mode: Option<String>,
         #[command(flatten)]
         options: WebOptions,
@@ -561,6 +575,16 @@ pub(crate) enum BrowserSub {
         args_json: Option<String>,
         #[arg(long, default_value_t = 60, value_parser = clap::value_parser!(u64).range(1..=MAX_TIMEOUT_SECS))]
         timeout: u64,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum BrowserInventorySub {
+    /// 通过影刀 DLL 列出已安装插件的浏览器及已注册自定义浏览器
+    List {
+        /// 同时显示 DLL 判定未安装插件但有程序路径的浏览器
+        #[arg(long)]
+        all: bool,
     },
 }
 

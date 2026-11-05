@@ -115,9 +115,21 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
                 f::flow_snapshots(flow_id.as_deref(), block_id.as_deref())
             }
         },
-        Group::Browser(sub) => match sub {
+        Group::Browser {
+            command: sub,
+            browser,
+        } => match sub {
+            BrowserSub::Browser(BrowserInventorySub::List { all }) => {
+                if browser.is_some() {
+                    return Err(BackendError::new(
+                        "BAD_ARGS",
+                        "browser list 无需 --browser；请从返回的 id 中选择浏览器",
+                    ));
+                }
+                crate::browser_cmds::list(all)
+            }
             BrowserSub::Act { args_json } => e::browser_act(&args_json),
-            BrowserSub::Eval { code } => e::browser_eval(&code),
+            BrowserSub::Eval { code } => e::browser_eval(&code, browser.as_deref()),
             BrowserSub::Tools { full } => e::browser_tools(full),
             BrowserSub::Schema { tool } => e::browser_schema(&tool),
             BrowserSub::Call {
@@ -125,7 +137,7 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
                 args_json,
                 timeout,
             } => e::browser_call(&tool, args_json.as_deref(), timeout),
-            sub => web_cmds::prepare(&sub)?
+            sub => web_cmds::prepare(&sub, browser.as_deref())?
                 .ok_or_else(|| BackendError::new("BAD_ARGS", "未知网页操作"))?
                 .execute(),
         },

@@ -118,6 +118,25 @@ try {
     assert.deepEqual(readFileSync(join(skillRoot, file)), readFileSync(join(sourceSkillRoot, file)),
       `Installed Skill resource differs: ${file}`);
   }
+  const bundledSkills = JSON.parse(skill.stdout).data.skills;
+  assert.deepEqual(bundledSkills.map(skill => skill.name), ['xbot-app-dev', 'xbot-development-standards']);
+  for (const bundled of bundledSkills) {
+    const installedRoot = join(workdir, '.agents', 'skills', bundled.name);
+    const sourceRoot = join(root, 'skills', bundled.name);
+    assert.equal(bundled.path, installedRoot);
+    const expected = skillFiles(sourceRoot);
+    assert.deepEqual(skillFiles(installedRoot), expected);
+    assert.deepEqual(bundled.files.map(file =>
+      relative(installedRoot, file).replaceAll('\\', '/')).sort(), expected);
+    for (const file of expected) {
+      assert.deepEqual(readFileSync(join(installedRoot, file)), readFileSync(join(sourceRoot, file)),
+        `Installed ${bundled.name} resource differs: ${file}`);
+    }
+  }
+  const standardsGuide = invoke(['guide', 'development-standards', '--json']);
+  assert.equal(standardsGuide.status, 0, standardsGuide.stderr);
+  assert.equal(JSON.parse(standardsGuide.stdout).data.markdown,
+    readFileSync(join(root, 'skills', 'xbot-development-standards', 'SKILL.md'), 'utf8'));
   assert.match(invoke(['guide', 'cli-contract']).stdout, /^# /);
   for (const [topic, resource] of [
     ['oapi', 'references/oapi.md'],

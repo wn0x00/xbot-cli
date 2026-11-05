@@ -18,6 +18,7 @@ use serde_json::{json, Map, Value};
 
 #[path = "transport.rs"]
 mod transport;
+pub(crate) use transport::run_capture;
 pub use transport::{mcp, mcp_list, shell_cli, shell_cli_raw};
 
 pub const DEFAULT_SHELL_CLI: &str = r"C:\Program Files\ShadowBot\shadowbot.shell-cli.exe";
@@ -139,7 +140,14 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
     ) {
         return ("authentication", 3, false);
     }
-    if matches!(code, "SHELL_CLI_MISSING" | "SPAWN_FAILED") {
+    if matches!(
+        code,
+        "SHELL_CLI_MISSING"
+            | "SPAWN_FAILED"
+            | "BROWSER_DLL_MISSING"
+            | "BROWSER_RUNTIME_MISSING"
+            | "WEB_BROWSER_EXECUTABLE_MISSING"
+    ) {
         return ("configuration", 3, false);
     }
     if matches!(
@@ -153,6 +161,7 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
             | "PLATFORM_NETWORK"
             | "PLATFORM_TIMEOUT"
             | "PLATFORM_RATE_LIMIT"
+            | "WEB_BROWSER_START_TIMEOUT"
     ) {
         // A transport failure does not prove that a write or run was not applied.
         return ("network", 4, false);
@@ -166,6 +175,8 @@ fn classify_error(code: &str) -> (&'static str, i32, bool) {
             | "SKILL_CONFLICT"
             | "APP_MISMATCH"
             | "APP_CONTEXT_REQUIRED"
+            | "WEB_BROWSER_CONFLICT"
+            | "WEB_BROWSER_AMBIGUOUS"
     ) {
         return ("conflict", 5, false);
     }

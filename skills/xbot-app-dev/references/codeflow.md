@@ -28,7 +28,7 @@ xbot-cli flow verify hello --timeout 600
 
 ```json
 [
-  {"op":"upsert","name":"text","direction":"In","type":"str","value":"测试默认值"},
+  {"op":"upsert","name":"text","direction":"In","type":"str","value":"业务默认值"},
   {"op":"upsert","name":"result","direction":"Out","type":"str"}
 ]
 ```
@@ -49,7 +49,7 @@ xbot-cli flow verify hello --timeout 600
   def main(args):
       if args is None:
           args = {}
-      text = args.get("text", "测试默认值")
+      text = args.get("text")
       args["result"] = text
       print(text)
   ```
@@ -57,6 +57,7 @@ xbot-cli flow verify hello --timeout 600
 - 日志使用 `from xbot import print`；需要级别时使用 `xbot.logging`。
 - Out 必须先声明，再写回同一个 `args["参数名"]`；普通 return 不进入 Flow Out。
 - 只在 `args is None` 时初始化，不用 truthiness 替换空容器。
+- 正式默认值配置在流程参数中，`main(args)` 直接取参，不在入口补测试值或兜底默认值；指令集的测试样例与普通应用的主流程规则见同批安装的 [开发规范](../../xbot-development-standards/SKILL.md)。
 - 默认按 Python 3.7 兼容；确认应用升级后才使用新语法。
 - 保留无关行为、命名和局部风格，不借机格式化。
 - 日志不输出 Cookie、Token、密码、验证码或完整页面。
@@ -68,14 +69,14 @@ xbot-cli flow verify hello --timeout 600
 既有流程若使用中文 In/Out 名称，保留已声明的字典键，在边界映射为英文内部变量。以下仅为映射示例，运行前须按既有合同声明对应参数：
 
 ```python
-search_keyword = args.get("搜索词", "")
+search_keyword = args.get("搜索词")
 search_result = {"keyword": search_keyword}
 args["搜索结果"] = search_result
 ```
 
 ## 流程组织与 XPath
 
-流程按 [项目规范](project-conventions.md) 组织为配置、业务、测试和根级主流程。保持既有调用和参数契约，不为一次元素修复迁移整个应用。
+流程按 [项目规范](project-conventions.md)和同批安装的开发规范区分项目类型组织；普通应用由主流程进入主运行模块的 `main(args)`，不设置测试入口或测试流程。保持既有调用和参数契约，不为一次元素修复迁移整个应用。
 
 编写网页代码前读取 `wiki/guides/web/codeflow`、`wiki/xbot_sdk/web/browser` 和需要的 `wiki/xbot_sdk/web/element`，核对实际签名。本项目默认直接 XPath 定位，覆盖 Wiki 中默认通过 `package.selector()` 获取稳定控件的实现偏好；其他运行环境和 SDK 能力约束仍需遵守。
 

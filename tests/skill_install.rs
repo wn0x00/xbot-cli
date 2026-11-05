@@ -90,10 +90,29 @@ fn assert_complete(output: Output, installed: &Path) {
     let result: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(result["ok"], true);
     assert_eq!(result["data"]["installed"], true);
+    assert_eq!(result["data"]["path"], installed.to_string_lossy().as_ref());
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("skills/xbot-app-dev");
-    let expected = resources(&source);
+    assert_resources(&result["data"], &source, installed);
+    let skills = result["data"]["skills"].as_array().unwrap();
+    assert_eq!(skills.len(), 2);
+    for (entry, name) in skills
+        .iter()
+        .zip(["xbot-app-dev", "xbot-development-standards"])
+    {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("skills")
+            .join(name);
+        let installed = installed.parent().unwrap().join(name);
+        assert_eq!(entry["name"], name);
+        assert_eq!(entry["path"], installed.to_string_lossy().as_ref());
+        assert_resources(entry, &source, &installed);
+    }
+}
+
+fn assert_resources(entry: &Value, source: &Path, installed: &Path) {
+    let expected = resources(source);
     assert_eq!(resources(installed), expected);
-    let mut reported: Vec<PathBuf> = result["data"]["files"]
+    let mut reported: Vec<PathBuf> = entry["files"]
         .as_array()
         .unwrap()
         .iter()
@@ -168,4 +187,45 @@ fn template_conflict_is_detected_before_any_write_and_explicit_overwrite_restore
         scratch.invoke(&["install", "--skills", "--yes", "--json"]),
         &installed,
     );
+}
+
+#[test]
+fn standards_conflict_prevents_writes_to_either_skill() {
+    let scratch = Scratch::new();
+    let installed = scratch.skill_root(false);
+    let standards = installed
+        .parent()
+        .unwrap()
+        .join("xbot-development-standards");
+    let customized = standards.join("scripts/check_metadata.py");
+    fs::create_dir_all(customized.parent().unwrap()).unwrap();
+    let local_content = b"# local checker customization\n";
+    fs::write(&customized, local_content).unwrap();
+
+    let output = scratch.invoke(&["install", "--skills", "--json"]);
+    assert_eq!(output.status.code(), Some(5));
+    assert!(output.stdout.is_empty());
+    let error: Value = serde_json::from_slice(&output.stderr).unwrap();
+    assert_eq!(error["error"]["code"], "SKILL_CONFLICT");
+    assert!(!installed.exists(), "the other skill must not be installed");
+    assert!(!standards.join("SKILL.md").exists());
+    assert_eq!(fs::read(&customized).unwrap(), local_content);
+
+    assert_complete(
+        scratch.invoke(&["install", "--skills", "--yes", "--json"]),
+        &installed,
+    );
+}
+
+#[test]
+fn skill_install_preview_does_not_create_either_skill() {
+    let scratch = Scratch::new();
+    let output = scratch.invoke(&["install", "--skills", "--dry-run", "--json"]);
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result["data"]["dry_run"], true);
+    assert_eq!(result["data"]["action"], "install.skills");
+    assert!(!scratch.workspace.join(".agents").exists());
+    assert!(!scratch.home.join(".agents").exists());
 }

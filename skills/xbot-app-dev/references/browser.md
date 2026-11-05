@@ -2,7 +2,7 @@
 
 `xbot-cli web` 提供 Playwright CLI 风格的命令交互，全部通过影刀 Chrome Bridge 命名管道和 CDP 执行，不调用 browser-use-mcp。`browser` 是 `web` 的兼容别名。
 
-前提：已打开带影刀扩展的 Chrome、Edge 或影刀浏览器，不要求 Studio 应用工作区。`web open/active` 将后续命令绑定到调用端的管道和标签页，切换活动标签不会自动换页；`web active` 显式重新绑定。可用 `XBOT_WEB_PIPE`、`XBOT_WEB_TAB_ID` 指定上下文；多进程脚本用独立的 `XBOT_WEB_SESSION` 名称隔离绑定，这不创建独立浏览器 profile。会话记录位于 `%LOCALAPPDATA%\xbot-cli\web-sessions`，24 小时后需重新绑定。管道前缀仅用于发现和排序，不作为浏览器产品身份判据。
+前提：浏览器已安装并启用影刀扩展，不要求 Studio 应用工作区。`web open --browser <id>` 可自动启动未运行的目标浏览器；不指定浏览器时仍需手动打开。`web open/active` 将后续命令绑定到调用端的管道和标签页，切换活动标签不会自动换页；`web active` 显式重新绑定。可用 `XBOT_WEB_PIPE`、`XBOT_WEB_TAB_ID` 指定上下文；多进程脚本用独立的 `XBOT_WEB_SESSION` 名称隔离绑定，这不创建独立浏览器 profile。会话记录位于 `%LOCALAPPDATA%\xbot-cli\web-sessions`，24 小时后需重新绑定。管道前缀仅用于发现和排序，不作为浏览器产品身份判据。
 
 ## 从快照到操作
 
@@ -15,7 +15,40 @@ xbot-cli web press Enter --ref e4 --json
 xbot-cli web click e7 --json
 ```
 
-裸域名会补全为 `https://`。`open` 不带 URL 时打开 `about:blank`。只在用户指定浏览器类型时传 `--mode`（别名 `--browser`），例如 `--mode cef`。需要用户已经打开的活动页时用 `web active`，它的别名是 `web attach`；在受控页内跳转用 `web goto <url>`。
+裸域名会补全为 `https://`。`open` 不带 URL 时打开 `about:blank`。所有网页命令均可传 `--browser <id>`；旧 `open --mode` 保留兼容，例如 `--mode cef`。需要用户已经打开的活动页时用 `web active`，它的别名是 `web attach`；在受控页内跳转用 `web goto <url>`。
+
+## 浏览器列表与选择
+
+```bash
+xbot-cli web browser list --json
+xbot-cli web browser list --all --json
+xbot-cli web active --browser edge --json
+xbot-cli web snapshot --browser edge --json
+xbot-cli web click e4 --browser edge --json
+xbot-cli web open example.com --browser ziniaobrowser --json
+```
+
+列表使用安装目录中的影刀 DLL 查询，不扫描浏览器 profile。默认返回 DLL 判定已安装的
+标准浏览器及已注册的自定义浏览器；始终排除 `exePath` 为空的项，`--all` 也返回有程序路径的
+未安装项。文本输出与 `app list` 一样使用表格。`installed` 与 `registered`
+分开：自定义注册不证明插件安装/启用或当前连接，360 的状态原样使用 DLL 判定。
+`webSupported` 只表示当前通道有管道映射，不代表在线。Firefox 可查询状态但当前不能操作。
+
+`--browser` 使用列表的 `id`（如 `chrome`、`edge`、`bro360`、`ziniaobrowser`），
+在 `web` 后或动作参数后均可。每个浏览器单独绑定页面；不传参数保持原默认会话，
+不会自动沿用上一条显式选择。切换浏览器先采集该浏览器快照，不复用其他浏览器的 ref。
+显式 `XBOT_WEB_PIPE` 与指定浏览器不匹配时拒绝，目标未连接时也不回退其他浏览器。
+操作后的自动快照使用相同浏览器和标签页。`--mode` 与 `--browser` 冲突时拒绝。
+
+仅 `web open --browser <id>`（包括旧 `--mode`）在未发现目标插件连接时检查程序进程，
+未运行则按 DLL 返回的绝对 `exePath` 启动一次，先打开 `about:blank`，最多等待 20 秒连接
+该浏览器的插件，再通过原通道打开目标 URL 一次。已运行时不重复启动。程序路径无效、
+启动失败或插件未连接会明确报错，不回退其他浏览器；自定义浏览器未登录/profile 未启用
+插件时可能无法连接。显式 `XBOT_WEB_PIPE`、内置 `cef`、未指定浏览器及其他网页动作不自动启动。
+`--dry-run` 不检查进程、不启动浏览器；点击、填写等动作不因断开而重启或重放。
+
+该 DLL 适配器是独立进程中的公开成员调用，不是稳定 SDK；需要影刀自带 .NET 6 Desktop
+运行时，影刀升级后可能需重新适配。默认安装发现与 `XBOT_SHELL_CLI` 覆盖仍生效。
 
 元素 ref 必须来自当前页面的快照，不能编造或复用其他页面的编号。页面变化后依据返回的新快照选择目标；保留后端的快照元数据，快照可能只包含增量变化，不能默认是完整页面。这里只接受快照 ref，不把 CSS 或 Playwright locator 表达式当作 ref。
 

@@ -15,7 +15,7 @@
 1. 开发者按[贡献指南](../CONTRIBUTING.md)提交 PR，通过检查和评审后 Squash 合并到 `main`。
 2. 维护者决定新版本，使用 `npm run release:version -- <version>` 同步 `package.json`、`package-lock.json`、`Cargo.toml`、`Cargo.lock` 中的项目版本，并手动更新 `CHANGELOG.md`。普通开发 PR 不改版本。版本脚本只修改这四个文件，不创建提交、tag 或发布。
 3. 将版本和变更记录提交到 `main`；需要评审时使用单独的发版准备 PR。等待该提交的 CI 通过后，维护者在该提交上创建并推送 `v<version>` tag。
-4. tag 推送触发 `publish.yml`。工作流校验 tag、版本、包名、仓库身份及提交属于 `main`，完成 Rust 检查、测试和 npm 安装验收。发布 job 核对制品校验值，通过 OIDC 将这份 `.tgz` 发布到 npm；随后创建 GitHub Release 并上传附件。
+4. tag 推送触发 `publish.yml`。工作流校验 tag、版本、包名、仓库身份及提交属于 `main`，完成 Rust 检查、测试和 npm 安装验收。发布 job 核对制品校验值，通过 OIDC 将这份 `.tgz` 发布到 npm；随后使用 `CHANGELOG.md` 对应版本章节创建 GitHub Release 并上传附件。
 
 普通提交和 PR 合并不会发布，也不再自动创建发版 PR。Conventional Commits 便于评审和整理记录；版本由维护者决定。`0.x` 阶段通常以 patch 发布修复，以 minor 发布功能或不兼容变更；不兼容变更必须提供迁移说明。是否进入 `1.0.0` 也由维护者决定。
 

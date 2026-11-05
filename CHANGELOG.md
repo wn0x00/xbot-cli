@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.9.2](https://github.com/wn0x00/xbot-cli/compare/v0.9.1...v0.9.2) (2026-11-05)
+
+### 新增浏览器管理
+
+- 新增 `xbot-cli web browser list`，通过已安装影刀 DLL 的公开接口查询浏览器插件状态和自定义浏览器注册信息，以与 `app list` 一致的表格展示；JSON 保留程序路径、管道标识等完整字段。
+- 默认列出已安装插件或已注册的浏览器，始终排除 `exePath` 为空的项；`--all` 可额外查看有程序路径的未安装项。`installed` 是 DLL 判定，`registered` 只代表自定义浏览器已注册，不代表插件已启用或已连接。
+- Web 操作新增 `--browser <id>`，支持按列表中的 ID 选择 Chrome、Edge 或有兼容管道的自定义浏览器；页面会话、快照和 ref 按浏览器隔离，显式选择失败时不再悄悄回退其他浏览器。
+- `web open --browser <id>` 在指定浏览器未运行时，使用 DLL 返回的有效 `exePath` 启动浏览器，等待最多 20 秒连接其影刀插件，再打开目标 URL。已运行的程序不重复启动，失败不切换浏览器、不重放网页动作。
+- 浏览器进程不继承 CLI 的输出句柄，避免自动启动后 PowerShell 或捕获输出的调用方一直等待。
+
+```powershell
+xbot-cli web browser list
+xbot-cli web open yingdao.com --browser chrome
+xbot-cli web snapshot --browser chrome
+# e7 需替换为该浏览器最新快照中的实际 ref
+xbot-cli web click e7 --browser chrome
+```
+
+### 新增指令集、应用开发规范 Skill
+
+- 内置 `xbot-development-standards`，完整包含 13 个文件：规范入口、UI 元数据、应用与指令集参考资料、只读元数据检查器、52 项回归测试及验收/策略模板。
+- `xbot-cli install --skills` 同时安装 `xbot-app-dev` 和 `xbot-development-standards`，支持当前工作区或 `--global` 用户目录；全部文件写入前统一检查冲突，覆盖仍需显式 `--yes`。
+- 新增离线指南 `xbot-cli guide development-standards`。JSON 结果新增 `data.skills` 返回各 Skill 的 `name/path/files`，原 `data.path/files` 保持兼容。
+- 明确普通应用与指令集的不同约定：普通应用由主流程进入主运行模块的 `main(args)`，不新增测试入口、测试函数或测试流程；正式默认值在流程参数中配置。指令集另行维护公开契约、中文面板、分组、启用状态和兼容性。
+- 更新原有应用开发 Skill 的引用、CodeFlow 示例及流程组织说明，避免测试入口和代码默认值示例与新规范冲突。
+
+```powershell
+xbot-cli install --skills --json
+xbot-cli guide development-standards
+```
+
+### 兼容与说明
+
+- 未指定 `--browser` 时沿用原默认上下文；原 `browser` 别名及 `web open --mode` 保持兼容。`--dry-run` 仍离线预览，不启动浏览器。
+- 自动启动仅用于显式指定浏览器的 `web open`；显式设置 `XBOT_WEB_PIPE`、使用 `cef` 或其他网页动作时不自动启动。选择浏览器后请重新采集快照，不跨浏览器复用 ref。
+- DLL 查询适配器依赖影刀自带的 .NET 6 Windows Desktop 运行时，已在影刀 6.3.39 验证，不是稳定 SDK；升级影刀后可能需要重新适配。Firefox 的插件状态可查询，但目前不能通过 Web 管道操作。
+- 附件提供 Windows x64 ZIP、同版 npm `.tgz` 和 `SHA256SUMS.txt`。完整中文说明与验证范围见 [0.9.2 更新说明](https://github.com/wn0x00/xbot-cli/blob/v0.9.2/docs/updates/2026-11-05-browser-development-standards.md)。
+
 ## [0.9.1](https://github.com/wn0x00/xbot-cli/compare/v0.9.0...v0.9.1) (2026-10-30)
 
 ### Added

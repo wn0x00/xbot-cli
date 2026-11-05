@@ -98,6 +98,7 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
             (&["write"], "studio", true, "none")
         }
         ["flow", ..] | ["diag"] => (&["read"], "studio", false, "none"),
+        ["web", "browser", ..] => (&["read"], "local", false, "none"),
         ["web", "open" | "active" | "goto" | "go-back" | "go-forward" | "reload" | "close"] => {
             (&["change_browser_context"], "browser", true, "none")
         }
@@ -433,14 +434,23 @@ fn examples(command: &Command, path: &[&str]) -> Vec<String> {
         return vec![help.to_string()];
     }
     let examples: &[&str] = match path {
+        ["app", "sync"] => &[
+            "xbot-cli app sync --expect-app <app-id> --dry-run --json",
+            "xbot-cli app sync --expect-app <app-id> --json",
+        ],
+        ["web", "browser", "list"] => &[
+            "xbot-cli web browser list --json",
+            "xbot-cli web browser list --all --json",
+        ],
         ["web", "open"] => &[
             "xbot-cli web open example.com",
-            "xbot-cli web open https://example.com --mode edge",
+            "xbot-cli web open https://example.com --browser edge",
         ],
-        ["web", "active"] => &["xbot-cli web active"],
+        ["web", "active"] => &["xbot-cli web active", "xbot-cli web active --browser edge"],
         ["web", "snapshot"] => &[
             "xbot-cli web snapshot",
             "xbot-cli web snapshot --output page.txt",
+            "xbot-cli web snapshot --browser ziniaobrowser",
         ],
         ["web", "click"] => &[
             "xbot-cli web click e5",

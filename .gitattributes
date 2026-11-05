@@ -6,3 +6,4 @@
 *.yml text eol=lf
 *.md text eol=lf
 *.exe binary
+*.dll binary

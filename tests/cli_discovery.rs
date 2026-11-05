@@ -284,6 +284,27 @@ fn guide_is_readable_markdown_unless_json_is_requested() {
 }
 
 #[test]
+fn development_standards_guide_is_available_offline() {
+    let index = json_success(&invoke(&["guide", "--json"]));
+    assert!(index["data"]["topics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|entry| entry["topic"] == "development-standards"));
+    let value = json_success(&invoke(&["guide", "development-standards", "--json"]));
+    assert_eq!(value["data"]["topic"], "development-standards");
+    assert_eq!(
+        value["data"]["markdown"],
+        include_str!("../skills/xbot-development-standards/SKILL.md")
+    );
+    let markdown = stdout(&invoke(&["guide", "development-standards"]));
+    assert_eq!(
+        markdown.trim(),
+        value["data"]["markdown"].as_str().unwrap().trim()
+    );
+}
+
+#[test]
 fn piped_business_output_is_json_and_explicit_text_is_readable() {
     let args = ["app", "create", "preview-app", "--dry-run"];
     let value = json_success(&invoke(&args));

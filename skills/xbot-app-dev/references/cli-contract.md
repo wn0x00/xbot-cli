@@ -9,6 +9,7 @@ npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 No
 ## 资源和工作流
 
 - `app` 管应用生命周期；`flow` 管当前 Studio 流程，源码使用 `flow code`，块使用 `flow visual`。
+- `app sync` 调用原生 `shadowbot.shell-cli.exe studio current sync`，同步当前编辑应用并关闭编辑器，不发布应用；支持 `--expect-app` 和离线 `--dry-run`。
 - `flow check` 检查整个应用的静态诊断，传入流程时先核验目标（`scope: app`），不启动流程；`flow verify` = 静态诊断 + 实际运行 + Out；已有运行用 `flow wait <run-id>` 继续等待。
 - `task run/stop/status/logs` 管已发布应用的运行任务，使用 task_id，不与 Studio run_id 混用。
 - `oapi` 是企业版可选备用入口（`platform` 为兼容别名），只有用户明确选择开放 API 运行/调度或平台日志时才使用。`oapi auth <AccessKeyId> <AccessKeySecret>` 一条命令登录并保存凭据，token 自动刷新，`oapi auth logout` 清除授权。普通命令不读取企业凭据来选择通道，报错后不自动切换；应用仍用 `task run/status/logs`，流程仍用 `flow run/verify/wait`。备用入口的配置及标识关系见 [oapi.md](oapi.md)。
@@ -32,6 +33,15 @@ xbot-cli flow wait <run-id> --timeout 600 --expect-app <app-id>
 `flow visual enable/disable <block-id...> --flow <flow-id>` 用明确的操作代替 toggle；省略 `--flow` 时采用同样的上下文解析规则。
 
 `web open [url]` 建立浏览器上下文，`web active`（别名 `attach`）附着当前活动页，`web goto <url>` 在受控页内跳转。后续命令绑定调用端的管道和标签页，切换活动标签不自动换页；多进程脚本可用 `XBOT_WEB_SESSION` 隔离绑定，但不创建独立浏览器 profile。显式管道和标签可通过 `XBOT_WEB_PIPE/XBOT_WEB_TAB_ID` 指定。`web` 依赖的 Studio 和浏览器条件见 [browser.md](browser.md)。
+
+`web browser list` 通过已安装影刀 DLL 返回浏览器插件状态和自定义浏览器注册，`--all`
+显示有程序路径的未安装项；始终排除 `exePath` 为空的项，文本输出与 `app list` 一样使用表格。
+注册不等同插件已启用或已连接。所有 `web` 操作均可传 `--browser <id>`，
+使用列表中的 ID。每个浏览器独立绑定，不传参数仍使用原默认会话；目标断开或显式管道
+冲突时拒绝，不回退其他浏览器。切换浏览器先取对应快照，不跨浏览器复用 ref。
+`web open --browser <id>` 在目标未运行时按 DLL 的 `exePath` 启动，最多等待 20 秒连接其
+插件后才打开目标 URL；显式管道、`cef`、未指定浏览器及其他网页动作不自动启动。
+旧 `open --mode` 继续兼容，和 `--browser` 同时出现时必须一致。
 
 打开、附着、导航和常用交互成功后自动读取快照，可加 `--no-snapshot` 跳过；`web close` 不读取快照。动作成功后取快照失败仍返回 `ok: true`、退出 0，并提供 warning 和 `applied: true`。此时只补取 `web snapshot`，不要重放动作。快照保留后端元数据，可能是增量；ref 必须来自当前页面证据。`web snapshot --output <file>`（别名 `--filename`）保存文本，不覆盖已有文件。
 
