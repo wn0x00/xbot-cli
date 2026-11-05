@@ -75,7 +75,18 @@ fn shell_identity() -> Option<String> {
     }
 }
 
-fn path() -> Option<PathBuf> {
+fn scoped_key(key: String, browser: Option<&str>) -> String {
+    use base64::Engine;
+    match browser {
+        Some(browser) => format!(
+            "{key}-browser-{}",
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(browser.to_lowercase())
+        ),
+        None => key,
+    }
+}
+
+fn path(browser: Option<&str>) -> Option<PathBuf> {
     if explicit() {
         return None;
     }
@@ -89,7 +100,7 @@ fn path() -> Option<PathBuf> {
         PathBuf::from(std::env::var_os("LOCALAPPDATA")?)
             .join("xbot-cli")
             .join("web-sessions")
-            .join(format!("{key}.json")),
+            .join(format!("{}.json", scoped_key(key, browser))),
     )
 }
 
@@ -100,8 +111,8 @@ fn now() -> u64 {
         .as_secs()
 }
 
-pub fn load() -> Res<Option<Binding>> {
-    let Some(path) = path() else {
+pub fn load(browser: Option<&str>) -> Res<Option<Binding>> {
+    let Some(path) = path(browser) else {
         return Ok(None);
     };
     let text = match fs::read(&path) {
@@ -124,8 +135,13 @@ pub fn load() -> Res<Option<Binding>> {
     Ok(Some(value))
 }
 
-pub fn save(pipe: &str, tab: i64, document: Option<&str>) -> std::io::Result<()> {
-    let Some(path) = path() else {
+pub fn save(
+    pipe: &str,
+    tab: i64,
+    document: Option<&str>,
+    browser: Option<&str>,
+) -> std::io::Result<()> {
+    let Some(path) = path(browser) else {
         return Ok(());
     };
     fs::create_dir_all(path.parent().unwrap())?;
@@ -138,8 +154,8 @@ pub fn save(pipe: &str, tab: i64, document: Option<&str>) -> std::io::Result<()>
     fs::write(path, serde_json::to_vec(&value)?)
 }
 
-pub fn clear() {
-    if let Some(path) = path() {
+pub fn clear(browser: Option<&str>) {
+    if let Some(path) = path(browser) {
         let _ = fs::remove_file(path);
     }
 }
@@ -147,6 +163,25 @@ pub fn clear() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn browser_scope_is_case_insensitive_and_does_not_share_default_binding() {
+        let base = "shell".to_owned();
+        assert_eq!(scoped_key(base.clone(), None), base);
+        assert_ne!(
+            scoped_key(base.clone(), Some("edge")),
+            scoped_key(base.clone(), Some("chrome"))
+        );
+        assert_ne!(
+            scoped_key(base.clone(), Some("edge")),
+            scoped_key(base.clone(), None)
+        );
+        assert_eq!(
+            scoped_key(base.clone(), Some("EDGE")),
+            scoped_key(base, Some("edge"))
+        );
+        assert!(!scoped_key("shell".into(), Some("../browser")).contains('/'));
+    }
 
     #[test]
     fn direct_calls_keep_their_actual_parent() {

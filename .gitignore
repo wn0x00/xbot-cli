@@ -1,6 +1,8 @@
 /.local-archive/
 /.backups/
 /target/
+/helpers/browser-query/bin/
+/helpers/browser-query/obj/
 /native/**/*.exe
 /dist/
 /node_modules/

@@ -11,10 +11,10 @@ use serde_json::{json, Map, Value};
 use super::{mcp_endpoint, truncate, BackendError, Res};
 
 #[derive(Debug)]
-struct ProcessOutput {
-    status: ExitStatus,
-    stdout: String,
-    stderr: String,
+pub(crate) struct ProcessOutput {
+    pub status: ExitStatus,
+    pub stdout: String,
+    pub stderr: String,
 }
 
 impl ProcessOutput {
@@ -51,7 +51,7 @@ fn drain<R: Read + Send + 'static>(
 }
 
 /// Drain both pipes while the child is alive; retain both streams and its exit status.
-fn run_capture(mut cmd: Command, timeout_secs: u64) -> Res<ProcessOutput> {
+pub(crate) fn run_capture(mut cmd: Command, timeout_secs: u64) -> Res<ProcessOutput> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

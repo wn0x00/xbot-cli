@@ -26,9 +26,9 @@ xbot-cli install --skills --json           # 当前工作区 .agents/skills
 xbot-cli install --skills --global --json  # 用户 ~/.agents/skills
 ```
 
-已有 Skill 内容不同时不会静默覆盖；先查看差异，确认覆盖后追加 `--yes`。自动化调用下文的业务命令时均应显式添加 `--json`，示例中的 `<...>` 需替换为实际标识。
+一次安装 `xbot-app-dev` 和 `xbot-development-standards` 两份 Skill。全部文件写入前统一检查冲突；已有 Skill 内容不同时不会静默覆盖，先查看差异，确认覆盖后追加 `--yes`。JSON 的 `data.skills` 按 Skill 返回 `name/path/files`；原 `data.path/files` 保留 `xbot-app-dev` 的含义以兼容旧调用。自动化调用下文的业务命令时均应显式添加 `--json`，示例中的 `<...>` 需替换为实际标识。
 
-当前源码安装 Skill v10 的 39 个资源。`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。仅在企业版用户明确选择备用入口时读取 `guide oapi`。
+当前源码安装 `xbot-app-dev` v10 的 39 个资源及 `xbot-development-standards` 的 13 个资源（规范、参考资料、检查脚本、测试和报告模板）。`guide development-standards` 提供开发规范入口；完整参考资料从安装目录按需读取，先区分普通应用与指令集。`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。仅在企业版用户明确选择备用入口时读取 `guide oapi`。
 
 `locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；依赖与已验证边界见 [Skill v10 升级说明](skill-v10-upgrade.md)。
 
@@ -81,6 +81,17 @@ xbot-cli flow visual snapshots report --expect-app <app-id>
 ```bash
 xbot-cli flow wait <run-id> --timeout 600 --expect-app <app-id>
 ```
+
+同步当前编辑应用并关闭编辑器：
+
+```bash
+xbot-cli app sync --expect-app <app-id> --dry-run --json
+xbot-cli app sync --expect-app <app-id> --json
+```
+
+调用原生 `shadowbot.shell-cli.exe studio current sync`，不发布应用。`synced`、
+`studio_closed`、`uploaded` 分别记录同步结果、编辑器关闭状态和本次上传日志证据；
+无改动可能没有上传日志，编辑器关闭也不能单独证明同步成功。失败后先核对结果，不自动重试。
 
 已发布应用使用独立的任务入口；`task_id` 与 Studio `run_id` 不可混用：
 
@@ -339,4 +350,4 @@ npm pack
 
 源码位于仓库根目录的 `src/`，集成测试位于 `tests/`。`npm run build` 将 Rust release 程序放入 `native/win32-x64/xbot-cli.exe`；`bin/xbot-cli.cjs` 是 npm 命令入口。`npm pack` 仅生成本地包，正式发布步骤见[发布说明](releasing.md)。
 
-Skill 位于 `skills/xbot-app-dev/`，由构建嵌入 CLI，也随 npm 包提供。Agent 应遵守当前工作区 `AGENTS.md`、用户授权及项目实际提供的开发规范；不假定存在某个团队服务。已发布指令的名称、参数和调用契约不得擅自改变。
+Skill 源码位于 `skills/xbot-app-dev/` 和 `skills/xbot-development-standards/`，由构建嵌入 CLI，随 npm 包中的可执行文件提供，无需从维护者桌面读取。Agent 应遵守当前工作区 `AGENTS.md`、用户授权及项目实际提供的开发规范；不假定存在某个团队服务。已发布指令的名称、参数和调用契约不得擅自改变。

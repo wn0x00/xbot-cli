@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Pipes::PeekNamedPipe;
 
+use crate::browser_cmds::{self, BrowserTarget};
 use crate::core::{BackendError, Res};
 
 const CHROME_BRIDGE_PREFIX: &str = "9F5EDA99-AA91-4278-A19C-3F0227CD119B";
@@ -51,9 +52,9 @@ pub fn call(tool: &str, args: Value) -> Res<Value> {
     match tool {
         "web_create" => {
             let url = required_string(&args, "url")?;
-            open(url, args.get("mode").and_then(Value::as_str), false)
+            open(url, request_browser(&args)?.as_deref(), false)
         }
-        "web_get_active" => with_provider(|provider| {
+        "web_get_active" => with_provider(request_browser(&args)?.as_deref(), |provider| {
             let tab_id = provider.active_tab()?;
             let context = provider.verified_context(tab_id, None);
             let mut data = json!({"success":true,"backend":"chrome-bridge","browser_context":context});
@@ -61,7 +62,7 @@ pub fn call(tool: &str, args: Value) -> Res<Value> {
             provider.remember(tab_id, None, &mut data);
             Ok(data)
         }),
-        "web_snapshot" => with_provider_at(args.get("pipe").and_then(Value::as_str), |provider| {
+        "web_snapshot" => with_provider_at(args.get("pipe").and_then(Value::as_str), request_browser(&args)?.as_deref(), |provider| {
             let tab_id = match args.get("tab_id").and_then(Value::as_i64) {
                 Some(tab) => tab,
                 None => provider.bound_tab()?,
@@ -95,7 +96,7 @@ pub fn call(tool: &str, args: Value) -> Res<Value> {
 }
 
 fn open(url: &str, mode: Option<&str>, snapshot: bool) -> Res<Value> {
-    let mut provider = Provider::connect(mode)?;
+    let mut provider = Provider::connect_for_open(mode)?;
     let tab_id = provider.create(url)?;
     let context = provider.verified_context(tab_id, mode);
     let mut data = json!({
@@ -111,17 +112,80 @@ fn open(url: &str, mode: Option<&str>, snapshot: bool) -> Res<Value> {
     Ok(data)
 }
 
-fn with_provider(run: impl FnOnce(&mut Provider) -> Res<Value>) -> Res<Value> {
-    run(&mut Provider::connect(None)?)
+fn request_browser(args: &Value) -> Res<Option<String>> {
+    let mut selected = None;
+    for field in ["browser", "mode"] {
+        if let Some(value) = args.get(field).filter(|v| !v.is_null()) {
+            let value = value.as_str().ok_or_else(|| {
+                BackendError::new("BAD_INPUT", format!("{field} 必须是浏览器 ID 字符串"))
+            })?;
+            let id = browser_cmds::normalize_id(value)?;
+            if selected.as_ref().is_some_and(|existing| existing != &id) {
+                return Err(BackendError::new(
+                    "BAD_INPUT",
+                    "browser 与 mode 指定的浏览器不一致",
+                ));
+            }
+            selected = Some(id);
+        }
+    }
+    Ok(selected)
+}
+
+fn connect_or_start<T>(
+    target: &BrowserTarget,
+    timeout: Duration,
+    mut connect: impl FnMut() -> Res<T>,
+    start: impl FnOnce() -> Res<bool>,
+) -> Res<T> {
+    match connect() {
+        Ok(provider) => return Ok(provider),
+        Err(error) if error.code == "WEB_BRIDGE_UNAVAILABLE" => {}
+        Err(error) => return Err(error),
+    }
+    let launched = start()?;
+    let deadline = Instant::now() + timeout;
+    loop {
+        match connect() {
+            Ok(provider) => return Ok(provider),
+            Err(error) if error.code == "WEB_BRIDGE_UNAVAILABLE" => {
+                if Instant::now() >= deadline {
+                    return Err(BackendError::new(
+                        "WEB_BROWSER_START_TIMEOUT",
+                        format!("等待指定浏览器 {} 的影刀插件连接超时", target.id),
+                    )
+                    .with_data(json!({
+                        "browser":target.id,"exePath":target.exe_path,
+                        "browser_started":launched,"applied":false,
+                        "cause":{"code":error.code,"message":error.message}
+                    }))
+                    .with_hint("检查指定浏览器当前 profile 中的影刀插件是否已启用；未打开目标 URL，不会回退其他浏览器")
+                    .with_retryable(false));
+                }
+            }
+            Err(error) => return Err(error),
+        }
+        thread::sleep(
+            Duration::from_millis(250).min(deadline.saturating_duration_since(Instant::now())),
+        );
+    }
+}
+
+fn with_provider(
+    browser: Option<&str>,
+    run: impl FnOnce(&mut Provider) -> Res<Value>,
+) -> Res<Value> {
+    run(&mut Provider::connect(browser)?)
 }
 
 fn with_provider_at(
     path: Option<&str>,
+    browser: Option<&str>,
     run: impl FnOnce(&mut Provider) -> Res<Value>,
 ) -> Res<Value> {
     let mut provider = match path {
-        Some(path) => Provider::connect_path(path)?,
-        None => Provider::connect_bound()?,
+        Some(path) => Provider::connect_path(path, browser)?,
+        None => Provider::connect_bound(browser)?,
     };
     run(&mut provider)
 }
@@ -134,7 +198,7 @@ fn action(args: Value) -> Res<Value> {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    with_provider_at(None, |provider| {
+    with_provider_at(None, request_browser(&args)?.as_deref(), |provider| {
         let tab_id = provider.bound_tab()?;
         let context = provider.verified_context(tab_id, None);
         if target == "locator" {
@@ -259,7 +323,7 @@ fn action(args: Value) -> Res<Value> {
             }
         };
         if target == "page" && method == "close" {
-            crate::web_session::clear();
+            crate::web_session::clear(provider.browser.as_deref());
         }
         Ok(json!({
             "success":true,
@@ -273,7 +337,7 @@ fn action(args: Value) -> Res<Value> {
 
 fn evaluate_page(args: &Value) -> Res<Value> {
     let code = required_string(args, "code")?;
-    with_provider_at(None, |provider| {
+    with_provider_at(None, request_browser(args)?.as_deref(), |provider| {
         let tab_id = provider.bound_tab()?;
         let expression = format!(
             "(async function(){{const activePage={{title:async()=>document.title,url:async()=>location.href,evaluate:async(fn,...args)=>{{if(typeof fn==='string')return eval(fn);return fn(...args);}}}};return (async function(){{{code}}})();}})()"
@@ -282,6 +346,7 @@ fn evaluate_page(args: &Value) -> Res<Value> {
             "success":true,
             "backend":"chrome-bridge",
             "result":provider.evaluate(tab_id, expression)?,
+            "browser_context":provider.verified_context(tab_id, None),
         }))
     })
 }
@@ -305,7 +370,7 @@ fn xpath_candidates(args: &Value) -> Res<Value> {
         .as_array()
         .filter(|a| !a.is_empty() && a.len() <= 20)
         .ok_or_else(|| BackendError::new("BAD_INPUT", "请提供 1 到 20 个当前快照 ref"))?;
-    with_provider_at(None, |provider| {
+    with_provider_at(None, request_browser(args)?.as_deref(), |provider| {
         let tab = provider.bound_tab()?;
         let mut locals = Vec::new();
         let mut scope = None;
@@ -470,6 +535,7 @@ struct Provider {
     pipe_info: BridgePipeInfo,
     extension_version: Value,
     attached_targets: HashSet<String>,
+    browser: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -488,23 +554,26 @@ impl FrameContext {
 }
 
 impl Provider {
-    fn connect_bound() -> Res<Self> {
-        match crate::web_session::load()? {
-            Some(binding) => Self::connect_path(&binding.pipe).map_err(|e| e.with_hint(
+    fn connect_bound(browser: Option<&str>) -> Res<Self> {
+        let target = browser.map(browser_cmds::target).transpose()?;
+        match crate::web_session::load(target.as_ref().map(|t| t.id.as_str()))? {
+            Some(binding) => Self::connect_target_path(&binding.pipe, target).map_err(|e| e.with_hint(
                 "绑定的浏览器已断开；请运行 web active 或 web open 重新绑定，不会自动切换其他浏览器")),
-            None => Self::connect(None),
+            None => Self::connect_target(target),
         }
     }
 
     fn bound_tab(&mut self) -> Res<i64> {
-        Ok(match crate::web_session::load()? {
+        Ok(match crate::web_session::load(self.browser.as_deref())? {
             Some(binding) if binding.pipe == self.pipe_info.path => binding.tab_id,
             _ => return self.active_tab(),
         })
     }
 
     fn remember(&mut self, tab: i64, document: Option<&str>, data: &mut Value) {
-        if let Err(error) = crate::web_session::save(&self.pipe_info.path, tab, document) {
+        if let Err(error) =
+            crate::web_session::save(&self.pipe_info.path, tab, document, self.browser.as_deref())
+        {
             data["session_warning"] = json!(format!("无法保存浏览器会话: {error}"));
         }
     }
@@ -513,7 +582,23 @@ impl Provider {
         if !(refid.starts_with('e') || refid.starts_with('f') || refid.starts_with("ref=")) {
             return Ok(());
         }
-        if let Some(binding) = crate::web_session::load()? {
+        let binding = crate::web_session::load(self.browser.as_deref())?;
+        if self.browser.is_some()
+            && binding
+                .as_ref()
+                .and_then(|b| b.document_id.as_ref())
+                .is_none()
+            && !["XBOT_WEB_TAB_ID", "XBOT_WEB_PIPE"]
+                .iter()
+                .any(|key| std::env::var(key).is_ok_and(|value| !value.trim().is_empty()))
+        {
+            return Err(BackendError::new(
+                "WEB_REF_CONTEXT_REQUIRED",
+                "指定浏览器尚未采集页面快照，不能使用其他浏览器的 ref",
+            )
+            .with_hint("先运行 web snapshot --browser <id>，使用该浏览器快照中的元素编号"));
+        }
+        if let Some(binding) = binding {
             if let Some(expected) = binding.document_id {
                 let actual = self.evaluate(tab, "window.__xbotPreviewDocumentId||null".into())?;
                 if actual.as_str() != Some(&expected) {
@@ -548,29 +633,57 @@ impl Provider {
     }
 
     fn connect(mode: Option<&str>) -> Res<Self> {
-        let pipe_info = resolve_pipe(mode)?;
-        Self::connect_info(pipe_info)
+        Self::connect_target(mode.map(browser_cmds::target).transpose()?)
     }
 
-    fn connect_path(path: &str) -> Res<Self> {
+    fn connect_for_open(mode: Option<&str>) -> Res<Self> {
+        let target = mode.map(browser_cmds::target).transpose()?;
+        let explicit_pipe =
+            std::env::var("XBOT_WEB_PIPE").is_ok_and(|pipe| !pipe.trim().is_empty());
+        match target {
+            Some(target) if target.id != "cef" && !explicit_pipe => connect_or_start(
+                &target,
+                Duration::from_secs(20),
+                || Self::connect_target(Some(target.clone())),
+                || target.start_if_needed(),
+            ),
+            target => Self::connect_target(target),
+        }
+    }
+
+    fn connect_target(target: Option<BrowserTarget>) -> Res<Self> {
+        let pipe_info = resolve_pipe(target.as_ref())?;
+        Self::connect_info(pipe_info, target.map(|t| t.id))
+    }
+
+    fn connect_path(path: &str, browser: Option<&str>) -> Res<Self> {
+        Self::connect_target_path(path, browser.map(browser_cmds::target).transpose()?)
+    }
+
+    fn connect_target_path(path: &str, target: Option<BrowserTarget>) -> Res<Self> {
         let path = normalize_pipe_path(path);
+        assert_pipe_target(&path, target.as_ref())?;
         let name = path.trim_start_matches(r"\\.\pipe\").to_owned();
         let family = pipe_family(&name);
-        Self::connect_info(BridgePipeInfo {
-            name,
-            path,
-            family,
-            current_user: true,
-            multi_profile: false,
-        })
+        Self::connect_info(
+            BridgePipeInfo {
+                name,
+                path,
+                family,
+                current_user: true,
+                multi_profile: false,
+            },
+            target.map(|t| t.id),
+        )
     }
 
-    fn connect_info(pipe_info: BridgePipeInfo) -> Res<Self> {
+    fn connect_info(pipe_info: BridgePipeInfo, browser: Option<String>) -> Res<Self> {
         let mut provider = Self {
             pipe: NamedPipe::connect(&pipe_info.path, Duration::from_secs(8))?,
             pipe_info,
             extension_version: Value::Null,
             attached_targets: HashSet::new(),
+            browser,
         };
         provider.init()?;
         provider.ensure_bridge_engine()?;
@@ -585,7 +698,8 @@ impl Provider {
 
     fn context(&self, tab_id: i64, mode: Option<&str>) -> Value {
         json!({
-            "mode": mode.unwrap_or("auto"),
+            "mode": mode.or(self.browser.as_deref()).unwrap_or("auto"),
+            "browser_id":self.browser,
             "tab_id": tab_id,
             "pipe": self.pipe_info.path,
             "pipe_family": self.pipe_info.family,
@@ -595,6 +709,14 @@ impl Provider {
 
     fn verified_context(&mut self, tab_id: i64, mode: Option<&str>) -> Value {
         let mut context = self.context(tab_id, mode);
+        if let Some(browser) = self.browser.as_deref() {
+            context["product_name"] = json!(browser);
+            context["mode_source"] = json!("selected-browser-pipe");
+            if matches!(browser, "chrome" | "edge") {
+                context["sdk_mode"] = json!(browser);
+            }
+            return context;
+        }
         // Pipe family is transport metadata, not evidence of browser product.
         if let Ok(info) = self.evaluate(tab_id, "JSON.stringify({ua:navigator.userAgent,brands:navigator.userAgentData?navigator.userAgentData.brands:[]})".into()) {
             if let Some(info) = info.as_str().and_then(|s| serde_json::from_str::<Value>(s).ok()) {
@@ -1695,19 +1817,27 @@ fn decode_payload(payload: &[u8]) -> Res<Value> {
     })
 }
 
-fn resolve_pipe(mode: Option<&str>) -> Res<BridgePipeInfo> {
-    if let Some(mode) = mode {
-        if !matches!(mode, "cef" | "chrome" | "edge") {
+fn assert_pipe_target(path: &str, target: Option<&BrowserTarget>) -> Res<()> {
+    if let Some(target) = target {
+        if !browser_cmds::matches_pipe(path, &target.pipe_prefix) {
             return Err(BackendError::new(
-                "WEB_BRIDGE_MODE_UNSUPPORTED",
-                format!("Chrome Bridge 不支持浏览器模式: {mode}"),
+                "WEB_BROWSER_CONFLICT",
+                "显式管道或已有会话不属于指定浏览器",
             )
-            .with_hint("Chrome Bridge 支持 cef、chrome、edge"));
+            .with_data(json!({"browser":target.id,"pipe":path}))
+            .with_hint(
+                "检查 XBOT_WEB_PIPE 或重新用 web active --browser <id> 绑定；未执行网页操作",
+            ));
         }
     }
+    Ok(())
+}
+
+fn resolve_pipe(target: Option<&BrowserTarget>) -> Res<BridgePipeInfo> {
     if let Ok(pipe) = std::env::var("XBOT_WEB_PIPE") {
         if !pipe.trim().is_empty() {
             let path = normalize_pipe_path(pipe.trim());
+            assert_pipe_target(&path, target)?;
             let name = path.trim_start_matches(r"\\.\pipe\").to_owned();
             let family = pipe_family(&name);
             return Ok(BridgePipeInfo {
@@ -1719,13 +1849,16 @@ fn resolve_pipe(mode: Option<&str>) -> Res<BridgePipeInfo> {
             });
         }
     }
-    discover_bridge_pipes().into_iter().next().ok_or_else(|| {
-        BackendError::new("WEB_BRIDGE_UNAVAILABLE", "未发现影刀 Chrome Bridge 管道")
-            .with_hint("先打开带影刀扩展的目标浏览器并访问一个页面，或设置 XBOT_WEB_PIPE")
+    discover_bridge_pipes(target).into_iter().next().ok_or_else(|| {
+        BackendError::new("WEB_BRIDGE_UNAVAILABLE", match target {
+            Some(target) => format!("未发现指定浏览器 {} 的影刀插件管道",target.id),
+            None => "未发现影刀 Chrome Bridge 管道".into(),
+        })
+            .with_hint("先打开带影刀扩展的目标浏览器并访问普通页面；已安装不代表已连接，不会回退到其他浏览器")
     })
 }
 
-fn discover_bridge_pipes() -> Vec<BridgePipeInfo> {
+fn discover_bridge_pipes(target: Option<&BrowserTarget>) -> Vec<BridgePipeInfo> {
     let current_suffix = current_user_bridge_suffix();
     let Ok(entries) = fs::read_dir(r"\\.\pipe\") else {
         return Vec::new();
@@ -1734,14 +1867,24 @@ fn discover_bridge_pipes() -> Vec<BridgePipeInfo> {
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| entry.file_name().into_string().ok())
         .filter_map(|name| {
-            let family = pipe_family(&name);
-            if family.is_empty() {
+            let mut family = pipe_family(&name);
+            if let Some(target) = target {
+                if !browser_cmds::matches_pipe(&name, &target.pipe_prefix) {
+                    return None;
+                }
+                if family.is_empty() {
+                    family = "shadowbot.browser.bridge.selected";
+                }
+            } else if family.is_empty() {
                 return None;
             }
             let current_user = current_suffix
                 .as_ref()
                 .map(|suffix| name.contains(suffix))
                 .unwrap_or(false);
+            if target.is_some() && current_suffix.is_some() && !current_user {
+                return None;
+            }
             let multi_profile = name.split('-').count() > 6;
             Some(BridgePipeInfo {
                 path: format!(r"\\.\pipe\{name}"),
@@ -1870,6 +2013,152 @@ var $$=window.__xbotPythonPreviewHelpersV2||(window.__xbotPythonPreviewHelpersV2
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selected_browsers_never_accept_a_different_browser_pipe() {
+        let edge = BrowserTarget {
+            id: "edge".into(),
+            pipe_prefix: ALT_BROWSER_BRIDGE_PREFIX.into(),
+            exe_path: None,
+        };
+        assert!(assert_pipe_target(
+            &format!(r"\\.\pipe\{ALT_BROWSER_BRIDGE_PREFIX}-user"),
+            Some(&edge)
+        )
+        .is_ok());
+        assert_eq!(
+            assert_pipe_target(
+                &format!(r"\\.\pipe\{CHROME_BRIDGE_PREFIX}-user"),
+                Some(&edge)
+            )
+            .unwrap_err()
+            .code,
+            "WEB_BROWSER_CONFLICT"
+        );
+        assert!(assert_pipe_target("explicit-pipe", None).is_ok());
+        assert_eq!(
+            request_browser(&json!({"browser":"360"}))
+                .unwrap()
+                .as_deref(),
+            Some("bro360")
+        );
+        assert!(request_browser(&json!({"browser":"edge","mode":"chrome"})).is_err());
+        assert!(request_browser(&json!({"browser":true})).is_err());
+    }
+
+    #[test]
+    fn connected_browser_does_not_launch_a_process() {
+        let target = BrowserTarget {
+            id: "chrome".into(),
+            pipe_prefix: CHROME_BRIDGE_PREFIX.into(),
+            exe_path: None,
+        };
+        assert_eq!(
+            connect_or_start(
+                &target,
+                Duration::ZERO,
+                || Ok(42),
+                || panic!("unexpected launch")
+            )
+            .unwrap(),
+            42
+        );
+    }
+
+    #[test]
+    fn missing_browser_is_started_once_before_waiting_for_its_connection() {
+        let target = BrowserTarget {
+            id: "chrome".into(),
+            pipe_prefix: CHROME_BRIDGE_PREFIX.into(),
+            exe_path: None,
+        };
+        let mut connections = 0;
+        let mut launches = 0;
+        let result = connect_or_start(
+            &target,
+            Duration::from_secs(2),
+            || {
+                connections += 1;
+                if connections < 3 {
+                    Err(BackendError::new("WEB_BRIDGE_UNAVAILABLE", "not ready"))
+                } else {
+                    Ok("chrome-only")
+                }
+            },
+            || {
+                launches += 1;
+                Ok(true)
+            },
+        );
+        assert_eq!(result.unwrap(), "chrome-only");
+        assert_eq!(launches, 1);
+        assert_eq!(connections, 3);
+    }
+
+    #[test]
+    fn browser_start_timeout_preserves_target_and_does_not_open_the_url() {
+        for launched in [false, true] {
+            let target = BrowserTarget {
+                id: "chrome".into(),
+                pipe_prefix: CHROME_BRIDGE_PREFIX.into(),
+                exe_path: Some(r"C:\Browsers\chrome.exe".into()),
+            };
+            let mut launches = 0;
+            let error = connect_or_start::<()>(
+                &target,
+                Duration::ZERO,
+                || Err(BackendError::new("WEB_BRIDGE_UNAVAILABLE", "not connected")),
+                || {
+                    launches += 1;
+                    Ok(launched)
+                },
+            )
+            .unwrap_err();
+            assert_eq!(launches, 1);
+            assert_eq!(error.code, "WEB_BROWSER_START_TIMEOUT");
+            assert_eq!(error.retryable, Some(false));
+            let data = error.data.unwrap();
+            assert_eq!(data["browser"], "chrome");
+            assert_eq!(data["browser_started"], launched);
+            assert_eq!(data["applied"], false);
+        }
+    }
+
+    #[test]
+    fn browser_conflicts_and_protocol_errors_never_trigger_startup() {
+        let target = BrowserTarget {
+            id: "chrome".into(),
+            pipe_prefix: CHROME_BRIDGE_PREFIX.into(),
+            exe_path: None,
+        };
+        for code in [
+            "WEB_BROWSER_CONFLICT",
+            "WEB_BRIDGE_FAILED",
+            "WEB_BRIDGE_TIMEOUT",
+        ] {
+            let error = connect_or_start::<()>(
+                &target,
+                Duration::ZERO,
+                || Err(BackendError::new(code, "stop")),
+                || panic!("unexpected launch"),
+            )
+            .unwrap_err();
+            assert_eq!(error.code, code);
+        }
+        let error = connect_or_start::<()>(
+            &target,
+            Duration::ZERO,
+            || Err(BackendError::new("WEB_BRIDGE_UNAVAILABLE", "not ready")),
+            || {
+                Err(BackendError::new(
+                    "WEB_BROWSER_START_FAILED",
+                    "cannot start",
+                ))
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "WEB_BROWSER_START_FAILED");
+    }
 
     #[test]
     fn shadow_hosts_stay_inside_their_frame_segment() {

@@ -26,7 +26,7 @@
 
 ## 流程分组
 
-新建应用或明确要求整理流程时，采用以下层级：
+先按同批安装的 [开发规范](../../xbot-development-standards/SKILL.md)区分指令集和普通应用。普通应用按其[应用开发差异](../../xbot-development-standards/references/application-development.md)组织为主流程、主运行模块与业务/utils，不新增测试流程。以下含测试分组的结构仅供指令集开发或维护已有测试组织时参考，不作为普通应用模板：
 
 ```text
 配置

@@ -11,6 +11,8 @@ metadata:
 
 本 Skill 随 npm 包 `@guanzhu.me/xbot-cli` 分发，适用于 Windows x64 和 Node.js 22+。使用 `xbot-cli install --skills` 安装到当前工作区，或加 `--global` 安装到用户的 `.agents/skills`。默认操作需要客户端已启动并登录；帮助、schema 和 guide 可离线读取。
 
+安装时同时提供 [xbot-development-standards](../xbot-development-standards/SKILL.md)。开发、维护或验收指令集与应用时先按该规范区分项目类型，再按本 Skill 操作客户端；普通应用不新增测试入口、测试函数或测试流程，正式默认值在流程参数中配置。入口、默认值和测试组织以该规范的对应章节为准，不照搬旧的通用示例。
+
 这个 Skill 的目标是把业务需求变成可重复、可验收、可维护的自动化流程。需要参数、输入输出、长期运行或维护时，优先沉淀为 CodeFlow，只有确实适合块编排时才使用 VisualFlow。Skill 不是常驻修复服务。
 
 普通应用运行用 `task run`，查询状态和报错用 `task status/logs`，Studio 流程运行用
@@ -49,12 +51,12 @@ metadata:
 10. 动作结果与后续观测分别记录。已生效但快照失败时只补观测；超时或连接中断先核对结果，不自动重放可能已生效的动作，不因旧定位异常就换新定位再点一次。
 11. 提交、删除、发布、付款、发消息和账户修改必须在执行前说明影响并取得用户授权。已有明确授权无需重复索要。Web 动作细则见对应模块。
 12. 完成后区分“已探索”“已写入”“静态通过”“运行通过”“业务通过”和“未验证”。影刀流程报告包含 `app_id`、`flow_id`、`run_id` 或 `task_id` 及关键证据；独立 Windows 观察记录 `snapshot_id`、后端和窗口作用域。
-13. 流程报错先确定根因和失败调用点，按平台识别规则选择模块，再判断可修复性；可新建复用测试子流程隔离验证。只有证据充分且测试通过才最小修改，保留有效旧、新定位及各自子定位。先分析原用途是单元素还是集合及父子依赖，不按失效定位的当前匹配数倒推。不可修复或不确定时不改业务流程，仍交付原因、尝试、建议和报告。平台的证据及验收门槛见对应模块。
+13. 流程报错先确定根因和失败调用点，按平台识别规则选择模块，再判断可修复性；指令集可按开发规范隔离测试，普通应用从正常主流程核验，不新增测试入口或测试流程。只有证据充分且验证通过才最小修改，保留有效旧、新定位及各自子定位。先分析原用途是单元素还是集合及父子依赖，不按失效定位的当前匹配数倒推。不可修复或不确定时不改业务流程，仍交付原因、尝试、建议和报告。平台的证据及验收门槛见对应模块。
 14. 未收到用户推送要求时，不提交、不推送、不发布，也不自增 Skill 版本号。本定制 Skill 版本标记保持 `v10`；交付日期和测试批次单独记录。
 
 ## 默认生命周期
 
-创建或维护流程前，读取 [项目规范](references/project-conventions.md)：元素库名称采用 `平台名_业务含义_按钮/输入框/标志`，流程按“配置、业务、测试、主流程”组织。编码版变量默认使用英文 `snake_case`，保留既有对外参数契约。先确认平台支持的定位及持久化方式，再选择流程类型。
+创建或维护流程前，读取 [项目规范](references/project-conventions.md)和同批安装的开发规范：元素库名称采用 `平台名_业务含义_按钮/输入框/标志`，按项目类型组织主流程与业务模块，普通应用不设置测试流程。编码版变量默认使用英文 `snake_case`，保留既有对外参数契约。先确认平台支持的定位及持久化方式，再选择流程类型。
 
 ```text
 业务目标
@@ -123,6 +125,7 @@ xbot-cli flow visual snapshots report --expect-app <app-id> --json
 
 | 触发条件 | 必读 |
 |---|---|
+| 开发、维护或验收指令集与普通应用，确定入口、默认值、测试或交付规则 | [xbot-development-standards/SKILL.md](../xbot-development-standards/SKILL.md)，再按其索引读取对应参考资料 |
 | 查询帮助、选择输出格式、解析 stdout/stderr、退出码、`--dry-run`、`--yes`、schema、上下文或原始工具 | [references/cli-contract.md](references/cli-contract.md) |
 | 企业版用户明确选择开放 API 运行/调度，或明确指定平台 jobUuid/taskUuid/scheduleUuid 查询云端日志 | [references/oapi.md](references/oapi.md)，仅此备用入口使用企业 API 凭据 |
 | 新建或维护流程、流程分组、元素库命名、编码变量命名 | [references/project-conventions.md](references/project-conventions.md) |

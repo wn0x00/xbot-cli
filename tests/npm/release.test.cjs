@@ -4,13 +4,21 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { inflateRawSync } = require('node:zlib');
 const { crc32, zip, digest } = require('../../scripts/release-artifacts.cjs');
-const { matchingNpmVersion, registryVersion, publishNpm, matchingAsset } = require('../../scripts/release-publish.cjs');
+const { matchingNpmVersion, registryVersion, publishNpm, matchingAsset, releaseNotes } = require('../../scripts/release-publish.cjs');
 
 const release = {
   name: '@guanzhu.me/xbot-cli', version: '0.6.1',
   npm: { filename: 'guanzhu.me-xbot-cli-0.6.1.tgz', integrity: 'sha512-example' },
 };
 const metadata = { name: release.name, version: release.version, dist: { integrity: release.npm.integrity } };
+
+test('GitHub release notes contain only the requested changelog section', () => {
+  const changelog = '# Changelog\r\n\r\n## [0.9.2](compare)\r\n\r\n### Added\r\n\r\n- Browser inventory\r\n\r\n## [0.9.1](compare)\r\n\r\n- Previous release\r\n';
+  assert.equal(releaseNotes(changelog, '0.9.2'), '### Added\r\n\r\n- Browser inventory');
+  assert.equal(releaseNotes(changelog, '0.9.1'), '- Previous release');
+  assert.throws(() => releaseNotes(changelog, '0.9'), /Missing changelog section/);
+  assert.throws(() => releaseNotes('## [0.9.2](compare)\n\n', '0.9.2'), /Empty changelog section/);
+});
 
 test('release ZIP is reproducible and each entry can be extracted with matching CRC', () => {
   const entries = [['xbot-cli.exe', Buffer.from([0, 1, 2, 255])], ['README.md', Buffer.from('中文\n')], ['LICENSE', Buffer.from('MIT\n')]];

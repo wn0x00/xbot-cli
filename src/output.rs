@@ -97,6 +97,38 @@ fn render_success(data: Option<&Value>) -> String {
 /// Show the observed accessibility tree directly. The JSON renderer retains
 /// the complete action response, snapshot metadata, and warning evidence.
 fn render_web(data: &Value, command: &str) -> String {
+    if command == "web.browser.list" {
+        let rows: Vec<Value> = data["browsers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|browser| {
+                let status = if browser["registered"] == true {
+                    "已注册"
+                } else if browser["installed"] == true {
+                    "已安装"
+                } else {
+                    "未安装"
+                };
+                serde_json::json!({
+                    "id":browser["id"].as_str().unwrap_or("?"),
+                    "name":browser["name"].as_str().unwrap_or("?"),
+                    "status":status,
+                    "webSupported":if browser["webSupported"] == true { "支持" } else { "不支持" }
+                })
+            })
+            .collect();
+        let mut lines = Vec::new();
+        render_value(
+            &serde_json::json!({"count":rows.len(),"browsers":rows}),
+            0,
+            &mut lines,
+        );
+        if let Some(note) = data["note"].as_str() {
+            lines.push(note.into());
+        }
+        return lines.join("\n");
+    }
     if command == "web.xpath" {
         if let Some(paths) = data["xpaths"].as_array().filter(|a| !a.is_empty()) {
             let mut lines: Vec<&str> = data["warnings"]
@@ -539,6 +571,42 @@ mod tests {
         assert!(text.contains("state:\n  active: false"));
         assert!(text.contains("notes:\n  - first\n  - second"));
         assert!(!text.contains("\u{1b}"));
+    }
+
+    #[test]
+    fn browser_list_uses_the_shared_table_without_changing_json() {
+        let value = json!({"ok":true,"data":{
+            "command":"web.browser.list","count":3,"browsers":[
+                {"id":"edge","name":"Microsoft Edge","installed":true,"registered":false,
+                    "webSupported":true,"exePath":r"C:\Browsers\msedge.exe"},
+                {"id":"custom","name":"自定义浏览器","installed":null,"registered":true,
+                    "webSupported":true,"exePath":r"C:\Browsers\custom.exe"},
+                {"id":"firefox","name":"Firefox","installed":false,"registered":false,
+                    "webSupported":false,"exePath":r"C:\Browsers\firefox.exe"}
+            ],"note":"注册不代表插件已启用或已连接"
+        }});
+        let text = render(&value, OutputMode::Text);
+        assert_eq!(
+            text,
+            "browsers:\n  id | name | status | webSupported\n  --- | --- | --- | ---\n  edge | Microsoft Edge | 已安装 | 支持\n  custom | 自定义浏览器 | 已注册 | 支持\n  firefox | Firefox | 未安装 | 不支持\ncount: 3\n注册不代表插件已启用或已连接"
+        );
+        assert!(!text.contains('\t'));
+        assert!(!text.contains("exePath"));
+        assert_eq!(
+            serde_json::from_str::<Value>(&render(&value, OutputMode::Json)).unwrap(),
+            value
+        );
+    }
+
+    #[test]
+    fn empty_browser_list_is_readable() {
+        let text = render(
+            &json!({"ok":true,"data":{
+                "command":"web.browser.list","count":0,"browsers":[]
+            }}),
+            OutputMode::Text,
+        );
+        assert_eq!(text, "browsers:\n  (无)\ncount: 0");
     }
 
     #[test]

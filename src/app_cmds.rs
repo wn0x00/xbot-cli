@@ -11,6 +11,8 @@ use crate::{flow_cmds, input};
 
 pub type CmdOut = (Value, Vec<String>);
 
+pub(crate) const STUDIO_SYNC_ARGS: &[&str] = &["studio", "current", "sync"];
+
 pub fn app_new(name: &str, desc: Option<&str>) -> Res<CmdOut> {
     let mut args = vec!["studio", "open", "--builder", "custom", "--name", name];
     if let Some(d) = desc {
@@ -150,8 +152,8 @@ fn close_studio_for_switch() -> Res<()> {
         return Ok(());
     }
     // A failed close cannot authorize continuing the switch to another app.
-    let result = core::shell_cli(&["studio", "current", "sync"], 60)
-        .map_err(|error| error.with_retryable(false))?;
+    let result =
+        core::shell_cli(STUDIO_SYNC_ARGS, 60).map_err(|error| error.with_retryable(false))?;
     sleep(Duration::from_secs(2));
     let state = core::shell_cli(&["system", "state"], 15)?;
     if state.get("hasStudioOpened").and_then(Value::as_bool) != Some(false) {
@@ -184,7 +186,7 @@ pub fn app_save() -> Res<CmdOut> {
 pub fn app_sync() -> Res<CmdOut> {
     let app_id = core::require_current_edit_mode()?;
     let t0 = chrono::Local::now();
-    let call = core::shell_cli(&["studio", "current", "sync"], 300);
+    let call = core::shell_cli(STUDIO_SYNC_ARGS, 300);
     sleep(Duration::from_secs(1));
     let closed = core::shell_cli(&["system", "state"], 15)
         .map(|st| st.get("hasStudioOpened").and_then(Value::as_bool) == Some(false))
@@ -489,6 +491,18 @@ mod tests {
         let data = sync_outcome("app-1", Ok(json!({"success":true})), true, false).unwrap();
         assert_eq!(data["synced"], true);
         assert_eq!(data["uploaded"], false);
+    }
+
+    #[test]
+    fn sync_and_editor_closure_are_reported_separately() {
+        let response = json!({"success":true,"taskId":"sync-task"});
+        let data = sync_outcome("app-1", Ok(response.clone()), false, true).unwrap();
+        assert_eq!(data["app_id"], "app-1");
+        assert_eq!(data["synced"], true);
+        assert_eq!(data["studio_closed"], false);
+        assert_eq!(data["uploaded"], true);
+        assert_eq!(data["response"], response);
+        assert!(data.get("published").is_none());
     }
 
     #[test]

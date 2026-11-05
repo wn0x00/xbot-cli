@@ -41,6 +41,12 @@ xbot-cli app publish <app-id> --log "版本说明" --yes
 xbot-cli task run <app-id>
 ```
 
+`app sync` 对应 `shadowbot.shell-cli.exe studio current sync`：同步当前编辑应用并关闭
+Studio，不发布应用。建议传 `--expect-app <app-id>`，可先加 `--dry-run --json` 预览。
+JSON 中 `synced` 表示后端报告同步完成，`studio_closed` 表示观察到编辑器已关闭，
+`uploaded` 仅表示观察到本次上传日志；无改动时可能不上传。调用失败不会仅凭编辑器已关闭
+判定成功，也不会自动重复同步或发布。
+
 `app recycle` 和 `app open --force` 也需要明确确认及 `--yes`。发布只支持影刀控制台“我的应用”，不支持 marketplace 或导出 `.xbot`。
 
 `task status/logs/stop <task-id>` 用于已发布应用的控制台任务，不能传入 Studio 的 run_id。`--dry-run` 仅验证离线输入并预览，不验证当前编辑模式或后端接受性。真实客户端未执行的保存、同步、发布和运行路径，汇报时明确标为未验证。

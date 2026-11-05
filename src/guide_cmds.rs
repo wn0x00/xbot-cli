@@ -1,4 +1,4 @@
-//! 渐进式文档与 Skill 安装,内容复用 skills/xbot-app-dev。
+//! 渐进式文档与 Skill 安装,内容复用 skills 下的内置资源。
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -53,8 +53,14 @@ const COLLECTION_REPAIR: &str =
 const COLLECTION_COMPAT: &str = include_str!("../skills/xbot-app-dev/scripts/collection-compat.py");
 const COLLECTION_ANALYSIS: &str =
     include_str!("../skills/xbot-app-dev/templates/collection-analysis.json");
+const DEVELOPMENT_STANDARDS: &str = include_str!("../skills/xbot-development-standards/SKILL.md");
 
 const TOPICS: &[(&str, &str, &str)] = &[
+    (
+        "development-standards",
+        "影刀指令集与普通应用的开发规范及参考资料索引",
+        DEVELOPMENT_STANDARDS,
+    ),
     (
         "automation-routing",
         "按失败步骤识别 Web/Windows 业务目标并选择模块",
@@ -136,9 +142,15 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
     } else {
         std::env::current_dir().map_err(|e| BackendError::new("INTERNAL", e.to_string()))?
     };
-    let root = base.join(".agents").join("skills").join("xbot-app-dev");
-    let files = skill_files(&root);
-    for (path, content) in &files {
+    let root = base.join(".agents").join("skills");
+    let bundles = [
+        ("xbot-app-dev", skill_files(&root.join("xbot-app-dev"))),
+        (
+            "xbot-development-standards",
+            development_standards_files(&root.join("xbot-development-standards")),
+        ),
+    ];
+    for (path, content) in bundles.iter().flat_map(|(_, files)| files) {
         if path.exists() && fs::read_to_string(path).ok().as_deref() != Some(*content) && !overwrite
         {
             return Err(BackendError::new(
@@ -149,7 +161,7 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
             .with_hint("确认覆盖后,在原命令末尾追加 --yes"));
         }
     }
-    for (path, content) in &files {
+    for (path, content) in bundles.iter().flat_map(|(_, files)| files) {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|e| {
                 BackendError::new("FILE_WRITE", format!("{}: {e}", parent.display()))
@@ -158,9 +170,21 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
         fs::write(path, content)
             .map_err(|e| BackendError::new("FILE_WRITE", format!("{}: {e}", path.display())))?;
     }
-    let paths: Vec<Value> = files.iter().map(|(path, _)| json!(path)).collect();
+    let skills: Vec<Value> = bundles
+        .iter()
+        .map(|(name, files)| {
+            let paths: Vec<Value> = files.iter().map(|(path, _)| json!(path)).collect();
+            json!({"name": name, "path": root.join(name), "files": paths})
+        })
+        .collect();
+    // Keep the original single-skill fields for existing callers.
     Ok((
-        json!({"installed": true, "path": root, "files": paths}),
+        json!({
+            "installed": true,
+            "path": skills[0]["path"],
+            "files": skills[0]["files"],
+            "skills": skills,
+        }),
         vec![],
     ))
 }
@@ -282,6 +306,64 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
         (
             root.join("templates").join("collection-analysis.json"),
             COLLECTION_ANALYSIS,
+        ),
+    ]
+}
+
+fn development_standards_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
+    vec![
+        (root.join("SKILL.md"), DEVELOPMENT_STANDARDS),
+        (
+            root.join("agents/openai.yaml"),
+            include_str!("../skills/xbot-development-standards/agents/openai.yaml"),
+        ),
+        (
+            root.join("assets/acceptance-report.md"),
+            include_str!("../skills/xbot-development-standards/assets/acceptance-report.md"),
+        ),
+        (
+            root.join("assets/metadata-policy.example.json"),
+            include_str!(
+                "../skills/xbot-development-standards/assets/metadata-policy.example.json"
+            ),
+        ),
+        (
+            root.join("references/acceptance.md"),
+            include_str!("../skills/xbot-development-standards/references/acceptance.md"),
+        ),
+        (
+            root.join("references/application-development.md"),
+            include_str!(
+                "../skills/xbot-development-standards/references/application-development.md"
+            ),
+        ),
+        (
+            root.join("references/code-execution.md"),
+            include_str!("../skills/xbot-development-standards/references/code-execution.md"),
+        ),
+        (
+            root.join("references/contract-ui.md"),
+            include_str!("../skills/xbot-development-standards/references/contract-ui.md"),
+        ),
+        (
+            root.join("references/metadata-checker.md"),
+            include_str!("../skills/xbot-development-standards/references/metadata-checker.md"),
+        ),
+        (
+            root.join("references/metadata-delivery.md"),
+            include_str!("../skills/xbot-development-standards/references/metadata-delivery.md"),
+        ),
+        (
+            root.join("references/version-evidence.md"),
+            include_str!("../skills/xbot-development-standards/references/version-evidence.md"),
+        ),
+        (
+            root.join("scripts/check_metadata.py"),
+            include_str!("../skills/xbot-development-standards/scripts/check_metadata.py"),
+        ),
+        (
+            root.join("scripts/test_check_metadata.py"),
+            include_str!("../skills/xbot-development-standards/scripts/test_check_metadata.py"),
         ),
     ]
 }

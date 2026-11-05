@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "app_id": "example-app-id",
+  "namespace": "xbot_extensions.activity_example",
+  "flows": [
+    {
+      "filename": "read_account",
+      "state": "active",
+      "block": "xbot_extensions.activity_example.读取账户",
+      "function": "xbot_extensions.activity_example.read_account",
+      "group": "账户"
+    },
+    {
+      "filename": "read_account_legacy",
+      "state": "deprecated_compatible",
+      "block": "xbot_extensions.activity_example.旧版读取账户",
+      "function": "xbot_extensions.activity_example.read_account_legacy",
+      "group": "账户"
+    },
+    {
+      "filename": "account_helpers",
+      "state": "internal",
+      "block": "xbot_extensions.activity_example.account_helpers",
+      "function": "xbot_extensions.activity_example.account_helpers",
+      "group": "内部模块"
+    }
+  ],
+  "allowed_file_changes": [
+    "__init__.py",
+    "prototype.activity.xml"
+  ],
+  "allowed_json_changes": {
+    "package.json": [],
+    "prototype.block.json": []
+  }
+}

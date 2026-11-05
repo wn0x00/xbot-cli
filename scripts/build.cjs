@@ -9,6 +9,7 @@ if (process.platform !== 'win32' || process.arch !== 'x64') {
   throw new Error('Build the npm package on Windows x64 with the MSVC Rust toolchain.');
 }
 checkVersions();
+require('./build-browser-query.cjs').verify();
 // Use deterministic release flags and avoid embedding the maintainer's local paths
 // in dependency panic messages. Encoded flags preserve paths containing spaces.
 const flags = [

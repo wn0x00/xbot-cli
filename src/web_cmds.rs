@@ -78,7 +78,10 @@ impl PreparedWeb {
             data["applied"] = json!(true);
             if self.snapshot_after {
                 let context = &data["browser_context"];
-                let snapshot_args = json!({"tab_id":context["tab_id"],"pipe":context["pipe"]});
+                let mut snapshot_args = json!({"tab_id":context["tab_id"],"pipe":context["pipe"]});
+                if let Some(browser) = context["browser_id"].as_str() {
+                    snapshot_args["browser"] = json!(browser);
+                }
                 match core::mcp_browser("web_snapshot", snapshot_args, 60) {
                     Ok(snapshot) => data["snapshot"] = snapshot,
                     Err(error) => {
@@ -282,8 +285,8 @@ fn save_snapshot(path: &Path, data: &Value) -> Res<()> {
     file.write_all(text.as_bytes()).map_err(fail)
 }
 
-pub fn prepare(sub: &BrowserSub) -> Res<Option<PreparedWeb>> {
-    let prepared = match sub {
+pub fn prepare(sub: &BrowserSub, browser: Option<&str>) -> Res<Option<PreparedWeb>> {
+    let mut prepared = match sub {
         BrowserSub::Open { url, mode, options } => {
             let mut arguments =
                 json!({"url": normalize_url(url.as_deref().unwrap_or("about:blank"))?});
@@ -422,12 +425,14 @@ pub fn prepare(sub: &BrowserSub) -> Res<Option<PreparedWeb>> {
                 },
             },
         ),
-        BrowserSub::Act { .. }
+        BrowserSub::Browser(..)
+        | BrowserSub::Act { .. }
         | BrowserSub::Eval { .. }
         | BrowserSub::Tools { .. }
         | BrowserSub::Schema { .. }
         | BrowserSub::Call { .. } => return Ok(None),
     };
+    crate::browser_cmds::select_argument(&mut prepared.arguments, browser)?;
     Ok(Some(prepared))
 }
 
@@ -440,10 +445,45 @@ mod tests {
     fn parse(args: &[&str]) -> PreparedWeb {
         let cli = Cli::try_parse_from(["xbot-cli", "web"].into_iter().chain(args.iter().copied()))
             .unwrap();
-        let Some(Group::Browser(sub)) = cli.group else {
+        let Some(Group::Browser { command, browser }) = cli.group else {
             panic!("web command expected");
         };
-        prepare(&sub).unwrap().unwrap()
+        prepare(&command, browser.as_deref()).unwrap().unwrap()
+    }
+
+    #[test]
+    fn browser_selection_applies_to_every_web_operation_and_previews_offline() {
+        for args in [
+            vec!["open", "--browser", "edge"],
+            vec!["active", "--browser", "edge"],
+            vec!["snapshot", "--browser", "edge"],
+            vec!["xpath", "e4", "--browser", "edge"],
+            vec!["click", "e4", "--browser", "edge"],
+            vec!["fill", "e4", "hello", "--browser", "edge"],
+            vec!["press", "Enter", "--browser", "edge"],
+            vec!["goto", "example.com", "--browser", "edge"],
+            vec!["reload", "--browser", "edge"],
+            vec!["close", "--browser", "edge"],
+            vec!["--browser", "edge", "snapshot"],
+        ] {
+            let command = parse(&args);
+            assert_eq!(command.arguments["browser"], "edge");
+            assert_eq!(command.preview()["arguments"]["browser"], "edge");
+        }
+        let cli = Cli::try_parse_from([
+            "xbot-cli",
+            "web",
+            "open",
+            "--mode",
+            "chrome",
+            "--browser",
+            "edge",
+        ])
+        .unwrap();
+        let Some(Group::Browser { command, browser }) = cli.group else {
+            panic!()
+        };
+        assert!(prepare(&command, browser.as_deref()).is_err());
     }
 
     #[test]

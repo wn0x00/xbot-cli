@@ -65,6 +65,15 @@ function matchingAsset(asset, data, expected) {
   return true;
 }
 
+function releaseNotes(changelog, version) {
+  const section = changelog.split(/(?=^## \[)/m)
+    .find(section => section.startsWith(`## [${version}]`));
+  assert.ok(section, `Missing changelog section for ${version}`);
+  const notes = section.slice(section.indexOf('\n') + 1).trim();
+  assert.ok(notes, `Empty changelog section for ${version}`);
+  return notes;
+}
+
 async function publishGithub(release) {
   assert.ok(process.env.GITHUB_TOKEN, 'GitHub release job token is required');
   const base = `https://api.github.com/repos/${release.repository}`;
@@ -82,7 +91,10 @@ async function publishGithub(release) {
   const response = await request(`${base}/releases/tags/${encodeURIComponent(release.tag)}`);
   const published = response.status !== 404 ? await response.json() : await (await request(`${base}/releases`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ tag_name: release.tag, target_commitish: release.commit, name: release.tag, generate_release_notes: true }),
+    body: JSON.stringify({
+      tag_name: release.tag, target_commitish: release.commit, name: release.tag,
+      body: releaseNotes(readFileSync(join(__dirname, '..', 'CHANGELOG.md'), 'utf8'), release.version),
+    }),
   })).json();
   assert.equal(published.tag_name, release.tag, 'GitHub Release tag differs');
   assert.equal(published.draft, false, 'Release is a draft; publish it before uploading release artifacts');
@@ -117,4 +129,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { matchingNpmVersion, registryVersion, publishNpm, matchingAsset };
+module.exports = { matchingNpmVersion, registryVersion, publishNpm, matchingAsset, releaseNotes };

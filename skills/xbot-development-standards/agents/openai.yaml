@@ -1,0 +1,4 @@
+interface:
+  display_name: "影刀开发规范"
+  short_description: "规范影刀指令集与应用的代码、参数、执行和交付，并区分各自适用规则"
+  default_prompt: "请使用 $xbot-development-standards 开发或检查这套影刀项目，先区分指令集与应用，再按对应规则核对代码、参数、配置和验收结果。"

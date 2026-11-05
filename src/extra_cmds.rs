@@ -95,10 +95,12 @@ pub fn browser_act_prepared(args: Value) -> Res<CmdOut> {
     Ok((core::mcp_browser("web_action", args, 60)?, vec![]))
 }
 
-pub fn browser_eval(code: &str) -> Res<CmdOut> {
+pub fn browser_eval(code: &str, browser: Option<&str>) -> Res<CmdOut> {
     // web_evaluate_playwright 只读;参数名按工具 schema 为 code
+    let mut args = json!({"code":code});
+    crate::browser_cmds::select_argument(&mut args, browser)?;
     Ok((
-        core::mcp_browser("web_evaluate_playwright", json!({"code": code}), 60)?,
+        core::mcp_browser("web_evaluate_playwright", args, 60)?,
         vec![],
     ))
 }

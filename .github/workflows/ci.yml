@@ -69,6 +69,9 @@ jobs:
       - name: Test Rust and Node launcher
         run: npm test
 
+      - name: Test development standards metadata checker
+        run: python -B skills/xbot-development-standards/scripts/test_check_metadata.py
+
       - name: Pack and test installed package
         run: npm run test:package
 

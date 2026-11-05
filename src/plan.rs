@@ -300,15 +300,6 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
                 Operation::VisualFill { flow_id, payload },
             ))
         }
-        Group::Browser(BrowserSub::Act { args_json }) => {
-            let args = input::browser_args(Some(&args_json))?;
-            Ok(planned(
-                "web.act",
-                json!("active_page"),
-                args.clone(),
-                Operation::BrowserAct(args),
-            ))
-        }
         Group::Tool(ToolChannel::Studio(ToolSub::Call {
             tool,
             args_json,
@@ -318,14 +309,57 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
             tool,
             args_json,
             timeout,
-        }))
-        | Group::Browser(BrowserSub::Call {
-            tool,
-            args_json,
-            timeout,
-        }) => tool_call(true, tool, args_json, timeout),
-        Group::Browser(sub) => {
-            if let Some(command) = web_cmds::prepare(&sub)? {
+        })) => tool_call(true, tool, args_json, timeout),
+        Group::Browser {
+            command: sub,
+            browser,
+        } => {
+            if let Some(id) = browser.as_deref() {
+                crate::browser_cmds::normalize_id(id)?;
+            }
+            if let BrowserSub::Act { args_json } = sub {
+                let mut args = input::browser_args(Some(&args_json))?;
+                crate::browser_cmds::select_argument(&mut args, browser.as_deref())?;
+                return Ok(planned(
+                    "web.act",
+                    json!("active_page"),
+                    args.clone(),
+                    Operation::BrowserAct(args),
+                ));
+            }
+            if let BrowserSub::Call {
+                tool,
+                args_json,
+                timeout,
+            } = sub
+            {
+                nonempty(&tool, "tool")?;
+                let mut args = input::browser_args(args_json.as_deref())?;
+                crate::browser_cmds::select_argument(&mut args, browser.as_deref())?;
+                return Ok(planned(
+                    "tool.browser.call",
+                    json!({"tool":tool}),
+                    args.clone(),
+                    Operation::ToolCall {
+                        browser: true,
+                        tool,
+                        args,
+                        timeout,
+                    },
+                ));
+            }
+            if browser.is_some()
+                && matches!(
+                    sub,
+                    BrowserSub::Browser(..) | BrowserSub::Tools { .. } | BrowserSub::Schema { .. }
+                )
+            {
+                return Err(BackendError::new(
+                    "BAD_ARGS",
+                    "此发现命令不接受 --browser；请在网页操作命令中指定",
+                ));
+            }
+            if let Some(command) = web_cmds::prepare(&sub, browser.as_deref())? {
                 let preview = Some(command.preview());
                 Ok(PreparedCommand {
                     operation: Operation::Web(command),
@@ -334,7 +368,10 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
                 })
             } else {
                 Ok(PreparedCommand {
-                    operation: Operation::Command(Group::Browser(sub)),
+                    operation: Operation::Command(Group::Browser {
+                        command: sub,
+                        browser,
+                    }),
                     preview: None,
                     confirmation_required: false,
                 })
@@ -411,7 +448,11 @@ fn describe(group: &Group) -> Res<Option<Value>> {
             ("app.view", app_target(app_id)?, json!({"timeout": timeout}))
         }
         Group::App(AppSub::Save) => ("app.save", json!("current"), json!({})),
-        Group::App(AppSub::Sync) => ("app.sync", json!("current"), json!({})),
+        Group::App(AppSub::Sync) => (
+            "app.sync",
+            json!("current"),
+            json!({"shell_args":app_cmds::STUDIO_SYNC_ARGS}),
+        ),
         Group::App(AppSub::Publish { app_id, log }) => {
             ("app.publish", app_target(app_id)?, json!({"log": log}))
         }

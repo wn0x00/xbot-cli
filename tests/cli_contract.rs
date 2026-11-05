@@ -141,6 +141,125 @@ fn web_aliases_share_help_schema_and_offline_previews() {
 }
 
 #[test]
+fn browser_discovery_and_selection_are_offline_until_execution() {
+    let schema = envelope(
+        &invoke(&["schema", "web", "browser", "list"], None, None),
+        0,
+    );
+    assert_eq!(schema["data"]["name"], "web browser list");
+    assert_eq!(schema["data"]["context"], "local");
+    assert_eq!(schema["data"]["requires_studio"], false);
+    let preview = envelope(
+        &invoke(
+            &[
+                "web",
+                "snapshot",
+                "--browser",
+                "edge",
+                "--dry-run",
+                "--json",
+            ],
+            None,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(preview["data"]["arguments"]["browser"], "edge");
+    let raw = envelope(
+        &invoke(
+            &[
+                "web",
+                "call",
+                "web_get_active",
+                "{}",
+                "--browser",
+                "edge",
+                "--dry-run",
+                "--json",
+            ],
+            None,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(raw["data"]["arguments"]["browser"], "edge");
+    let conflict = envelope(
+        &invoke(
+            &[
+                "web",
+                "open",
+                "--browser",
+                "edge",
+                "--mode",
+                "chrome",
+                "--dry-run",
+                "--json",
+            ],
+            None,
+            None,
+        ),
+        2,
+    );
+    assert_eq!(conflict["error"]["code"], "BAD_INPUT");
+    let missing = envelope(
+        &invoke(&["web", "browser", "list", "--json"], None, None),
+        3,
+    );
+    assert_eq!(missing["error"]["code"], "BROWSER_DLL_MISSING");
+}
+
+#[test]
+fn selected_browser_preserves_pipe_for_action_snapshot_and_eval() {
+    let server = MockBridge::with_prefix("b99c93f4-6881-4d74-af43-2f3463fe1cc5", |_, _| None);
+    let opened = envelope(
+        &invoke(
+            &["web", "open", "example.com", "--browser", "cef", "--json"],
+            None,
+            Some(&server.endpoint),
+        ),
+        0,
+    );
+    assert_eq!(opened["data"]["browser_context"]["browser_id"], "cef");
+    assert_eq!(
+        opened["data"]["snapshot"]["browser_context"]["browser_id"],
+        "cef"
+    );
+    assert_eq!(
+        opened["data"]["snapshot"]["browser_context"]["pipe"],
+        server.endpoint
+    );
+    let evaluated = envelope(
+        &invoke(
+            &[
+                "web",
+                "eval",
+                "return await activePage.title();",
+                "--browser",
+                "cef",
+                "--json",
+            ],
+            None,
+            Some(&server.endpoint),
+        ),
+        0,
+    );
+    assert_eq!(evaluated["data"]["browser_context"]["browser_id"], "cef");
+    assert_eq!(evaluated["data"]["result"], "Example Domain");
+
+    let wrong = MockBridge::new(|_, _| None);
+    let rejected = envelope(
+        &invoke(
+            &["web", "click", "e4", "--browser", "cef", "--json"],
+            None,
+            Some(&wrong.endpoint),
+        ),
+        5,
+    );
+    assert_eq!(rejected["error"]["code"], "WEB_BROWSER_CONFLICT");
+    assert!(wrong.calls().is_empty());
+}
+
+#[test]
 fn web_short_commands_send_literal_bridge_arguments_once() {
     for (cli, target, method, args) in [
         (
@@ -711,8 +830,15 @@ struct MockBridge {
 
 impl MockBridge {
     fn new(handler: impl Fn(&str, &Value) -> Option<Value> + Send + 'static) -> Self {
+        Self::with_prefix("xbot-cli-test", handler)
+    }
+
+    fn with_prefix(
+        prefix: &str,
+        handler: impl Fn(&str, &Value) -> Option<Value> + Send + 'static,
+    ) -> Self {
         let endpoint = format!(
-            r"\\.\pipe\xbot-cli-test-{}-{}",
+            r"\\.\pipe\{prefix}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1004,6 +1130,66 @@ fn application_assertion_blocks_writes_to_another_application() {
         5,
     );
     assert_eq!(value["ok"], false);
+    assert_eq!(server.calls(), ["app.get_info"]);
+}
+
+#[test]
+fn app_sync_exposes_native_sync_close_and_previews_without_backend_calls() {
+    let server = MockMcp::new(studio_fixture);
+    let help = invoke(&["help", "app", "sync"], None, Some(&server.endpoint));
+    assert!(help.status.success());
+    let text = String::from_utf8(help.stdout).unwrap();
+    assert!(text.contains("shadowbot.shell-cli.exe studio current sync"));
+    assert!(text.contains("不发布应用"));
+    let schema = envelope(
+        &invoke(&["schema", "app", "sync"], None, Some(&server.endpoint)),
+        0,
+    );
+    assert_eq!(schema["data"]["effects"], json!(["write", "close_studio"]));
+    assert_eq!(schema["data"]["requires_studio"], true);
+    assert_eq!(schema["data"]["supports_dry_run"], true);
+    let preview = envelope(
+        &invoke(
+            &[
+                "app",
+                "sync",
+                "--expect-app",
+                "11111111-1111-1111-1111-111111111111",
+                "--dry-run",
+                "--json",
+            ],
+            None,
+            Some(&server.endpoint),
+        ),
+        0,
+    );
+    assert_eq!(preview["data"]["action"], "app.sync");
+    assert_eq!(
+        preview["data"]["arguments"]["shell_args"],
+        json!(["studio", "current", "sync"])
+    );
+    assert_eq!(preview["data"]["validation"]["runtime"], "not_checked");
+    assert!(server.calls().is_empty());
+}
+
+#[test]
+fn app_sync_rejects_a_different_app_before_invoking_native_sync() {
+    let server = MockMcp::new(studio_fixture);
+    let value = envelope(
+        &invoke(
+            &[
+                "app",
+                "sync",
+                "--expect-app",
+                "22222222-2222-2222-2222-222222222222",
+                "--json",
+            ],
+            None,
+            Some(&server.endpoint),
+        ),
+        5,
+    );
+    assert_eq!(value["error"]["code"], "APP_MISMATCH");
     assert_eq!(server.calls(), ["app.get_info"]);
 }
 
