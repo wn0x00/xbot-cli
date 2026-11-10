@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.0](https://github.com/wn0x00/xbot-cli/compare/v0.9.3...v0.10.0) (2026-11-10)
+
+### 指令管理
+
+- 新增 `xbot-cli activity list`，通过开放平台 `app.list` 查询并筛选 `appType=activity`，支持名称、所有者、页码和页大小参数。
+- 清单自动有界翻页，最多 100 页，返回 `instructions`、`count` 和 `complete`，避免只返回第一页中的指令。
+- 未配置开放平台凭据时返回 `PLATFORM_AUTH` 和明确的配置引导。
+- 新增 `xbot-cli activity open`，通过本机客户端打开指令并校验 `robot_type=activity`，防止误开普通应用。
+- 补充命令 schema、帮助、迁移文档和真实指令清单及打开验证；`flow list/get` 继续复用现有流程源码读取能力。
+
 ## [0.9.3](https://github.com/wn0x00/xbot-cli/compare/v0.9.2...v0.9.3) (2026-11-05)
 
 ### 流程参数能力增强
