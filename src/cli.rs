@@ -242,6 +242,9 @@ pub(crate) enum AppSub {
 #[derive(Subcommand)]
 pub(crate) enum ActivitySub {
     /// 通过开放平台查询我开发的指令清单
+    #[command(
+        long_about = "通过开放平台查询指令清单,先筛选指令再分页。\n\n--page 和 --page-size 以指令数量为准;为填满一页可能读取多页应用列表。\n--all 返回从指定指令页开始的全部结果;每次最多扫描 100 页应用列表。\npage.total/pages 仅在扫描完应用列表后提供,否则为 null;不会混用应用总数。"
+    )]
     List {
         /// 指令名称模糊匹配
         #[arg(long)]
@@ -249,13 +252,13 @@ pub(crate) enum ActivitySub {
         /// 按所有者账号精确过滤
         #[arg(long)]
         owner: Option<String>,
-        /// 页码;默认只获取这一页
+        /// 指令页码;默认只返回这一页
         #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..))]
         page: u32,
-        /// 每页数量
+        /// 每页指令数量,末页可能不足
         #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u32).range(1..=100))]
         page_size: u32,
-        /// 从 page 开始自动翻页,最多获取 100 页
+        /// 返回从 page 开始的全部指令,最多扫描 100 页应用列表
         #[arg(long)]
         all: bool,
     },
