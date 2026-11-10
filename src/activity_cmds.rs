@@ -5,11 +5,10 @@ use crate::core::{BackendError, Res};
 use crate::{app_cmds, oapi, oapi_cli};
 
 pub fn list(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u32) -> Res<CmdOut> {
-    let mut current = page;
     let mut instructions = Vec::new();
     let mut last_page = Value::Null;
     let mut complete = true;
-    for fetched in 1..=100 {
+    for (current, fetched) in (page..).zip(1..=100) {
         let (data, _) = list_page(search, owner, current, page_size)?;
         let rows = data
             .pointer("/response/data")
@@ -34,7 +33,6 @@ pub fn list(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u32
             break;
         }
         complete = false;
-        current += 1;
     }
     Ok((
         json!({
