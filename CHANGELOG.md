@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.2](https://github.com/wn0x00/xbot-cli/compare/v0.10.1...v0.10.2) (2026-11-10)
+
+### 指令清单分页
+
+- `activity list` 默认只获取 `--page` 指定的一页（默认第 1 页），与 `app list` 一致；`--page-size` 控制每页数量。
+- 新增 `--all`，从 `--page` 开始自动翻页，最多 100 页；输出增加 `all`，`complete=false` 表示仍有后续页或达到全量上限。
+- **迁移说明**：原先依赖默认全量拉取的调用需改为 `xbot-cli activity list --all`。
+- 更新帮助、schema 示例和分页文档，覆盖默认单页、指定页和显式全量请求。
+
 ## [0.10.1](https://github.com/wn0x00/xbot-cli/compare/v0.10.0...v0.10.1) (2026-11-10)
 
 ### 指令清单输出
