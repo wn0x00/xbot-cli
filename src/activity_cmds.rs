@@ -5,7 +5,7 @@ use crate::core::{BackendError, Res};
 use crate::{app_cmds, oapi, oapi_cli};
 
 pub fn list(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u32) -> Res<CmdOut> {
-    let mut instructions = Vec::new();
+    let mut activity_rows = Vec::new();
     let mut last_page = Value::Null;
     let mut complete = true;
     for (current, fetched) in (page..).zip(1..=100) {
@@ -17,7 +17,7 @@ pub fn list(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u32
                 BackendError::new("MCP_BAD_RESPONSE", "app.list 响应缺少指令清单数组")
                     .with_data(data.clone())
             })?;
-        instructions.extend(
+        activity_rows.extend(
             rows.iter()
                 .filter(|row| row.get("appType").and_then(Value::as_str) == Some("activity"))
                 .cloned(),
@@ -34,11 +34,12 @@ pub fn list(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u32
         }
         complete = false;
     }
+    let activity = app_cmds::concise_app_rows(&activity_rows);
     Ok((
         json!({
             "backend": "oapi",
-            "count": instructions.len(),
-            "instructions": instructions,
+            "count": activity.len(),
+            "activity": activity,
             "page": last_page,
             "complete": complete,
         }),
@@ -83,9 +84,7 @@ fn ensure_activity(data: &Value) -> Res<()> {
     Err(
         BackendError::new("ACTIVITY_TYPE_MISMATCH", "打开的资源不是指令")
             .with_data(json!({"robot_type":robot_type,"app":data.get("app")}))
-            .with_hint(
-                "从 activity list 返回的 instructions 中选择 appId；普通应用请使用 app open",
-            ),
+            .with_hint("从 activity list 返回的 activity 中选择 appId；普通应用请使用 app open"),
     )
 }
 

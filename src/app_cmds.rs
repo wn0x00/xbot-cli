@@ -52,6 +52,19 @@ pub fn app_new(name: &str, desc: Option<&str>) -> Res<CmdOut> {
     ))
 }
 
+pub(crate) fn concise_app_rows(apps: &[Value]) -> Vec<Value> {
+    apps.iter()
+        .map(|app| {
+            json!({
+                "appId": app.get("appId"),
+                "appName": app.get("appName"),
+                "appType": app.get("appType"),
+                "updateTime": app.get("updateTime"),
+            })
+        })
+        .collect()
+}
+
 pub fn app_list(search: Option<&str>, page: u32, page_size: u32) -> Res<CmdOut> {
     let mut args = vec![
         "console".into(),
@@ -74,17 +87,7 @@ pub fn app_list(search: Option<&str>, page: u32, page_size: u32) -> Res<CmdOut> 
         .unwrap_or(d);
     let (apps, count) = match apps {
         Value::Array(items) => {
-            let concise: Vec<Value> = items
-                .iter()
-                .map(|app| {
-                    json!({
-                        "appId": app.get("appId"),
-                        "appName": app.get("appName"),
-                        "appType": app.get("appType"),
-                        "updateTime": app.get("updateTime"),
-                    })
-                })
-                .collect();
+            let concise = concise_app_rows(&items);
             let count = concise.len();
             (Value::Array(concise), json!(count))
         }

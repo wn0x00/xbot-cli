@@ -1078,7 +1078,7 @@ fn job_start_is_confirmed_and_previews_offline() {
 }
 
 #[test]
-fn activity_list_filters_instructions_and_requires_platform_credentials() {
+fn activity_list_matches_concise_app_rows_and_requires_platform_credentials() {
     let value = envelope(invoke(&["activity", "list"], None, false, None), 3);
     assert_eq!(value["error"]["code"], "PLATFORM_AUTH");
     assert!(value["error"]["hint"]
@@ -1100,8 +1100,8 @@ fn activity_list_filters_instructions_and_requires_platform_credentials() {
                 );
                 success(json!([
                     {"appId":"app-1","appName":"应用","appType":"app"},
-                    {"appId":"activity-1","appName":"指令一","appType":"activity"},
-                    {"appId":"activity-2","appName":"指令二","appType":"activity"}
+                    {"appId":"activity-1","appName":"指令一","appType":"activity","updateTime":"2026-11-10 10:00:00","description":"不应出现在精简清单"},
+                    {"appId":"activity-2","appName":"指令二","appType":"activity","updateTime":"2026-11-10 11:00:00","description":"不应出现在精简清单"}
                 ]))
             }
             other => panic!("unexpected request: {other:?}"),
@@ -1119,11 +1119,12 @@ fn activity_list_filters_instructions_and_requires_platform_credentials() {
     assert_eq!(value["data"]["backend"], "oapi");
     assert_eq!(value["data"]["count"], 2);
     assert_eq!(
-        value["data"]["instructions"],
+        value["data"]["activity"],
         json!([
-            {"appId":"activity-1","appName":"指令一","appType":"activity"},
-            {"appId":"activity-2","appName":"指令二","appType":"activity"}
+            {"appId":"activity-1","appName":"指令一","appType":"activity","updateTime":"2026-11-10 10:00:00"},
+            {"appId":"activity-2","appName":"指令二","appType":"activity","updateTime":"2026-11-10 11:00:00"}
         ])
     );
+    assert!(value["data"].get("instructions").is_none());
     assert_eq!(server.requests.lock().unwrap().len(), 2);
 }
