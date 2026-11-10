@@ -37,6 +37,9 @@ pub(crate) enum Group {
     /// 创建、打开、保存、同步和发布应用
     #[command(subcommand)]
     App(AppSub),
+    /// 查询并打开我开发的指令
+    #[command(subcommand)]
+    Activity(ActivitySub),
     /// 读取、编辑、检查与运行 Studio 流程
     #[command(subcommand)]
     Flow(FlowSub),
@@ -234,6 +237,32 @@ pub(crate) enum AppSub {
     },
     /// 移入回收站(需 --yes)
     Recycle { app_id: String },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum ActivitySub {
+    /// 通过开放平台查询我开发的指令清单
+    List {
+        /// 指令名称模糊匹配
+        #[arg(long)]
+        search: Option<String>,
+        /// 按所有者账号精确过滤
+        #[arg(long)]
+        owner: Option<String>,
+        #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..))]
+        page: u32,
+        #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u32).range(1..=100))]
+        page_size: u32,
+    },
+    /// 打开指令到 Studio 编辑模式
+    Open {
+        activity_id: String,
+        #[arg(long, default_value_t = 60, value_parser = clap::value_parser!(u64).range(1..=MAX_TIMEOUT_SECS))]
+        timeout: u64,
+        /// 先关闭当前会话;可能丢失未保存改动,需 --yes
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[derive(Subcommand)]

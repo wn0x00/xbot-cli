@@ -180,6 +180,20 @@ xbot-cli oapi api schema job.start --json
 
 `app open` 进入编辑模式；`app view` 是只读临时副本。`app sync` 上传并关闭 Studio。所有应用修改通过 CLI/MCP，不直接编辑影刀应用目录文件。
 
+## 指令操作
+
+`activity list` 通过开放平台 `app.list` 查询并筛选 `appType=activity`，自动有界翻页（最多 100 页），返回 `instructions`、`count` 和 `complete`；`complete=false` 表示清单可能被截断。未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
+
+```powershell
+xbot-cli activity list --json
+xbot-cli activity list --owner admin@bigdata --json
+xbot-cli activity open <activity-id> --json
+xbot-cli flow list --expect-app <activity-id> --json
+xbot-cli flow get <flow-id> --expect-app <activity-id> --json
+```
+
+`activity open` 使用本机客户端，不需要开放平台凭据；打开后校验 `robot_type=activity`，防止误开普通应用。流程读取仍使用 `flow list/get` 和 `--expect-app`。
+
 ## 帮助、输出与恢复（v0.6）
 
 裸调用用于发现命令，不需要先启动影刀：

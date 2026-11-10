@@ -76,6 +76,7 @@ fn missing_leaf_arguments_are_errors_but_command_groups_are_discoverable() {
     for args in [
         vec![],
         vec!["app"],
+        vec!["activity"],
         vec!["flow", "code"],
         vec!["tool", "studio"],
         vec!["--help"],
@@ -93,6 +94,8 @@ fn missing_leaf_arguments_are_errors_but_command_groups_are_discoverable() {
 fn schemas_support_canonical_and_legacy_nested_paths() {
     for args in [
         vec!["schema", "tool", "studio", "call"],
+        vec!["schema", "activity", "list"],
+        vec!["schema", "activity", "open"],
         vec!["schema", "mcp", "call"],
         vec!["schema", "flow", "visual", "disable"],
         vec!["schema", "code", "write"],

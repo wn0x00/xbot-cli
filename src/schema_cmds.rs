@@ -62,6 +62,8 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         bool,
         &'static str,
     ) = match words.as_slice() {
+        ["activity", "list"] => (&["read"], "platform", true, "none"),
+        ["activity", "open"] => (&["change_studio_context"], "console", true, "when_force"),
         ["app", "current"] => (&["read"], "studio", false, "none"),
         ["app", "save"] => (&["write"], "studio", true, "none"),
         ["app", "sync"] => (&["write", "close_studio"], "studio", true, "none"),
@@ -459,6 +461,8 @@ fn examples(command: &Command, path: &[&str]) -> Vec<String> {
             "xbot-cli app sync --expect-app <app-id> --dry-run --json",
             "xbot-cli app sync --expect-app <app-id> --json",
         ],
+        ["activity", "list"] => &["xbot-cli activity list --json"],
+        ["activity", "open"] => &["xbot-cli activity open <activity-id> --json"],
         ["web", "browser", "list"] => &[
             "xbot-cli web browser list --json",
             "xbot-cli web browser list --all --json",

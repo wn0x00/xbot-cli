@@ -1319,9 +1319,9 @@ impl Provider {
             )?;
             let mut frames = Vec::new();
             for property in properties["result"].as_array().into_iter().flatten() {
-                if !property["name"]
+                if property["name"]
                     .as_str()
-                    .is_some_and(|n| n.parse::<usize>().is_ok())
+                    .is_none_or(|n| n.parse::<usize>().is_err())
                 {
                     continue;
                 }
