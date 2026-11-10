@@ -182,7 +182,11 @@ xbot-cli oapi api schema job.start --json
 
 ## 指令操作
 
-`activity list` 通过开放平台 `app.list` 查询并筛选 `appType=activity`。与 `app list` 一样，默认只请求 `--page` 指定的一页（默认第 1 页），`--page-size` 控制每页数量；`--all` 才会从 `--page` 开始自动翻页，最多 100 页。清单字段为 `activity`，每项仅保留 `appId`、`appName`、`appType` 和 `updateTime`，文本输出使用与 `app list` 相同的表格结构。`count` 是本次返回的指令数，`page` 保留平台分页信息；`complete=false` 表示后面仍有页，或因达到 100 页上限而未拉取完整。未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
+`activity list` 通过开放平台 `app.list` 查询并筛选 `appType=activity`，**先筛选指令，再按指令数量分页**。默认只返回 `--page` 指定的一页（默认第 1 页），`--page-size` 是每页指令数，只有末页可以不足；`--all` 返回从指定指令页开始的全部剩余指令。底层接口不支持按类型过滤，因此每次从应用列表第 1 页开始、每批最多 100 条读取混合资源，直到填满请求页并找到下一条指令，或扫描结束；一次命令最多扫描 100 页应用列表。`--search` 和 `--owner` 在每次底层请求中保持一致。
+
+清单字段为 `activity`，每项仅保留 `appId`、`appName`、`appType` 和 `updateTime`，文本输出使用与 `app list` 相同的表格结构。`count` 是本次返回的指令数，`page.page/size/offset` 均对应指令分页，不再透传混合资源的分页数据。`page.total/pages` 只有在底层应用列表扫描完成后才是准确的指令总数/总页数，提前停止时为 `null`。`complete=true` 表示返回结果之后没有剩余指令；`truncated=true` 表示达到扫描上限、尚未扫描完整。普通分页若因上限无法填满请求页，返回 `ACTIVITY_PAGINATION_LIMIT` 而不是伪装成不足一页的末页；可用 `--search/--owner` 缩小范围，或用 `--all` 读取上限内的部分结果并检查 `truncated`。
+
+未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
 
 ```powershell
 xbot-cli activity list --json

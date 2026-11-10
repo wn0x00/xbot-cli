@@ -1096,7 +1096,7 @@ fn activity_list_matches_concise_app_rows_and_requires_platform_credentials() {
                 let body: Value = serde_json::from_slice(&request.body).unwrap();
                 assert_eq!(
                     body,
-                    json!({"page":"1","size":"20","ownerUserSearchKey":"admin@bigdata"})
+                    json!({"page":"1","size":"100","ownerUserSearchKey":"admin@bigdata"})
                 );
                 success(json!([
                     {"appId":"app-1","appName":"应用","appType":"app"},
@@ -1130,7 +1130,7 @@ fn activity_list_matches_concise_app_rows_and_requires_platform_credentials() {
 }
 
 #[test]
-fn activity_list_fetches_one_page_unless_all_is_explicit() {
+fn activity_list_paginates_filtered_instructions_instead_of_mixed_resources() {
     let server = MockApi::new(|request, _| {
         let url = url::Url::parse(&format!("http://localhost{}", request.target)).unwrap();
         match (request.method.as_str(), url.path()) {
@@ -1139,7 +1139,6 @@ fn activity_list_fetches_one_page_unless_all_is_explicit() {
             }
             ("POST", "/oapi/app/open/query/list") => {
                 let body: Value = serde_json::from_slice(&request.body).unwrap();
-                assert_eq!(body["size"], "2");
                 let page = body["page"].as_str().unwrap();
                 let rows = match page {
                     "1" => json!([
@@ -1161,7 +1160,7 @@ fn activity_list_fetches_one_page_unless_all_is_explicit() {
                         "code": 200,
                         "success": true,
                         "data": rows,
-                        "page": {"page": page.parse::<u32>().unwrap(), "pages": 3, "size": 2},
+                        "page": {"page": page.parse::<u32>().unwrap(), "pages": 3, "size": 2, "total": 5},
                         "requestId": "server-request"
                     })
                     .to_string(),
@@ -1175,39 +1174,47 @@ fn activity_list_fetches_one_page_unless_all_is_explicit() {
         invoke(
             &["activity", "list", "--page-size", "2"],
             Some(&server),
-            true,
+            false,
             None,
         ),
         0,
     );
     assert_eq!(first["data"]["all"], false);
     assert_eq!(first["data"]["complete"], false);
-    assert_eq!(first["data"]["count"], 1);
+    assert_eq!(first["data"]["count"], 2);
     assert_eq!(first["data"]["activity"][0]["appId"], "activity-1");
+    assert_eq!(first["data"]["activity"][1]["appId"], "activity-2");
     assert_eq!(first["data"]["page"]["page"], 1);
-    assert_eq!(server.requests.lock().unwrap().len(), 2);
+    assert_eq!(first["data"]["page"]["size"], 2);
+    assert_eq!(first["data"]["page"]["total"], 3);
+    assert_eq!(first["data"]["page"]["pages"], 2);
+    assert_eq!(first["data"]["page"]["offset"], 0);
+    assert_eq!(server.requests.lock().unwrap().len(), 3);
 
     let second = envelope(
         invoke(
             &["activity", "list", "--page", "2", "--page-size", "2"],
             Some(&server),
-            true,
+            false,
             None,
         ),
         0,
     );
     assert_eq!(second["data"]["all"], false);
-    assert_eq!(second["data"]["complete"], false);
+    assert_eq!(second["data"]["complete"], true);
     assert_eq!(second["data"]["count"], 1);
-    assert_eq!(second["data"]["activity"][0]["appId"], "activity-2");
+    assert_eq!(second["data"]["activity"][0]["appId"], "activity-3");
     assert_eq!(second["data"]["page"]["page"], 2);
-    assert_eq!(server.requests.lock().unwrap().len(), 4);
+    assert_eq!(second["data"]["page"]["total"], 3);
+    assert_eq!(second["data"]["page"]["pages"], 2);
+    assert_eq!(second["data"]["page"]["offset"], 2);
+    assert_eq!(server.requests.lock().unwrap().len(), 6);
 
     let all = envelope(
         invoke(
             &["activity", "list", "--page-size", "2", "--all"],
             Some(&server),
-            true,
+            false,
             None,
         ),
         0,
@@ -1224,6 +1231,182 @@ fn activity_list_fetches_one_page_unless_all_is_explicit() {
             .collect::<Vec<_>>(),
         ["activity-1", "activity-2", "activity-3"]
     );
-    assert_eq!(all["data"]["page"]["page"], 3);
-    assert_eq!(server.requests.lock().unwrap().len(), 10);
+    assert_eq!(all["data"]["page"]["page"], 1);
+    assert_eq!(all["data"]["page"]["total"], 3);
+    assert_eq!(server.requests.lock().unwrap().len(), 9);
+
+    let rest = envelope(
+        invoke(
+            &[
+                "activity",
+                "list",
+                "--page",
+                "2",
+                "--page-size",
+                "2",
+                "--all",
+            ],
+            Some(&server),
+            false,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(rest["data"]["count"], 1);
+    assert_eq!(rest["data"]["activity"][0]["appId"], "activity-3");
+    assert_eq!(rest["data"]["page"]["page"], 2);
+    assert_eq!(rest["data"]["complete"], true);
+
+    let empty = envelope(
+        invoke(
+            &[
+                "activity",
+                "list",
+                "--page",
+                "4294967295",
+                "--page-size",
+                "2",
+            ],
+            Some(&server),
+            false,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(empty["data"]["count"], 0);
+    assert_eq!(empty["data"]["activity"], json!([]));
+    assert_eq!(empty["data"]["page"]["offset"], 8589934588_u64);
+    assert_eq!(empty["data"]["complete"], true);
+}
+
+#[test]
+fn activity_list_stops_after_filling_a_page_and_finding_the_next_instruction() {
+    let server = MockApi::new(|request, _| {
+        assert_eq!(request.target, "/oapi/app/open/query/list");
+        let body: Value = serde_json::from_slice(&request.body).unwrap();
+        assert_eq!(
+            body,
+            json!({
+                "page":"1","size":"100","appName":"needle","ownerUserSearchKey":"owner"
+            })
+        );
+        let rows: Vec<_> = (0..100)
+            .map(|index| {
+                json!({
+                    "appId": format!("resource-{index}"),
+                    "appType": if index < 3 { "activity" } else { "app" }
+                })
+            })
+            .collect();
+        (
+            200,
+            json!({
+                "code":200,"success":true,"data":rows,
+                "page":{"page":1,"size":100,"total":200,"pages":2}
+            })
+            .to_string(),
+        )
+    });
+    let value = envelope(
+        invoke(
+            &[
+                "activity",
+                "list",
+                "--page-size",
+                "2",
+                "--search",
+                "needle",
+                "--owner",
+                "owner",
+            ],
+            Some(&server),
+            false,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(value["data"]["count"], 2);
+    assert_eq!(value["data"]["activity"][0]["appId"], "resource-0");
+    assert_eq!(value["data"]["activity"][1]["appId"], "resource-1");
+    assert_eq!(value["data"]["page"]["page"], 1);
+    assert_eq!(value["data"]["page"]["size"], 2);
+    assert!(value["data"]["page"]["total"].is_null());
+    assert!(value["data"]["page"]["pages"].is_null());
+    assert_eq!(value["data"]["complete"], false);
+    assert_eq!(value["data"]["truncated"], false);
+    assert_eq!(server.requests.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn activity_list_skips_application_only_pages_without_pagination_metadata() {
+    let server = MockApi::new(|request, _| {
+        let body: Value = serde_json::from_slice(&request.body).unwrap();
+        assert_eq!(body["size"], "100");
+        assert_eq!(body["appName"], "needle");
+        assert_eq!(body["ownerUserSearchKey"], "owner");
+        match body["page"].as_str().unwrap() {
+            "1" => success(json!(vec![json!({"appType":"app"}); 100])),
+            "2" => success(json!([
+                {"appId":"activity-1","appType":"activity"},
+                {"appId":"activity-2","appType":"activity"}
+            ])),
+            page => panic!("unexpected page: {page}"),
+        }
+    });
+    let value = envelope(
+        invoke(
+            &[
+                "activity",
+                "list",
+                "--page-size",
+                "2",
+                "--search",
+                "needle",
+                "--owner",
+                "owner",
+            ],
+            Some(&server),
+            false,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(value["data"]["count"], 2);
+    assert_eq!(value["data"]["page"]["total"], 2);
+    assert_eq!(value["data"]["page"]["pages"], 1);
+    assert_eq!(value["data"]["complete"], true);
+    assert_eq!(value["data"]["truncated"], false);
+    assert_eq!(server.requests.lock().unwrap().len(), 2);
+}
+
+#[test]
+fn activity_list_does_not_present_a_scan_limit_as_an_exhausted_short_page() {
+    let server = MockApi::new(|request, _| {
+        let body: Value = serde_json::from_slice(&request.body).unwrap();
+        let page = body["page"].as_str().unwrap().parse::<u32>().unwrap();
+        assert!((1..=100).contains(&page));
+        (
+            200,
+            json!({
+                "code":200,"success":true,
+                "data":[{"appId":"app","appType":"app"}],
+                "page":{"page":page,"size":100,"pages":101}
+            })
+            .to_string(),
+        )
+    });
+    let value = envelope(invoke(&["activity", "list"], Some(&server), false, None), 1);
+    assert_eq!(value["error"]["code"], "ACTIVITY_PAGINATION_LIMIT");
+    assert_eq!(value["data"]["complete"], false);
+    assert_eq!(server.requests.lock().unwrap().len(), 100);
+
+    let all = envelope(
+        invoke(&["activity", "list", "--all"], Some(&server), false, None),
+        0,
+    );
+    assert_eq!(all["data"]["count"], 0);
+    assert_eq!(all["data"]["complete"], false);
+    assert_eq!(all["data"]["truncated"], true);
+    assert!(all["data"]["page"]["total"].is_null());
+    assert_eq!(server.requests.lock().unwrap().len(), 200);
 }
