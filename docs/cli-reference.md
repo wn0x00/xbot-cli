@@ -182,7 +182,7 @@ xbot-cli oapi api schema job.start --json
 
 ## 指令操作
 
-`activity list` 通过开放平台 `app.list` 查询并筛选 `appType=activity`，自动有界翻页（最多 100 页），返回 `instructions`、`count` 和 `complete`；`complete=false` 表示清单可能被截断。未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
+`activity list` 通过开放平台 `app.list` 查询并筛选 `appType=activity`，自动有界翻页（最多 100 页）。清单字段为 `activity`，每项与 `app list` 一样仅保留 `appId`、`appName`、`appType` 和 `updateTime`，文本输出使用相同的表格结构；同时返回 `count` 和 `complete`，`complete=false` 表示清单可能被截断。未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
 
 ```powershell
 xbot-cli activity list --json
