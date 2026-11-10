@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1](https://github.com/wn0x00/xbot-cli/compare/v0.10.0...v0.10.1) (2026-11-10)
+
+### 指令清单输出
+
+- `activity list` 与 `app list` 复用相同的精简行和四列表格，每项仅保留 `appId`、`appName`、`appType`、`updateTime`。
+- **迁移说明**：JSON 清单字段由 `data.instructions` 改为 `data.activity`，不再返回 `data.instructions`；读取清单的程序需改用 `data.activity`。
+- 同步更新指令类型不匹配时的恢复提示和 CLI 文档。
+
 ## [0.10.0](https://github.com/wn0x00/xbot-cli/compare/v0.9.3...v0.10.0) (2026-11-10)
 
 ### 指令管理
