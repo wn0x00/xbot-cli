@@ -26,7 +26,14 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
                 owner,
                 page,
                 page_size,
-            } => crate::activity_cmds::list(search.as_deref(), owner.as_deref(), page, page_size),
+                all,
+            } => crate::activity_cmds::list(
+                search.as_deref(),
+                owner.as_deref(),
+                page,
+                page_size,
+                all,
+            ),
             ActivitySub::Open {
                 activity_id,
                 timeout,

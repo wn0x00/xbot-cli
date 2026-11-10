@@ -4,11 +4,18 @@ use crate::app_cmds::CmdOut;
 use crate::core::{BackendError, Res};
 use crate::{app_cmds, oapi, oapi_cli};
 
-pub fn list(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u32) -> Res<CmdOut> {
+pub fn list(
+    search: Option<&str>,
+    owner: Option<&str>,
+    page: u32,
+    page_size: u32,
+    all: bool,
+) -> Res<CmdOut> {
     let mut activity_rows = Vec::new();
     let mut last_page = Value::Null;
-    let mut complete = true;
-    for (current, fetched) in (page..).zip(1..=100) {
+    let mut complete = false;
+    let max_pages = if all { 100 } else { 1 };
+    for current in (page..).take(max_pages) {
         let (data, _) = list_page(search, owner, current, page_size)?;
         let rows = data
             .pointer("/response/data")
@@ -28,11 +35,10 @@ pub fn list(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u32
             .unwrap_or(Value::Null);
         let page_count = data.pointer("/response/page/pages").and_then(Value::as_u64);
         let has_more = has_more_pages(rows.len(), page_size as usize, page_count, current);
-        if !has_more {
-            complete = fetched < 100;
+        if !all || !has_more {
+            complete = !has_more;
             break;
         }
-        complete = false;
     }
     let activity = app_cmds::concise_app_rows(&activity_rows);
     Ok((
@@ -41,6 +47,7 @@ pub fn list(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u32
             "count": activity.len(),
             "activity": activity,
             "page": last_page,
+            "all": all,
             "complete": complete,
         }),
         vec![],
