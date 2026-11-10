@@ -316,7 +316,6 @@ fn authentication_encodes_keys_uses_bearer_and_never_prints_credentials() {
     }
     assert_eq!(server.requests.lock().unwrap().len(), 2);
 }
-
 #[test]
 fn auth_check_returns_expiry_and_static_token_is_not_claimed_verified() {
     let server =
@@ -522,7 +521,6 @@ fn errors_keep_server_evidence_redact_secrets_and_do_not_retry_mutations() {
     assert_eq!(value["error"]["retryable"], false);
     assert_eq!(server.requests.lock().unwrap().len(), 2);
 }
-
 #[test]
 fn http_errors_and_malformed_responses_cannot_claim_success() {
     for (http, body, exit, code) in [
@@ -706,7 +704,6 @@ fn raw_patch_and_multipart_upload_use_documented_wire_formats() {
     );
     assert_eq!(server.requests.lock().unwrap().len(), 2);
 }
-
 #[test]
 fn records_keep_nested_page_and_validate_invalid_times_before_network() {
     let server = MockApi::new(|request, _| {
@@ -1078,4 +1075,55 @@ fn job_start_is_confirmed_and_previews_offline() {
     ] {
         envelope(invoke(&bad, None, false, None), 2);
     }
+}
+
+#[test]
+fn activity_list_filters_instructions_and_requires_platform_credentials() {
+    let value = envelope(invoke(&["activity", "list"], None, false, None), 3);
+    assert_eq!(value["error"]["code"], "PLATFORM_AUTH");
+    assert!(value["error"]["hint"]
+        .as_str()
+        .unwrap()
+        .contains("oapi auth"));
+
+    let server = MockApi::new(|request, _| {
+        let url = url::Url::parse(&format!("http://localhost{}", request.target)).unwrap();
+        match (request.method.as_str(), url.path()) {
+            ("GET", "/oapi/token/v2/token/create") => {
+                success(json!({"accessToken":"fresh-token","expiresIn":7199}))
+            }
+            ("POST", "/oapi/app/open/query/list") => {
+                let body: Value = serde_json::from_slice(&request.body).unwrap();
+                assert_eq!(
+                    body,
+                    json!({"page":"1","size":"20","ownerUserSearchKey":"admin@bigdata"})
+                );
+                success(json!([
+                    {"appId":"app-1","appName":"应用","appType":"app"},
+                    {"appId":"activity-1","appName":"指令一","appType":"activity"},
+                    {"appId":"activity-2","appName":"指令二","appType":"activity"}
+                ]))
+            }
+            other => panic!("unexpected request: {other:?}"),
+        }
+    });
+    let value = envelope(
+        invoke(
+            &["activity", "list", "--owner", "admin@bigdata"],
+            Some(&server),
+            true,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(value["data"]["backend"], "oapi");
+    assert_eq!(value["data"]["count"], 2);
+    assert_eq!(
+        value["data"]["instructions"],
+        json!([
+            {"appId":"activity-1","appName":"指令一","appType":"activity"},
+            {"appId":"activity-2","appName":"指令二","appType":"activity"}
+        ])
+    );
+    assert_eq!(server.requests.lock().unwrap().len(), 2);
 }

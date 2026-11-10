@@ -20,6 +20,19 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
         Group::Help { .. } => Err(BackendError::new("BAD_ARGS", "帮助应在执行前处理")),
         Group::Task(sub) => execute(task_as_app(sub), yes),
         Group::Oapi(sub) => crate::oapi::prepare(sub)?.execute(),
+        Group::Activity(sub) => match sub {
+            ActivitySub::List {
+                search,
+                owner,
+                page,
+                page_size,
+            } => crate::activity_cmds::list(search.as_deref(), owner.as_deref(), page, page_size),
+            ActivitySub::Open {
+                activity_id,
+                timeout,
+                force,
+            } => crate::activity_cmds::open(&activity_id, timeout, force),
+        },
         Group::Tool(channel) => tool_command(channel),
         Group::Status => m::cmd_status(),
         Group::Doctor => m::cmd_doctor(),

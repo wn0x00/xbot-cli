@@ -414,7 +414,7 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
                     AppSub::Publish { .. }
                         | AppSub::Recycle { .. }
                         | AppSub::Open { force: true, .. }
-                )
+                ) | Group::Activity(ActivitySub::Open { force: true, .. })
             );
             Ok(PreparedCommand {
                 operation: Operation::Command(group),
@@ -435,6 +435,15 @@ fn describe(group: &Group) -> Res<Option<Value>> {
                 json!({"description": desc}),
             )
         }
+        Group::Activity(ActivitySub::Open {
+            activity_id,
+            force,
+            timeout,
+        }) => (
+            "activity.open",
+            app_target(activity_id)?,
+            json!({"force": force, "timeout": timeout}),
+        ),
         Group::App(AppSub::Open {
             app_id,
             force,

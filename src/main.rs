@@ -1,4 +1,5 @@
 //! xbot-cli: parse -> prepare -> guard -> execute -> structured output.
+mod activity_cmds;
 mod app_cmds;
 mod bridge;
 mod browser_cmds;
