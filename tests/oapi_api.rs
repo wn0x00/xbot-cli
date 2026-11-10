@@ -1128,3 +1128,102 @@ fn activity_list_matches_concise_app_rows_and_requires_platform_credentials() {
     assert!(value["data"].get("instructions").is_none());
     assert_eq!(server.requests.lock().unwrap().len(), 2);
 }
+
+#[test]
+fn activity_list_fetches_one_page_unless_all_is_explicit() {
+    let server = MockApi::new(|request, _| {
+        let url = url::Url::parse(&format!("http://localhost{}", request.target)).unwrap();
+        match (request.method.as_str(), url.path()) {
+            ("GET", "/oapi/token/v2/token/create") => {
+                success(json!({"accessToken":"fresh-token","expiresIn":7199}))
+            }
+            ("POST", "/oapi/app/open/query/list") => {
+                let body: Value = serde_json::from_slice(&request.body).unwrap();
+                assert_eq!(body["size"], "2");
+                let page = body["page"].as_str().unwrap();
+                let rows = match page {
+                    "1" => json!([
+                        {"appId":"activity-1","appName":"指令一","appType":"activity"},
+                        {"appId":"app-1","appName":"应用一","appType":"app"}
+                    ]),
+                    "2" => json!([
+                        {"appId":"activity-2","appName":"指令二","appType":"activity"},
+                        {"appId":"app-2","appName":"应用二","appType":"app"}
+                    ]),
+                    "3" => json!([
+                        {"appId":"activity-3","appName":"指令三","appType":"activity"}
+                    ]),
+                    other => panic!("unexpected page: {other}"),
+                };
+                (
+                    200,
+                    json!({
+                        "code": 200,
+                        "success": true,
+                        "data": rows,
+                        "page": {"page": page.parse::<u32>().unwrap(), "pages": 3, "size": 2},
+                        "requestId": "server-request"
+                    })
+                    .to_string(),
+                )
+            }
+            other => panic!("unexpected request: {other:?}"),
+        }
+    });
+
+    let first = envelope(
+        invoke(
+            &["activity", "list", "--page-size", "2"],
+            Some(&server),
+            true,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(first["data"]["all"], false);
+    assert_eq!(first["data"]["complete"], false);
+    assert_eq!(first["data"]["count"], 1);
+    assert_eq!(first["data"]["activity"][0]["appId"], "activity-1");
+    assert_eq!(first["data"]["page"]["page"], 1);
+    assert_eq!(server.requests.lock().unwrap().len(), 2);
+
+    let second = envelope(
+        invoke(
+            &["activity", "list", "--page", "2", "--page-size", "2"],
+            Some(&server),
+            true,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(second["data"]["all"], false);
+    assert_eq!(second["data"]["complete"], false);
+    assert_eq!(second["data"]["count"], 1);
+    assert_eq!(second["data"]["activity"][0]["appId"], "activity-2");
+    assert_eq!(second["data"]["page"]["page"], 2);
+    assert_eq!(server.requests.lock().unwrap().len(), 4);
+
+    let all = envelope(
+        invoke(
+            &["activity", "list", "--page-size", "2", "--all"],
+            Some(&server),
+            true,
+            None,
+        ),
+        0,
+    );
+    assert_eq!(all["data"]["all"], true);
+    assert_eq!(all["data"]["complete"], true);
+    assert_eq!(all["data"]["count"], 3);
+    assert_eq!(
+        all["data"]["activity"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["appId"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["activity-1", "activity-2", "activity-3"]
+    );
+    assert_eq!(all["data"]["page"]["page"], 3);
+    assert_eq!(server.requests.lock().unwrap().len(), 10);
+}

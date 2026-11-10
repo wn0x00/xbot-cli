@@ -461,7 +461,10 @@ fn examples(command: &Command, path: &[&str]) -> Vec<String> {
             "xbot-cli app sync --expect-app <app-id> --dry-run --json",
             "xbot-cli app sync --expect-app <app-id> --json",
         ],
-        ["activity", "list"] => &["xbot-cli activity list --json"],
+        ["activity", "list"] => &[
+            "xbot-cli activity list --page 2 --page-size 20 --json",
+            "xbot-cli activity list --all --json",
+        ],
         ["activity", "open"] => &["xbot-cli activity open <activity-id> --json"],
         ["web", "browser", "list"] => &[
             "xbot-cli web browser list --json",

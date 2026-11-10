@@ -182,10 +182,12 @@ xbot-cli oapi api schema job.start --json
 
 ## 指令操作
 
-`activity list` 通过开放平台 `app.list` 查询并筛选 `appType=activity`，自动有界翻页（最多 100 页）。清单字段为 `activity`，每项与 `app list` 一样仅保留 `appId`、`appName`、`appType` 和 `updateTime`，文本输出使用相同的表格结构；同时返回 `count` 和 `complete`，`complete=false` 表示清单可能被截断。未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
+`activity list` 通过开放平台 `app.list` 查询并筛选 `appType=activity`。与 `app list` 一样，默认只请求 `--page` 指定的一页（默认第 1 页），`--page-size` 控制每页数量；`--all` 才会从 `--page` 开始自动翻页，最多 100 页。清单字段为 `activity`，每项仅保留 `appId`、`appName`、`appType` 和 `updateTime`，文本输出使用与 `app list` 相同的表格结构。`count` 是本次返回的指令数，`page` 保留平台分页信息；`complete=false` 表示后面仍有页，或因达到 100 页上限而未拉取完整。未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
 
 ```powershell
 xbot-cli activity list --json
+xbot-cli activity list --page 2 --page-size 20 --json
+xbot-cli activity list --all --json
 xbot-cli activity list --owner admin@bigdata --json
 xbot-cli activity open <activity-id> --json
 xbot-cli flow list --expect-app <activity-id> --json

@@ -249,10 +249,15 @@ pub(crate) enum ActivitySub {
         /// 按所有者账号精确过滤
         #[arg(long)]
         owner: Option<String>,
+        /// 页码;默认只获取这一页
         #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..))]
         page: u32,
+        /// 每页数量
         #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u32).range(1..=100))]
         page_size: u32,
+        /// 从 page 开始自动翻页,最多获取 100 页
+        #[arg(long)]
+        all: bool,
     },
     /// 打开指令到 Studio 编辑模式
     Open {

@@ -114,7 +114,8 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli app sync --expect-app <app-id> --json",
         ],
         ["activity"] => &[
-            "xbot-cli activity list --json",
+            "xbot-cli activity list --page 2 --page-size 20 --json",
+            "xbot-cli activity list --all --json",
             "xbot-cli activity open <activity-id> --json",
             "xbot-cli flow list --expect-app <activity-id> --json",
         ],
