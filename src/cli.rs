@@ -55,7 +55,7 @@ pub(crate) enum Group {
         #[command(subcommand)]
         command: BrowserSub,
     },
-    /// 实验性 Windows UIA 只读能力,独立于影刀原生选择器引擎
+    /// Windows 元素树激活、快照及 UIA 控件操作
     #[command(subcommand)]
     Win32(Win32Sub),
     /// 底层工具的发现、schema 与调用
@@ -135,7 +135,34 @@ pub(crate) enum Group {
 
 #[derive(Subcommand)]
 pub(crate) enum Win32Sub {
-    /// 有界读取指定 HWND/PID 的 UIA 树;ref 仅用于本次证据,不支持动作
+    /// 列出顶层窗口，按标题搜索并返回 PID/HWND；终端默认表格
+    List {
+        /// 窗口标题关键词，按字面包含匹配，不区分大小写
+        #[arg(long)]
+        title: Option<String>,
+        /// 完整标题匹配（不区分大小写），须同时指定 --title
+        #[arg(long, requires = "title")]
+        exact: bool,
+        /// 仅列出指定进程的窗口
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+        pid: Option<u32>,
+        /// 包含隐藏窗口和无标题窗口
+        #[arg(long)]
+        all: bool,
+    },
+    /// 使用本机影刀 DLL 激活目标元素树；已加载时跳过，结束后不恢复
+    Activate {
+        /// 窗口句柄,十进制或 0x 十六进制
+        #[arg(long)]
+        hwnd: String,
+        /// 预期窗口所属进程 ID（Windows x64）
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+        pid: u32,
+        /// 激活子进程的时间上限；超时后须核对目标状态
+        #[arg(long, default_value_t = 30, value_parser = clap::value_parser!(u64).range(1..=60))]
+        timeout: u64,
+    },
+    /// 有界读取指定 HWND/PID 的 UIA 树，保存供动作使用的快照
     Snapshot {
         /// 窗口句柄,十进制或 0x 十六进制;不自动选择活动窗口
         #[arg(long)]
@@ -151,6 +178,80 @@ pub(crate) enum Win32Sub {
         #[arg(long, default_value_t = 10, value_parser = clap::value_parser!(u64).range(1..=60))]
         timeout: u64,
     },
+    /// 读取 ref 的实时属性和支持的动作，不改变界面
+    Inspect(Win32Target),
+    /// 点击控件；默认 InvokePattern，物理点击须显式指定
+    Click {
+        #[command(flatten)]
+        target: Win32Target,
+        #[arg(long, default_value = "invoke", value_parser = ["invoke", "physical"])]
+        method: String,
+    },
+    /// 物理双击控件，执行前核对前台和实时命中对象
+    Dblclick(Win32Target),
+    /// 使用 ValuePattern 替换输入框内容
+    Fill {
+        #[command(flatten)]
+        target: Win32Target,
+        /// 字面文本，不解析按键；也可用 --file
+        #[arg(required_unless_present = "file", conflicts_with = "file")]
+        text: Option<String>,
+        /// 从 UTF-8 文件或 - 标准输入读取文本
+        #[arg(long)]
+        file: Option<String>,
+    },
+    /// 向已校验的焦点控件输入字面文本
+    Type {
+        #[command(flatten)]
+        target: Win32Target,
+        #[arg(required_unless_present = "file", conflicts_with = "file")]
+        text: Option<String>,
+        /// 从 UTF-8 文件或 - 标准输入读取文本
+        #[arg(long)]
+        file: Option<String>,
+    },
+    /// 向指定控件发送单键或组合键，例如 Enter、Ctrl+A
+    Press {
+        #[command(flatten)]
+        target: Win32Target,
+        keys: String,
+    },
+    /// 使用 TogglePattern 勾选；已勾选时不重复切换
+    Check(Win32Target),
+    /// 使用 TogglePattern 取消勾选
+    Uncheck(Win32Target),
+    /// 使用 SelectionItemPattern 选择项目
+    Select(Win32Target),
+    /// 展开控件
+    Expand(Win32Target),
+    /// 折叠控件
+    Collapse(Win32Target),
+    /// 使用 ScrollPattern 滚动一个步长
+    Scroll {
+        #[command(flatten)]
+        target: Win32Target,
+        #[arg(value_parser = ["up", "down", "left", "right"])]
+        direction: String,
+        /// 使用大步长，默认小步长
+        #[arg(long)]
+        large: bool,
+    },
+    /// 将焦点设到控件
+    Focus(Win32Target),
+    /// 移动鼠标到控件中心
+    Hover(Win32Target),
+}
+
+#[derive(Args)]
+pub(crate) struct Win32Target {
+    /// 快照中的 ref，例如 w4；不能跨快照复用
+    pub reference: String,
+    /// snapshot 返回的快照编号
+    #[arg(long)]
+    pub snapshot: String,
+    /// 整个动作提供器的时间上限
+    #[arg(long, default_value_t = 10, value_parser = clap::value_parser!(u64).range(1..=60))]
+    pub timeout: u64,
 }
 
 #[derive(Subcommand)]

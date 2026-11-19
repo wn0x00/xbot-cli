@@ -1,4 +1,4 @@
-"""Experimental, read-only UIA snapshot worker. No input or selector writes."""
+"""Bounded, read-only UIA capture shared by snapshot and action workers."""
 import argparse
 import contextlib
 import ctypes
@@ -121,6 +121,44 @@ def collect(root, max_nodes, max_depth, timeout, scope_check):
     }
 
 
+def process_instance(pid):
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    handle = kernel32.OpenProcess(0x1000, False, pid)
+    if not handle:
+        raise SnapshotError("WIN32_ACCESS_DENIED")
+    try:
+        times = [wintypes.FILETIME() for _ in range(4)]
+        if not kernel32.GetProcessTimes(handle, *(ctypes.byref(value) for value in times)):
+            raise SnapshotError("WIN32_ACCESS_DENIED")
+        return str((times[0].dwHighDateTime << 32) | times[0].dwLowDateTime)
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def open_scope(hwnd, pid, expected_instance=None):
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.IsWindow.argtypes = [wintypes.HWND]
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    instance = process_instance(pid)
+    if expected_instance is not None and instance != expected_instance:
+        raise SnapshotError("WIN32_SCOPE_CHANGED")
+
+    def matches_scope():
+        observed = wintypes.DWORD()
+        if not user32.IsWindow(hwnd):
+            return False
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(observed))
+        return observed.value == pid and process_instance(pid) == instance
+
+    if not matches_scope():
+        raise SnapshotError("WIN32_SCOPE_MISMATCH")
+    return user32, instance, matches_scope
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--hwnd", type=lambda value: int(value, 0), required=True)
@@ -128,6 +166,7 @@ def main():
     parser.add_argument("--max-nodes", type=int, default=1000)
     parser.add_argument("--max-depth", type=int, default=12)
     parser.add_argument("--timeout", type=int, default=10)
+    parser.add_argument("--process-instance")
     args = parser.parse_args()
     if not (0 < args.hwnd <= sys.maxsize and 0 < args.pid < 2 ** 32
             and 1 <= args.max_nodes <= 5000 and 0 <= args.max_depth <= 64
@@ -139,26 +178,13 @@ def main():
         import uiautomation as auto
     except ImportError:
         raise SnapshotError("WIN32_DEPENDENCY_MISSING")
-    user32 = ctypes.WinDLL("user32", use_last_error=True)
-    user32.IsWindow.argtypes = [ctypes.c_void_p]
-    user32.IsWindow.restype = ctypes.c_int
-    user32.GetWindowThreadProcessId.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong)]
-    user32.GetWindowThreadProcessId.restype = ctypes.c_ulong
-
-    def matches_scope():
-        pid = ctypes.c_ulong()
-        if not user32.IsWindow(args.hwnd):
-            return False
-        user32.GetWindowThreadProcessId(args.hwnd, ctypes.byref(pid))
-        return pid.value == args.pid
-
-    if not matches_scope():
-        raise SnapshotError("WIN32_SCOPE_MISMATCH")
+    user32, instance, matches_scope = open_scope(args.hwnd, args.pid, args.process_instance)
     control = auto.ControlFromHandle(args.hwnd)
     if control is None or control.ProcessId != args.pid:
         raise SnapshotError("WIN32_SCOPE_MISMATCH")
     result = collect(control, args.max_nodes, args.max_depth, args.timeout, matches_scope)
     result["scope"] = {"hwnd": hex(args.hwnd), "process_id": args.pid}
+    result["process_instance"] = instance
     try:
         from importlib.metadata import version
         result["backend_version"] = version("uiautomation")

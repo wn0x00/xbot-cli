@@ -7,7 +7,7 @@ metadata:
 
 # 影刀应用与指令开发
 
-通过 `xbot-cli` 调用影刀内置 shell-cli、studio-mcp 和 Chrome Bridge；网页命令全部使用命名管道协议。不要使用旧的 `xbot_agent` / `python -m xbot_cli` 工作流。Windows 外部适配器须与影刀官方通道分别标明，不反射、注入或绕过影刀 SDK 的公开边界。
+通过 `xbot-cli` 调用影刀内置 shell-cli、studio-mcp 和 Chrome Bridge；网页命令全部使用命名管道协议。不要使用旧的 `xbot_agent` / `python -m xbot_cli` 工作流。Windows 外部适配器须与影刀官方通道分别标明。仅在用户授权激活目标软件元素树时，使用 `win32 activate` 调用本机影刀 DLL；除此明确入口，不自行反射、注入或绕过影刀 SDK 的公开边界。激活的目标和结果边界见 [Windows 模块](modules/win.md)。
 
 本 Skill 随 npm 包 `@guanzhu.me/xbot-cli` 分发，适用于 Windows x64 和 Node.js 22+。使用 `xbot-cli install --skills` 安装到当前工作区，或加 `--global` 安装到用户的 `.agents/skills`。默认操作需要客户端已启动并登录；帮助、schema 和 guide 可离线读取。
 
@@ -29,7 +29,7 @@ metadata:
 | 平台 | 入口 | 当前状态 |
 |---|---|---|
 | Web：失败调用实际操作网页 DOM、iframe 或 Shadow DOM | [modules/web.md](modules/web.md) | 现有 v10 能力，按已验证边界使用 |
-| Windows：失败调用实际操作业务程序窗口或原生控件，包括浏览器的系统弹窗 | [modules/win.md](modules/win.md) | 优先 Python UIA 单控件修复；无需影刀元素库。按已验证的应用与动作方式使用 |
+| Windows：失败调用实际操作业务程序窗口或原生控件，包括浏览器的系统弹窗 | [modules/win.md](modules/win.md) | CLI 支持激活、快照 ref 动作；流程修复使用 Python UIA，无需影刀元素库。按已验证的应用与动作方式使用 |
 | 混合：同一流程含 Web 和 Windows 步骤 | 按失败调用逐一选择；确实涉及两侧时分别加载 | Electron/WebView 也按实际操作对象分流，不默认先读 Windows |
 | 未知：源码、实际块类型、对象来源缺失或证据冲突 | 先补证据，暂不进入平台修复 | 不猜平台、不改业务流程、不默认采集影刀窗口 |
 

@@ -15,6 +15,7 @@ const SKILL_UPDATES: &str = include_str!("../skills/xbot-app-dev/UPDATE-RECORD.m
 const AUTOMATION_ROUTING: &str =
     include_str!("../skills/xbot-app-dev/references/automation-routing.md");
 const WIN_SNAPSHOT: &str = include_str!("../skills/xbot-app-dev/scripts/win32/snapshot.py");
+const WIN_ACTIONS: &str = include_str!("../skills/xbot-app-dev/scripts/win32/actions.py");
 const WIN_LOCATOR: &str = include_str!("../skills/xbot-app-dev/scripts/win32/locator.cjs");
 const WIN_UIA_RUNTIME: &str = include_str!("../skills/xbot-app-dev/scripts/win32/uia_runtime.py");
 const WIN_UIA_RUNNER: &str = include_str!("../skills/xbot-app-dev/scripts/win32/run_uia.py");
@@ -208,6 +209,10 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
         (
             root.join("scripts").join("win32").join("snapshot.py"),
             WIN_SNAPSHOT,
+        ),
+        (
+            root.join("scripts").join("win32").join("actions.py"),
+            WIN_ACTIONS,
         ),
         (
             root.join("scripts").join("win32").join("locator.cjs"),

@@ -75,6 +75,60 @@ fn render_success(data: Option<&Value>) -> String {
     let Some(data) = data else {
         return "完成".into();
     };
+    if data["command"] == "win32.list" {
+        return render_windows(data);
+    }
+    if let Some(tree) = crate::win32_snapshot::render(data) {
+        return tree;
+    }
+    if data["command"]
+        .as_str()
+        .is_some_and(|command| command.starts_with("win32."))
+        && data.get("source_snapshot_id").is_some()
+    {
+        let mut lines = vec![format!(
+            "{}: {} [ref={}]",
+            scalar(&data["command"]),
+            if data["applied"] == true {
+                "动作已返回"
+            } else if data["outcome"] == "no_change" {
+                "已是目标状态，无需修改"
+            } else {
+                "控件实时信息"
+            },
+            scalar(&data["ref"])
+        )];
+        lines.push(format!("来源快照: {}", scalar(&data["source_snapshot_id"])));
+        if let Some(control) = data.get("control") {
+            let mut display = control.clone();
+            if let Some(properties) = display.as_object_mut() {
+                for value in properties.values_mut() {
+                    if let Some(text) = value.as_str() {
+                        *value = Value::String(
+                            text.chars()
+                                .flat_map(|character| {
+                                    if character.is_control() {
+                                        character.escape_default().collect::<Vec<_>>()
+                                    } else {
+                                        vec![character]
+                                    }
+                                })
+                                .collect(),
+                        );
+                    }
+                }
+            }
+            render_value(&display, 0, &mut lines);
+        }
+        if let Some(warning) = data["warning"]["message"].as_str() {
+            lines.push(format!("警告: {warning}"));
+        }
+        if let Some(tree) = crate::win32_snapshot::render(&data["snapshot"]) {
+            lines.push(String::new());
+            lines.push(tree);
+        }
+        return lines.join("\n");
+    }
     if data["command"] == "flow.params.types" {
         let rows: Vec<Value> = data["types"]
             .as_array()
@@ -118,6 +172,49 @@ fn render_success(data: Option<&Value>) -> String {
     }
     let mut lines = Vec::new();
     render_value(data, 0, &mut lines);
+    lines.join("\n")
+}
+
+fn render_windows(data: &Value) -> String {
+    let rows = data["windows"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+    if rows.is_empty() {
+        return "未找到匹配窗口".into();
+    }
+    // Keep long titles in the table. Escape control characters and separators
+    // for terminal output, while retaining the exact strings in JSON.
+    fn cell(value: &Value) -> String {
+        scalar(value)
+            .chars()
+            .map(|character| match character {
+                '|' => "\\|".into(),
+                control if control.is_control() => control.escape_default().to_string(),
+                other => other.to_string(),
+            })
+            .collect()
+    }
+    let mut lines = vec![
+        format!("找到 {} 个窗口", rows.len()),
+        "PID | HWND | HWND_HEX | 状态 | 进程名 | 窗口标题".into(),
+        "--- | --- | --- | --- | --- | ---".into(),
+    ];
+    for window in rows {
+        let state = if window["visible"] == false {
+            "隐藏"
+        } else if window["minimized"] == true {
+            "最小化"
+        } else {
+            "可见"
+        };
+        lines.push(format!(
+            "{} | {} | {} | {} | {} | {}",
+            cell(&window["pid"]),
+            cell(&window["hwnd"]),
+            cell(&window["hwnd_hex"]),
+            state,
+            cell(&window["process_name"]),
+            cell(&window["title"])
+        ));
+    }
     lines.join("\n")
 }
 
@@ -614,6 +711,70 @@ mod tests {
         assert!(text.contains("state:\n  active: false"));
         assert!(text.contains("notes:\n  - first\n  - second"));
         assert!(!text.contains("\u{1b}"));
+    }
+
+    #[test]
+    fn window_table_keeps_long_titles_and_escapes_terminal_controls_without_changing_json() {
+        let title = format!("{}|\n\t\u{1b}[31m", "很长的窗口标题".repeat(25));
+        let value = json!({"ok":true,"data":{"command":"win32.list","windows":[
+            {"pid":123,"hwnd":456,"hwnd_hex":"0x1c8","title":title,"process_name":null,"visible":true,"minimized":false},
+            {"pid":124,"hwnd":457,"hwnd_hex":"0x1c9","title":"隐藏窗口","process_name":"fixture.exe","visible":false,"minimized":false}
+        ]}});
+        let text = render(&value, OutputMode::Text);
+        assert!(text.contains("PID | HWND | HWND_HEX | 状态 | 进程名 | 窗口标题"));
+        assert!(text.contains("123 | 456 | 0x1c8 | 可见 | —"));
+        assert!(text.contains(&"很长的窗口标题".repeat(25)));
+        assert!(text.contains("\\|\\n\\t\\u{1b}[31m"));
+        assert!(!text.contains('\u{1b}'));
+        assert!(text.contains("隐藏窗口"));
+        assert_eq!(render(&value, OutputMode::Json), value.to_string());
+        let empty = json!({"ok":true,"data":{"command":"win32.list","windows":[]}});
+        assert_eq!(render(&empty, OutputMode::Text), "未找到匹配窗口");
+    }
+
+    #[test]
+    fn windows_snapshot_text_is_a_tree_while_json_retains_provider_metadata() {
+        let value = json!({"ok":true,"data":{
+            "backend":"uiautomation","snapshot_id":"snap-1","traversal_complete":true,
+            "scope":{"process_id":123,"hwnd":"0x456"},"nodes":[
+                {"ref":"w1","parent_ref":null,"control_type":"WindowControl","name":"窗口","is_password":false},
+                {"ref":"w2","parent_ref":"w1","control_type":"ButtonControl","name":"确定","is_password":false,
+                    "runtime_id":[1,2,3],"bounds":[10,20,30,40]}
+            ],"backend_version":"test-provider","limits":{"max_nodes":1000}
+        }});
+        let text = render(&value, OutputMode::Text);
+        assert!(text.contains("window \"窗口\" [ref=w1]\n└─ button \"确定\" [ref=w2]"));
+        assert!(!text.contains("runtime_id"));
+        assert!(!text.contains("test-provider"));
+        for mode in [OutputMode::Json, OutputMode::Pretty] {
+            assert_eq!(
+                serde_json::from_str::<Value>(&render(&value, mode)).unwrap(),
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn windows_action_shows_only_the_new_tree_and_keeps_followup_warning() {
+        let value = json!({"ok":true,"data":{
+            "command":"win32.click","source_snapshot_id":"old-snap","ref":"w4","applied":true,
+            "warning":{"message":"只补观察，不要重复动作"},
+            "snapshot":{"backend":"uiautomation","snapshot_id":"new-snap",
+                "traversal_complete":true,"refs_resolvable_for_actions":true,
+                "nodes":[{"ref":"w1","parent_ref":null,"control_type":"WindowControl",
+                    "name":"窗口","is_password":false}]}
+        }});
+        let text = render(&value, OutputMode::Text);
+        assert!(text.contains("动作已返回"));
+        assert!(text.contains("old-snap"));
+        assert!(text.contains("new-snap"));
+        assert!(text.contains("不要重复动作"));
+        assert!(text.contains("--snapshot"));
+        assert_eq!(text.matches("window \"窗口\"").count(), 1);
+        assert_eq!(
+            serde_json::from_str::<Value>(&render(&value, OutputMode::Json)).unwrap(),
+            value
+        );
     }
 
     #[test]

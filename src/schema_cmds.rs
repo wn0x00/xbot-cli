@@ -114,6 +114,13 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         | "uncheck"] => (&["interact"], "browser", true, "none"),
         ["web", "snapshot"] => (&["read", "write_file_when_output"], "browser", true, "none"),
         ["web", ..] => (&["read"], "browser", false, "none"),
+        ["win32", "activate"] => (&["modify_target_process"], "windows_uia", true, "none"),
+        ["win32", "snapshot"] => (&["read", "write_snapshot"], "windows_uia", false, "none"),
+        ["win32", "inspect"] => (&["read"], "windows_uia", false, "none"),
+        ["win32", "click" | "dblclick" | "fill" | "type" | "press" | "check" | "uncheck" | "select"
+        | "expand" | "collapse" | "scroll" | "focus" | "hover"] => {
+            (&["interact", "write_snapshot"], "windows_uia", true, "none")
+        }
         ["win32", ..] => (&["read"], "windows_uia", false, "none"),
         ["tool", "studio", "call"] => (&["tool_defined"], "studio", true, "tool_defined"),
         ["tool", "browser", "call"] => (&["tool_defined"], "browser", true, "tool_defined"),
@@ -168,6 +175,15 @@ pub fn cmd_schema(root: &Command, path: &[String]) -> Res<CmdOut> {
         "input_shapes": input_shapes(&actual),
         "dynamic_schema_hint": dynamic_schema_hint(&actual),
     });
+    if actual.first() == Some(&"win32") {
+        if let Some(args) = data["args"].as_array_mut() {
+            for arg in args {
+                if arg["name"] == "timeout" {
+                    arg["maximum"] = json!(60);
+                }
+            }
+        }
+    }
     if path.is_empty() {
         data["contract"] = json!({
             "success": "stdout; auto uses terminal text or non-terminal JSON; exit 0",

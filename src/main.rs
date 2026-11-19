@@ -23,7 +23,12 @@ mod web_cmds;
 mod web_python;
 mod web_session;
 mod web_snapshot;
+mod win32_actions;
+mod win32_activation;
 mod win32_cmds;
+mod win32_session;
+mod win32_snapshot;
+mod win32_windows;
 
 use clap::FromArgMatches;
 use cli::{Cli, Group};

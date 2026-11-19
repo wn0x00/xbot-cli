@@ -13,7 +13,10 @@
 | `task` | 已发布应用的运行任务、状态、日志与停止 |
 | `oapi` | 企业版可选备用入口：开放 API 运行、调度记录与日志 |
 | `web`（兼容 `browser`） | 打开网页、快照、点击、填写和导航 |
-| `win32 snapshot` | 显式窗口作用域下的实验性只读 UIA 观察 |
+| `win32 snapshot` | 读取 UIA 树并保存快照，供 ref 动作使用 |
+| `win32 inspect/click/fill/...` | 按快照 ref 校验实时控件并执行 UIA 动作 |
+| `win32 list` | 按窗口标题搜索，表格显示 PID、HWND 与进程名 |
+| `win32 activate` | 调用本机影刀 DLL，激活指定进程的元素树 |
 | `tool studio` / `tool browser` | 按 schema 调用原始工具 |
 | `wiki` / `schema` / `guide` | 领域知识、命令契约和开发指南 |
 
@@ -34,18 +37,97 @@ xbot-cli install --skills --global --json  # 用户 ~/.agents/skills
 
 ## Windows UIA 快照（实验性）
 
+### 搜索窗口
+
+```powershell
+xbot-cli win32 list
+xbot-cli win32 list --title "咚咚"
+xbot-cli win32 list --title "咚咚" --format text
+xbot-cli win32 list --title "完整窗口标题" --exact
+xbot-cli win32 list --pid 1234 --all --json
+```
+
+`win32 list` 默认列出当前桌面可见且有标题的顶层窗口，`--title` 对标题做不区分大小写的字面包含匹配；`--exact` 改为完整标题匹配，需同时指定 `--title`。`--pid` 可与标题筛选组合；`--all` 包含隐藏和无标题窗口。空白关键词会报参数错误，零匹配成功返回空列表，同名窗口全部保留，不自动激活任何目标。
+
+终端默认显示表格，包含 PID、十进制/十六进制 HWND、状态、进程名和窗口标题；管道默认 JSON，`--format text` 可强制表格。JSON 的 `data.windows` 还包含进程路径、窗口类名、可见和最小化状态。进程信息因权限无法读取时保留窗口并将对应字段设为 `null`。该命令直接只读枚举系统窗口，不依赖 Python、UIA 或影刀安装，不接受 `--expect-app`、`--dry-run`。
+
+从表格选择目标的 PID/HWND，再调用 `activate` 或 `snapshot`。这些值仅表示采集时的窗口，软件重启后重新搜索；动作命令仍会核对窗口归属。
+
+### 读取元素树
+
 ```powershell
 xbot-cli help win32 snapshot
 xbot-cli schema win32 snapshot
 # 用已确认的实际 HWND/PID 替换示例值
+xbot-cli win32 snapshot --hwnd 0x12345 --pid 1234 --format text
 xbot-cli win32 snapshot --hwnd 0x12345 --pid 1234 --max-nodes 1000 --max-depth 12 --timeout 10 --json
 ```
 
+文本模式与 Web 快照一样展示树形层级，每行显示控件类型、名称、ref，以及非空的 AutomationId、类名和禁用/屏幕外状态，例如：
+
+```text
+window "窗口" [ref=w1]
+├─ pane [ref=w2]
+│  └─ edit "搜索" [ref=w3] [automation_id="SearchInput"] [class="QLineEdit"]
+└─ button "发送" [ref=w4]
+```
+
+文本保留无名称的中间节点，不额外缩短控件名称；节点、深度、时间等限制导致的部分树会在树前提示原因。交互终端默认树形文本；管道和重定向默认 JSON，可用 `--format text` 强制树形。`--json` 或 `--format pretty` 保留完整节点属性、坐标和采集元数据。
+
 该命令不要求 Studio 打开，不自动选择活动窗口，不点击或保存元素。HWND 支持非零十进制/十六进制，并须属于显式传入的 PID。`--max-nodes` 范围为 1–5000，`--max-depth` 为 0–64，`--timeout` 为 1–60 秒；CLI 使用子进程超时约束提供器，输出超限、依赖缺失、窗口不符和采集错误分别返回失败。
 
-通过 `XBOT_UIA_PYTHON` 指定已安装 `uiautomation` 的 Python 可执行文件，缺省使用 `python`，不自动安装依赖。快照保留完整性和截断原因；部分树不能据此证明元素不存在。ref 仅为本批证据，不能当作 Web ref、动作入口或长期业务身份。密码字段保守隐藏，其他业务文本仍应按任务范围处理。
+通过 `XBOT_UIA_PYTHON` 指定已安装 `uiautomation` 的 Python 可执行文件，缺省使用 `python`，不自动安装依赖。快照保留完整性和截断原因；部分树不能据此证明元素不存在。ref 与 `snapshot_id` 配对用于 Windows 动作，不能当作 Web ref 或长期业务身份。密码字段保守隐藏，其他业务文本仍应按任务范围处理。
+
+CLI 将快照保存到 `%LOCALAPPDATA%\xbot-cli\win32-snapshots`，也可用 `XBOT_WIN32_STATE_DIR` 指定本地目录。JSON 返回 `snapshot_file`、`ref_scope: snapshot_scoped_actions` 和 `refs_resolvable_for_actions: true`。快照最多使用 24 小时；进程重启、控件被替换、祖先或身份属性变化时即使未到期也会拒绝。独立运行 `snapshot.py` 仍只提供观察数据，不能代替 CLI 的动作快照。
 
 `win32 snapshot` 不接受 `--expect-app` 或 `--dry-run`。Python Windows 修复 helper 是另一条按需运行链路，其内部预算不能中断卡住的 UIA/provider 调用；不能据 CLI 快照超时能力声称所有 Windows 动作已有硬超时。
+
+### 执行控件动作
+
+先采集快照，从当前树里选实际 ref；下面每行分别展示用法，连续动作须使用上一步返回的 `data.snapshot.snapshot_id` 和该树内的新 ref：
+
+```powershell
+xbot-cli win32 inspect w4 --snapshot <SNAPSHOT_ID> --json
+xbot-cli win32 click w4 --snapshot <SNAPSHOT_ID> --format text
+xbot-cli win32 click w4 --snapshot <SNAPSHOT_ID> --method physical
+xbot-cli win32 dblclick w4 --snapshot <SNAPSHOT_ID>
+xbot-cli win32 fill w8 "替换文本" --snapshot <SNAPSHOT_ID>
+xbot-cli win32 fill w8 --file input.txt --snapshot <SNAPSHOT_ID>
+xbot-cli win32 type w8 "字面文本 {Enter}" --snapshot <SNAPSHOT_ID>
+xbot-cli win32 press w8 Ctrl+A --snapshot <SNAPSHOT_ID>
+xbot-cli win32 check w6 --snapshot <SNAPSHOT_ID>
+xbot-cli win32 uncheck w6 --snapshot <SNAPSHOT_ID>
+xbot-cli win32 select w9 --snapshot <SNAPSHOT_ID>
+xbot-cli win32 expand w10 --snapshot <SNAPSHOT_ID>
+xbot-cli win32 collapse w10 --snapshot <SNAPSHOT_ID>
+xbot-cli win32 scroll w12 down --large --snapshot <SNAPSHOT_ID>
+xbot-cli win32 focus w8 --snapshot <SNAPSHOT_ID>
+xbot-cli win32 hover w4 --snapshot <SNAPSHOT_ID>
+```
+
+`inspect` 只读返回当前属性、支持的 Pattern，以及可读取的 Value/勾选/选择/展开/滚动状态。`click` 默认只调用 InvokePattern；`fill` 使用 ValuePattern，不支持或只读时失败。`check/uncheck` 使用 TogglePattern，`select` 使用 SelectionItemPattern，`expand/collapse` 使用 ExpandCollapsePattern，`scroll` 使用 ScrollPattern，方向为 `up/down/left/right`，默认小步长。已是目标值或状态时不重复修改，返回 `applied: false, outcome: no_change`。控件支持哪些 Pattern 取决于目标软件，可先用 `inspect` 确认。
+
+`click --method physical`、`dblclick` 和 `hover` 会将目标窗口置前，并核对控件中心的实时 UIA 命中对象。`type` 将控件置焦后输入字面文本，`{Enter}` 不会作为按键执行；`press` 只接受一个按键或组合键（如 `Enter`、`Ctrl+A`），不接受 UIAutomation 的任意按键脚本。`fill/type --file` 支持 UTF-8 文件或 `-` 标准输入，文本经 stdin 传给提供器，不放入 Python 进程命令行；预览不回显输入内容。不会自动从 Pattern 失败切换为物理点击、键盘模拟或坐标重试。
+
+动作前核对 PID/HWND、进程启动时间、根及祖先 RuntimeId、控件类型/名称/AutomationId/类名/框架及启用状态。查找只沿原祖先链精确匹配，不按遍历下标或同名控件替代。没有 RuntimeId 或采集属性不完整的 ref 不能执行。每个目标进程只允许一个 CLI 动作并发；动作开始前独占写入 `.used` 标记，原快照随后拒绝再次执行或读取动作 ref。标记只防止同一快照重放，不等同业务幂等。
+
+动作返回后自动补采新树，文本直接显示，JSON 位于 `data.snapshot`。动作返回 `applied: true, outcome: action_returned` 只表示调用返回，业务结果应另行核对。后续快照失败保留动作结果并附 `warning`，不把它当成动作失败或自动再次执行。动作超时或 provider 异常且已有 `.used` 标记时返回 `applied: null, outcome: unknown`，应重新观察并对账。`--timeout` 为单个动作提供器上限（1–60 秒），随后补采快照另使用同样预算。
+
+除只读 `inspect` 外，上述动作支持离线 `--dry-run`；预览只校验输入，不读取快照、加载 UIA 或操作窗口。所有 Windows 命令均独立于 Studio，不接受 `--expect-app`。旧版仅观察快照需重新采集才能用于动作。
+
+### 激活软件元素树
+
+```powershell
+xbot-cli win32 activate --hwnd 0x12345 --pid 1234 --dry-run --json
+xbot-cli win32 activate --hwnd 0x12345 --pid 1234 --timeout 30 --json
+xbot-cli win32 snapshot --hwnd 0x12345 --pid 1234 --json
+```
+
+`activate` 从 **64 位注册表 `HKLM\SOFTWARE\ShadowBot x64` 的 `InstallPath`** 读取安装根目录，按数字版本号选择最大的 `shadowbot-*` 子目录，再定位 `Native\x64\RpaBuilder.dll`。不限制影刀版本，不回退到旧目录；最大版本缺文件时明确报错。不需要打开 Studio，也不需要额外的桥接 exe 或 Python 包。激活通过系统 Windows PowerShell 隔离调用原始 DLL 的 `InstallRpaDllSimple`。
+
+该命令修改显式指定的 x64 目标进程，先核对 HWND/PID、进程实例和权限。相同进程的并发调用会拒绝；目标已经加载任一位置的 `RpaBuilder.dll` 时返回 `status: already_loaded`，并保留实际 `loaded_dll` 路径，不再次安装。首次安装返回成功且确认目标加载 DLL 后返回 `status: activated`。命令结束不恢复、不卸载，不保留辅助进程。没有 `--expect-app`；`--dry-run` 只校验参数与预览，完全不读取目标或加载 DLL。
+
+`tree_verification: not_checked` 表示加载结果与树完整性分别核验，请随后用 `snapshot` 检查所需控件。该能力取决于 DLL 对目标程序的支持，不能保证所有软件均暴露完整元素树或自动获得点击、输入能力。`--timeout` 为 1–60 秒，默认 30 秒；超时、错误或子进程中断可能已经加载 DLL，错误标记为不可自动重试，保留状态后先核对。目标权限较高时使用同等权限运行 CLI。
 
 ## 开发流程
 
@@ -289,7 +371,7 @@ xbot-cli guide codeflow
 
 JSON 参数通常接受字面 JSON、`@file` 或 `-` stdin；源码文件参数接受路径或 `-` stdin。具体编码查看对应 schema 的 `input_shapes`。复杂输入优先文件或 stdin，避免 shell 引号和转义问题。
 
-流程等既有命令的 `--timeout` 范围为 1–86400 秒；实验性 `win32 snapshot --timeout` 为 1–60 秒。以对应命令的 schema 为准。
+流程等既有命令的 `--timeout` 范围为 1–86400 秒；`win32 snapshot/activate --timeout` 为 1–60 秒。以对应命令的 schema 为准。
 
 ## 网页操作
 

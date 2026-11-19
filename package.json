@@ -1,6 +1,6 @@
 {
   "name": "@guanzhu.me/xbot-cli",
-  "version": "0.10.3",
+  "version": "0.11.1",
   "description": "Agent-friendly CLI for ShadowBot RPA applications, flows, tasks and browser automation",
   "license": "MIT",
   "author": "wn0x00",
@@ -45,6 +45,8 @@
     "test": "cargo test --locked && npm run test:npm && npm run test:skill",
     "test:npm": "node --test --test-concurrency=1 tests/npm/*.test.cjs",
     "test:skill": "node --test tests/skill/*.test.cjs",
+    "test:win32-live": "python -X utf8 tests/win32_actions_live.py native/win32-x64/xbot-cli.exe",
+    "test:win32-faults": "python -X utf8 tests/win32_actions_faults.py native/win32-x64/xbot-cli.exe",
     "test:package": "node scripts/test-package.cjs",
     "release:version": "node scripts/set-version.cjs",
     "prepack": "npm run build && node scripts/check-package.cjs"

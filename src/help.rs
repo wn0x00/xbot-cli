@@ -158,12 +158,37 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli oapi job logs <jobUuid> --async --timeout 10 --json",
         ],
         ["win32"] => &[
+            "xbot-cli win32 list --title 咚咚",
+            "xbot-cli help win32 activate",
             "xbot-cli help win32 snapshot",
             "xbot-cli schema win32 snapshot",
         ],
-        ["win32", "snapshot"] => {
-            &["xbot-cli win32 snapshot --hwnd <HWND> --pid <PID> --timeout 10 --json"]
-        }
+        ["win32", "list"] => &[
+            "xbot-cli win32 list",
+            "xbot-cli win32 list --title 咚咚",
+            "xbot-cli win32 list --title 咚咚 --format text",
+            "xbot-cli win32 list --pid <PID> --json",
+        ],
+        ["win32", "activate"] => &[
+            "xbot-cli win32 activate --hwnd <HWND> --pid <PID> --dry-run --json",
+            "xbot-cli win32 activate --hwnd <HWND> --pid <PID> --timeout 30 --json",
+        ],
+        ["win32", "snapshot"] => &[
+            "xbot-cli win32 snapshot --hwnd <HWND> --pid <PID> --format text",
+            "xbot-cli win32 snapshot --hwnd <HWND> --pid <PID> --timeout 10 --json",
+        ],
+        ["win32", "inspect"] => &["xbot-cli win32 inspect w4 --snapshot <snapshot-id> --json"],
+        ["win32", "click"] => &[
+            "xbot-cli win32 click w4 --snapshot <snapshot-id> --dry-run",
+            "xbot-cli win32 click w4 --snapshot <snapshot-id> --format text",
+            "xbot-cli win32 click w4 --snapshot <snapshot-id> --method physical",
+        ],
+        ["win32", "fill" | "type"] => &[
+            "xbot-cli win32 fill w8 文本 --snapshot <snapshot-id>",
+            "xbot-cli win32 type w8 --file input.txt --snapshot <snapshot-id>",
+        ],
+        ["win32", "press"] => &["xbot-cli win32 press w8 Ctrl+A --snapshot <snapshot-id>"],
+        ["win32", "scroll"] => &["xbot-cli win32 scroll w12 down --large --snapshot <snapshot-id>"],
         ["tool"] => &["xbot-cli tool studio list", "xbot-cli tool browser list"],
         ["tool", "studio"] => &[
             "xbot-cli tool studio list",

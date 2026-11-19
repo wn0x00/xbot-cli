@@ -20,6 +20,7 @@ xbot-cli 通过影刀客户端内置通道管理应用、编辑流程、运行�
 - **安全的写入边界。** `--dry-run` 离线预览，`--expect-app` 断言当前应用，高风险操作必须显式 `--yes`。
 - **浏览器自动化。** `xbot-cli web` 提供“打开页面 → 快照 → 操作元素”的短命令循环，同时返回支持操作的影刀 Python；`web browser list` 查询插件安装与浏览器注册信息，`--browser <id>` 指定目标，打开网页时可自动启动目标浏览器；`web xpath <ref...>` 生成单元素或相似元素 XPath。
 - **安装环境自动发现。** 支持识别非默认影刀安装目录，诊断失败时显示实际后端路径和针对性修复建议。
+- **Windows 自动化。** `win32 list --title "咚咚"` 搜索窗口并表格显示 PID/HWND；`win32 activate` 按注册表和最大数字版本目录定位本机影刀 DLL，激活显式指定的进程。`win32 snapshot` 展示树并保存快照，`inspect/click/fill/type/press/check/select/scroll` 等命令通过 UIA 校验和操作实时控件，动作后返回新树；缺少 Pattern 时不自动回退物理点击。
 - **开放平台 Open API。** `oapi` 一条命令保存 AccessKey，token 自动刷新；应用、机器人、调度、日志、队列、企业账号全覆盖。
 - **内置 Agent Skill。** `xbot-cli install --skills` 同时安装 `xbot-app-dev` 和 `xbot-development-standards`，包含应用/指令集开发规范、Web/Windows 修复辅助和排障指南。
 

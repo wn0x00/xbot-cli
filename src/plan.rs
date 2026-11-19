@@ -40,6 +40,7 @@ enum Operation {
     },
     BrowserAct(Value),
     Web(web_cmds::PreparedWeb),
+    Win32(crate::win32_actions::PreparedAction),
     ToolCall {
         browser: bool,
         tool: String,
@@ -108,6 +109,7 @@ impl PreparedCommand {
             }
             Operation::BrowserAct(args) => extra_cmds::browser_act_prepared(args),
             Operation::Web(command) => command.execute(),
+            Operation::Win32(command) => command.execute(),
             Operation::ToolCall {
                 browser,
                 tool,
@@ -204,11 +206,41 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
                 confirmation_required,
             })
         }
+        Group::Win32(Win32Sub::Activate {
+            ref hwnd,
+            pid,
+            timeout,
+        }) => {
+            let hwnd = crate::win32_cmds::parse_hwnd(hwnd)?;
+            Ok(planned(
+                "win32.activate",
+                json!({"pid":pid,"hwnd":format!("0x{hwnd:x}")}),
+                json!({"timeout":timeout,"discovery":"HKLM64\\SOFTWARE\\ShadowBot x64:InstallPath -> max numeric shadowbot-* -> Native\\x64\\RpaBuilder.dll","restore":false}),
+                Operation::Command(group),
+            ))
+        }
+        Group::Win32(Win32Sub::List { ref title, .. }) => {
+            crate::win32_windows::validate_title(title.as_deref())?;
+            Ok(PreparedCommand {
+                operation: Operation::Command(group),
+                preview: None,
+                confirmation_required: false,
+            })
+        }
         Group::Win32(Win32Sub::Snapshot { ref hwnd, .. }) => {
             crate::win32_cmds::parse_hwnd(hwnd)?;
             Ok(PreparedCommand {
                 operation: Operation::Command(group),
                 preview: None,
+                confirmation_required: false,
+            })
+        }
+        Group::Win32(sub) => {
+            let command = crate::win32_actions::prepare(sub)?;
+            let preview = command.preview();
+            Ok(PreparedCommand {
+                operation: Operation::Win32(command),
+                preview,
                 confirmation_required: false,
             })
         }

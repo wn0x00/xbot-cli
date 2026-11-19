@@ -22,7 +22,10 @@ fn discovery_is_offline_and_describes_readonly_context() {
     let output = invoke(&["schema", "win32", "snapshot"]);
     assert!(output.status.success());
     let payload: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(payload["data"]["effects"], serde_json::json!(["read"]));
+    assert_eq!(
+        payload["data"]["effects"],
+        serde_json::json!(["read", "write_snapshot"])
+    );
     assert_eq!(payload["data"]["context"], "windows_uia");
     assert_eq!(payload["data"]["requires_studio"], false);
     assert_eq!(payload["data"]["supports_dry_run"], false);
