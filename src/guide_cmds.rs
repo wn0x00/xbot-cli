@@ -56,8 +56,27 @@ const COLLECTION_COMPAT: &str = include_str!("../skills/xbot-app-dev/scripts/col
 const COLLECTION_ANALYSIS: &str =
     include_str!("../skills/xbot-app-dev/templates/collection-analysis.json");
 const DEVELOPMENT_STANDARDS: &str = include_str!("../skills/xbot-development-standards/SKILL.md");
+const MAINTENANCE: &str = include_str!("../skills/xbot-app-dev/maintenance/workflow.md");
+const ELEMENT_PRECONDITIONS: &str =
+    include_str!("../skills/xbot-app-dev/maintenance/element-preconditions.md");
+const RUN_EXISTING: &str = include_str!("../skills/xbot-app-dev/references/run-existing.md");
 
 const TOPICS: &[(&str, &str, &str)] = &[
+    (
+        "maintenance",
+        "故障复现、前置重建、最小修复与恢复交付",
+        MAINTENANCE,
+    ),
+    (
+        "element-preconditions",
+        "元素出现条件、调用链与实际界面状态核对",
+        ELEMENT_PRECONDITIONS,
+    ),
+    (
+        "run-existing",
+        "运行已有应用、原运行续查与结果核验",
+        RUN_EXISTING,
+    ),
     (
         "development-standards",
         "影刀指令集与普通应用的开发规范及参考资料索引",
@@ -75,7 +94,7 @@ const TOPICS: &[(&str, &str, &str)] = &[
     ),
     (
         "win-design",
-        "Windows 自动化设计、快照和单控件实验边界",
+        "Windows 窗口、元素树激活、快照动作与修复边界",
         WIN_MODULE,
     ),
     (
@@ -199,6 +218,10 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
 fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
     vec![
         (root.join("SKILL.md"), SKILL),
+        (
+            root.join("agents/openai.yaml"),
+            include_str!("../skills/xbot-app-dev/agents/openai.yaml"),
+        ),
         (root.join("modules").join("web.md"), WEB_MODULE),
         (root.join("modules").join("win.md"), WIN_MODULE),
         (root.join("UPDATE-RECORD.md"), SKILL_UPDATES),
@@ -317,6 +340,56 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
         (
             root.join("templates").join("collection-analysis.json"),
             COLLECTION_ANALYSIS,
+        ),
+        (root.join("references/run-existing.md"), RUN_EXISTING),
+        (root.join("maintenance/workflow.md"), MAINTENANCE),
+        (
+            root.join("maintenance/element-preconditions.md"),
+            ELEMENT_PRECONDITIONS,
+        ),
+        (
+            root.join("maintenance/application-git-backup.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/application-git-backup.md"),
+        ),
+        (
+            root.join("maintenance/asset-types.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/asset-types.md"),
+        ),
+        (
+            root.join("maintenance/browser-policy.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/browser-policy.md"),
+        ),
+        (
+            root.join("maintenance/cli-contract.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/cli-contract.md"),
+        ),
+        (
+            root.join("maintenance/cli-operation-playbooks.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/cli-operation-playbooks.md"),
+        ),
+        (
+            root.join("maintenance/environment-and-paths.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/environment-and-paths.md"),
+        ),
+        (
+            root.join("maintenance/operating-rules.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/operating-rules.md"),
+        ),
+        (
+            root.join("maintenance/report-contract.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/report-contract.md"),
+        ),
+        (
+            root.join("maintenance/scenarios.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/scenarios.md"),
+        ),
+        (
+            root.join("maintenance/temporary-values.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/temporary-values.md"),
+        ),
+        (
+            root.join("maintenance/validation-and-delivery.md"),
+            include_str!("../skills/xbot-app-dev/maintenance/validation-and-delivery.md"),
         ),
     ]
 }

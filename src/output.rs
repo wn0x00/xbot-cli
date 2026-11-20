@@ -99,6 +99,30 @@ fn render_success(data: Option<&Value>) -> String {
             scalar(&data["ref"])
         )];
         lines.push(format!("来源快照: {}", scalar(&data["source_snapshot_id"])));
+        if let Some(method) = data["execution"]["method"].as_str() {
+            lines.push(match method {
+                "invoke" => "方式: invoke（调用 UIA InvokePattern，未发送鼠标点击）".into(),
+                "physical" => "方式: physical（物理鼠标操作）".into(),
+                other => format!("方式: {other}"),
+            });
+            if let Some(target) = data.get("target_control") {
+                lines.push(format!(
+                    "目标: {} {} bounds={}",
+                    scalar(&target["control_type"]),
+                    serde_json::to_string(&target["name"]).unwrap_or_default(),
+                    scalar(&target["bounds"])
+                ));
+            }
+            if let Some(point) = data["execution"]["point"].as_array() {
+                lines.push(format!(
+                    "操作位置: {}（屏幕物理像素，实时控件中心）",
+                    scalar(&Value::Array(point.clone()))
+                ));
+            }
+            if data["execution"]["effect_verified"] == false {
+                lines.push("界面效果: 未自动验证，请核对后续快照".into());
+            }
+        }
         if let Some(control) = data.get("control") {
             let mut display = control.clone();
             if let Some(properties) = display.as_object_mut() {
@@ -771,6 +795,32 @@ mod tests {
         assert!(text.contains("不要重复动作"));
         assert!(text.contains("--snapshot"));
         assert_eq!(text.matches("window \"窗口\"").count(), 1);
+        assert_eq!(
+            serde_json::from_str::<Value>(&render(&value, OutputMode::Json)).unwrap(),
+            value
+        );
+    }
+
+    #[test]
+    fn windows_click_distinguishes_invoke_from_physical_coordinates() {
+        let mut value = json!({"ok":true,"data":{
+            "command":"win32.click","source_snapshot_id":"snap","ref":"w11","applied":true,
+            "target_control":{"name":"通讯录","control_type":"ButtonControl","bounds":[397,362,472,407]},
+            "execution":{"method":"invoke","mouse_input":false,"effect_verified":false}
+        }});
+        let text = render(&value, OutputMode::Text);
+        assert!(text.contains("未发送鼠标点击"));
+        assert!(text.contains("通讯录"));
+        assert!(text.contains("未自动验证"));
+        assert!(!text.contains("操作位置:"));
+        value["data"]["execution"] = json!({"method":"physical","mouse_input":true,
+            "effect_verified":false,"point":[434,384],"coordinate_space":"screen_physical_pixels"});
+        let text = render(&value, OutputMode::Text);
+        assert!(text.contains("方式: physical"));
+        assert!(text.contains("434"));
+        assert!(text.contains("384"));
+        assert!(text.contains("屏幕物理像素"));
+        assert!(!text.contains("未发送鼠标点击"));
         assert_eq!(
             serde_json::from_str::<Value>(&render(&value, OutputMode::Json)).unwrap(),
             value

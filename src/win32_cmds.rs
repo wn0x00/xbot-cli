@@ -39,9 +39,12 @@ pub fn execute(sub: Win32Sub) -> Res<CmdOut> {
             pid,
             all,
         } => crate::win32_windows::execute(title.as_deref(), exact, pid, all),
-        Win32Sub::Activate { hwnd, pid, timeout } => {
-            crate::win32_activation::execute(parse_hwnd(&hwnd)?, pid, timeout)
-        }
+        Win32Sub::Activate {
+            hwnd,
+            pid,
+            provider,
+            timeout,
+        } => crate::win32_activation::execute(parse_hwnd(&hwnd)?, pid, &provider, timeout),
         Win32Sub::Snapshot {
             hwnd,
             pid,

@@ -42,6 +42,16 @@ fn action_discovery_declares_context_effects_and_timeout() {
             .find(|arg| arg["name"] == "timeout")
             .unwrap();
         assert_eq!(timeout["maximum"], 60);
+        if action == "click" {
+            let method = schema["args"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|arg| arg["name"] == "method")
+                .unwrap();
+            assert_eq!(method["defaults"], json!(["physical"]));
+            assert_eq!(method["choices"], json!(["physical", "invoke"]));
+        }
     }
 }
 
@@ -50,6 +60,7 @@ fn action_preview_is_offline_and_never_echoes_typed_secrets() {
     for (action, extra) in [
         ("click", vec![]),
         ("click", vec!["--method", "physical"]),
+        ("click", vec!["--method", "invoke"]),
         ("dblclick", vec![]),
         ("fill", vec!["secret {Enter} 中文"]),
         ("type", vec!["secret {Enter} 中文"]),
@@ -72,7 +83,7 @@ fn action_preview_is_offline_and_never_echoes_typed_secrets() {
             "--dry-run",
             "--json",
         ];
-        args.extend(extra);
+        args.extend_from_slice(&extra);
         let output = invoke(&args);
         assert!(output.status.success(), "{:?}", output);
         assert!(output.stderr.is_empty());
@@ -83,6 +94,12 @@ fn action_preview_is_offline_and_never_echoes_typed_secrets() {
         );
         assert_eq!(payload["data"]["validation"]["runtime"], "not_checked");
         assert_eq!(payload["data"]["confirmation_required"], false);
+        if action == "click" {
+            assert_eq!(
+                payload["data"]["arguments"]["options"]["method"],
+                extra.last().copied().unwrap_or("physical")
+            );
+        }
         assert!(!String::from_utf8_lossy(&output.stdout).contains("secret"));
     }
 }

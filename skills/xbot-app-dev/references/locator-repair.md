@@ -99,7 +99,7 @@ iframe 用路径数组，每段进入下一文档；open ShadowRoot 用段内 `/
 ]
 ```
 
-普通 DOM 优先 `find_by_xpath`；复杂上下文先核验 `web_build_selector_by_xpath` schema，验证分段路径并仅在确需建库时 `web_review` 保存，CodeFlow 使用工程 Selector。closed ShadowRoot 和 ShadowRoot 内 iframe 当前不支持。
+普通 DOM 优先 `find_by_xpath`；CLI 新生成的复杂上下文路径见 [浏览器契约](browser.md)，按 Selector 分段协议并用影刀运行验证。既有修复 helper 的上下文适配范围更窄：closed ShadowRoot 和 ShadowRoot 内 iframe 不支持，不能拿 CLI 生成能力冒充 helper 已通过。确需元素库时先发现可用持久化工具及 schema，--name 不建库。
 
 路径生成与执行通道分开验收。曾实测嵌套 open Shadow 的路径有效，而 `web click ref` 后端报 `xpathSegments`；同一路径建库后原生执行成功。遇到此类错误先确认零动作，再按 schema 验证支持的 Selector 通道，不无条件重放原动作。
 

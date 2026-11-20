@@ -1,139 +1,52 @@
-# xbot-cli 契约
+# CLI 契约与现场发现
 
-## 安装与运行环境
+本包是操作指引，不冻结 CLI 版本。首次执行确认实际路径、版本；同版本号也可能来自不同本地构建。Windows 说明随本版 CLI 一起维护；其他安装版本以其自身 help/schema 为准。
 
-npm 包 `@guanzhu.me/xbot-cli` 为 Windows x64 提供预编译程序，要求 Node.js 22+，安装后以 `xbot-cli` 调用；用户无需 Rust，不通过 postinstall 下载程序。默认操作要求客户端已安装、启动并登录；仅企业版用户明确选择 `platform` 备用入口时使用企业 API 凭据。`xbot-cli install --skills` 将 Skill 写入当前工作区的 `.agents/skills/xbot-app-dev`，`--global` 则写入用户目录；已有内容不同时先报冲突，确认覆盖后才使用 `--yes`。
-
-需要解析业务结果时始终显式使用 `--json`；下文省略此参数的示例只展示操作语法。自动化必须分别捕获 stdout、stderr 和退出码，不把两条输出流拼接成一个 JSON 文档。
-
-## 资源和工作流
-
-- `app` 管应用生命周期；`flow` 管当前 Studio 流程，源码使用 `flow code`，块使用 `flow visual`。
-- `app sync` 调用原生 `shadowbot.shell-cli.exe studio current sync`，同步当前编辑应用并关闭编辑器，不发布应用；支持 `--expect-app` 和离线 `--dry-run`。
-- `flow check` 检查整个应用的静态诊断，传入流程时先核验目标（`scope: app`），不启动流程；`flow verify` = 静态诊断 + 实际运行 + Out；已有运行用 `flow wait <run-id>` 继续等待。
-- `flow params types` 离线读取客户端类型资源；`flow params set` 是 CLI 本地参数适配能力，
-  不是原生 MCP 写参接口：先校验、必要时保存已有编辑，仅写参数区域，再 reload 一次并回读。
-  运行中、目标有歧义或出现并发编辑时拒绝继续；无变化不 reload，不 sync 或关闭编辑器。
-  新参数使用真实类型 ID；目录标注主流程用途但实测可用于子流程的类型保留 scope warning，
-  不推断编辑器可选性；结果区分 `written/reloaded/readback_verified/runtime_verified`，
-  失败时先核对阶段和已应用状态，不整批重试。详细默认值与 Out 语义见 CodeFlow/VisualFlow 指南。
-- `task run/stop/status/logs` 管已发布应用的运行任务，使用 task_id，不与 Studio run_id 混用。
-- `oapi` 是企业版可选备用入口（`platform` 为兼容别名），只有用户明确选择开放 API 运行/调度或平台日志时才使用。`oapi auth <AccessKeyId> <AccessKeySecret>` 一条命令登录并保存凭据，token 自动刷新，`oapi auth logout` 清除授权。普通命令不读取企业凭据来选择通道，报错后不自动切换；应用仍用 `task run/status/logs`，流程仍用 `flow run/verify/wait`。备用入口的配置及标识关系见 [oapi.md](oapi.md)。
-- `web` 管浏览器上下文、快照与交互，`browser` 是兼容别名。使用 `web click <ref>`、`web fill <ref> <text>`、`web press <key>` 等高层命令，不为常用动作编写 JSON。
-- `tool studio` / `tool browser` 提供 `list/schema/call`；优先资源命令，不足时才用原始工具。
-
-```bash
-xbot-cli status
-xbot-cli flow get main --expect-app <app-id>
-xbot-cli flow check main --expect-app <app-id>
-xbot-cli flow verify main --timeout 600 --expect-app <app-id>
-xbot-cli flow wait <run-id> --timeout 600 --expect-app <app-id>
-```
-
-## 上下文
-
-`--expect-app <id>` 在 Studio 命令开始前核对当前应用，不打开或切换应用，不匹配时停止。其他命令携带它会返回参数错误；适用性见 schema 的 `requires_studio`。
-
-多数流程命令的 `flow_id` 可省略：优先活动流程；类型不匹配时仅在唯一候选时自动选择；歧义时读 `FLOW_ID_REQUIRED.data.candidates` 并显式指定。连续修改建议显式 app_id 断言和 flow_id。
-
-`flow visual enable/disable <block-id...> --flow <flow-id>` 用明确的操作代替 toggle；省略 `--flow` 时采用同样的上下文解析规则。
-
-`web open [url]` 建立浏览器上下文，`web active`（别名 `attach`）附着当前活动页，`web goto <url>` 在受控页内跳转。后续命令绑定调用端的管道和标签页，切换活动标签不自动换页；多进程脚本可用 `XBOT_WEB_SESSION` 隔离绑定，但不创建独立浏览器 profile。显式管道和标签可通过 `XBOT_WEB_PIPE/XBOT_WEB_TAB_ID` 指定。`web` 依赖的 Studio 和浏览器条件见 [browser.md](browser.md)。
-
-`web browser list` 通过已安装影刀 DLL 返回浏览器插件状态和自定义浏览器注册，`--all`
-显示有程序路径的未安装项；始终排除 `exePath` 为空的项，文本输出与 `app list` 一样使用表格。
-注册不等同插件已启用或已连接。所有 `web` 操作均可传 `--browser <id>`，
-使用列表中的 ID。每个浏览器独立绑定，不传参数仍使用原默认会话；目标断开或显式管道
-冲突时拒绝，不回退其他浏览器。切换浏览器先取对应快照，不跨浏览器复用 ref。
-`web open --browser <id>` 在目标未运行时按 DLL 的 `exePath` 启动，最多等待 20 秒连接其
-插件后才打开目标 URL；显式管道、`cef`、未指定浏览器及其他网页动作不自动启动。
-旧 `open --mode` 继续兼容，和 `--browser` 同时出现时必须一致。
-
-打开、附着、导航和常用交互成功后自动读取快照，可加 `--no-snapshot` 跳过；`web close` 不读取快照。动作成功后取快照失败仍返回 `ok: true`、退出 0，并提供 warning 和 `applied: true`。此时只补取 `web snapshot`，不要重放动作。快照保留后端元数据，可能是增量；ref 必须来自当前页面证据。`web snapshot --output <file>`（别名 `--filename`）保存文本，不覆盖已有文件。
-
-支持的网页操作还返回影刀 Python，JSON 字段为 `data.python`；`--no-python` 与 `--no-snapshot` 独立。代码生成不可用不否定已成功动作，`runtime_verified: false` 不代表影刀执行通过。`web xpath <ref...>` 只读生成至多 5 组单元素备选或相似元素规则，不标记 `applied`，不持久化元素库。iframe 返回有序 Selector 分段列表，open shadow 为未执行验证的影刀语法，closed shadow 明确拒绝生成；具体输出见 [browser.md](browser.md)。
-
-客户端后端支持非默认安装目录自动发现；`XBOT_SHELL_CLI/XBOT_LAUNCHER` 是权威覆盖，错误路径不会静默回退。`doctor` 提供实际路径、发现来源及针对性提示，路径错误不能仅建议启动、登录或打开应用。
-
-`--name` 仅为旧调用保留兼容参数，Chrome Bridge 不暂存选择器，也不写入影刀元素库。`web eval` 是注入 `activePage` 的只读 Playwright 函数体，不接受任意写入脚本来代替交互命令。
-
-## 帮助与输出（v0.6）
-
-```bash
-xbot-cli                       # 简短根帮助，退出 0
-xbot-cli version               # 离线输出一行 CLI 版本
-xbot-cli version --json        # 机器读取 data.name 和 data.version
-xbot-cli update                # 升级 CLI 到最新版本(npm 启动器执行)
-xbot-cli update --check        # 只检查是否有新版本
-xbot-cli app                   # 分组帮助，退出 0
-xbot-cli flow code             # 嵌套分组帮助，退出 0
-xbot-cli tool studio           # 原始工具分组帮助，退出 0
-xbot-cli help app open         # 详细命令帮助
-xbot-cli app --json            # 当前分组的结构化帮助，不是完整 schema
-xbot-cli status --json         # 显式机器结果
-```
-
-裸根命令和纯分组是发现请求，默认显示简短文本帮助；`-h`、`--help`、`help <path>` 默认显示详细文本帮助。帮助写 stdout、退出 0，不访问后端、不检查登录、不初始化应用，即使在管道中也默认保持文本。`xbot-cli version`、`--version` 和 `-V` 离线返回一行版本文本，管道中同样保持文本；追加 `--json` 则返回 `data.name` 和 `data.version`，`--format pretty` 返回缩进 JSON。`schema version` 可查看版本命令的参数定义。`xbot-cli update` 由 npm 启动器在原生程序启动前执行升级（Windows 不允许替换正在运行的可执行文件），`--check` 只检查不升级；升级全局安装时优先使用 `xbot-cli update` 而不是让用户手动拼 npm 命令。
-
-业务结果默认 `--format auto`：stdout 是终端时为简洁文本，非终端时为紧凑 JSON。需要解析结果时显式使用 `--json`，它等价于 `--format json`。`--format text` 强制文本；`--format pretty` 仍是 JSON，仅增加缩进。显式格式优先于自动选择，也可用于帮助、schema 和 guide。
-
-`schema` 默认始终为 JSON；`guide` 默认始终为 Markdown 文本，不随管道改变。JSON 帮助只给出当前层级的发现信息；需要精确参数和语义时另查 `schema <path>`。
-
-- 成功：结果写 stdout，退出 0；JSON 模式为 `{"ok":true,"data":...}`。
-- 失败：仅 stderr、非零退出码，按所选模式渲染；JSON 模式为 `{"ok":false,"error":{"type","code","message","hint","retryable"},"data":...}`。
-- 分组 `app` 不报缺少子命令；叶命令 `app open` 缺少必填 ID 返回退出 2，保留缺失参数、当前用法和修复提示。未知命令和选项也返回参数错误。
-- `data` 可包含部分成功、run_id、终态或日志尾部。先读实际应用状态和 hint，再决定重试；不只看 message。`retryable=true` 表示错误可恢复，不保证写入可安全重放；有 `applied: true` 时先确认修改已经应用。
-
-| 退出码 | 含义 | Agent 处理 |
-|---|---|---|
-| 0 | 成功 | 继续 |
-| 1 | 操作/API/运行失败 | 读 data 和 hint |
-| 2 | 参数或输入错误 | 用 `schema <path>` 修正，不原样重试 |
-| 3 | 认证/权限/配置 | 请用户登录或授权 |
-| 4 | 网络/离线/超时 | 先处理 hint，再有界重试 |
-| 5 | 冲突/占用 | 检查当前状态，避免并发 |
-| 6 | 内部或协议错误 | 保留响应，报告问题 |
-| 10 | 高风险确认门禁 | 展示动作，在用户明确授权后追加 `--yes`；已有授权无需重复请求 |
-
-## 预览和安全
-
-```bash
-xbot-cli flow code write main --file main.py --expect-app <app-id> --dry-run
-xbot-cli app publish <app-id> --log "..." --dry-run
-xbot-cli app publish <app-id> --log "..." --yes  # 仅在用户明确同意后
-```
-
-- `--dry-run` 与执行共用本地输入解析和校验，返回 `data.dry_run=true`，不执行后端操作。
-- 预览保持离线：运行时上下文、目标解析、权限、动态工具 schema 和后端接受性未验证；`--expect-app` 只是待执行前置条件。预览通过不能声称已验证应用。
-- `app publish`、`app recycle`、`app open --force` 需要用户明确确认和 `--yes`；不替用户确认，不将它作为默认参数。
-- 原始工具的效果由工具决定；高层工作流的额外校验和确认不应假定同样存在于任意 raw call。
-- JSON 参数支持字面 JSON、`@file`、`-` stdin；源码文件参数支持路径和 `-` stdin。复杂输入优先文件或 stdin。
-
-## 自省
-
-```bash
+```powershell
+Get-Command xbot-cli | Select-Object Source
+xbot-cli version --json
 xbot-cli
-xbot-cli flow code
-xbot-cli help flow code edit
-xbot-cli schema
-xbot-cli schema flow code edit
-xbot-cli schema flow visual disable
-xbot-cli schema tool studio call
+xbot-cli win32
+xbot-cli help win32 click
+xbot-cli schema win32 click
 xbot-cli guide
-xbot-cli guide codeflow
-xbot-cli tool studio list
-xbot-cli tool studio schema app.run
-xbot-cli tool studio call app.get_info '{}'
 ```
 
-先看当前层级的帮助，再按需查询所选命令的 schema。schema 返回 clap 参数与共享语义：aliases、value_type、position、arity、choices、defaults、effects、context、requires_studio、supports_dry_run、confirmation、input_shapes、examples。`arity.max=null` 表示不限数量；`input_shapes` 给出本地接受的形状，`dynamic_schema_hint` 指向运行中客户端的具体工具 schema。
+先看当前层级，再查目标叶命令。help/schema/guide/version 可离线；裸根或纯分组显示帮助，不运行业务。需要最新发布版本时重新核对发行来源及日期；版本查询不等于升级授权。
 
-`tool ... list --full` 才返回长描述。先按需查工具 schema，再调用。默认不把长源码、原始 MCP 数据或全部 Wiki 装进上下文。
+## 输出与失败
 
-## 兼容入口
+业务输出默认终端文本、管道 JSON；机器读取显式 `--json`。schema 默认 JSON，guide/help 默认文本，显式格式优先。
 
-旧顶层 `code` / `visual` 对应 `flow code` / `flow visual`；旧 `app run/stop/task-status/task-logs` 对应 `task run/stop/status/logs`；旧 `mcp tools/schema/call` 与 `browser tools/schema/call` 对应 `tool studio` 与 `tool browser`。这些入口保留兼容但隐藏，新任务使用推荐命令。
+- 成功 stdout：`{"ok":true,"data":...}`。
+- 失败 stderr：`{"ok":false,"error":{"type":...,"code":...,"message":...,"hint":...,"retryable":...},"data":...}`。
+- 保留 applied、partial、运行 ID 和阶段；非零退出不代表未执行，retryable 不代表可以重放。动作已返回但后续观测失败，只补观测。
 
-`browser` 分组本身仍作为 `web` 的可见别名；`browser act <json>` 保留为隐藏的高级兼容入口。新任务使用 `web click/fill/press` 等明确命令。`web attach`、`web back`、`web forward` 分别是 `active`、`go-back`、`go-forward` 的别名。
+| 退出码 | 含义与处理 |
+| --- | --- |
+| 0 | 命令成功，业务结果另查 |
+| 1 | 操作/业务失败，读 error 与部分 data |
+| 2 | 参数错误，查现场 schema 后修正 |
+| 3 | 认证、权限或配置问题，核对实际缺项 |
+| 4 | 网络、超时或离线，先查询已启动的同一次执行 |
+| 5 | 上下文冲突或占用，回读后协调 |
+| 6 | 协议或内部问题，保留证据 |
+| 10 | CLI 确认门槛；已有具体授权才追加 --yes |
 
-`visual toggle [flow] comment <id...>` 可迁移为 `flow visual disable <id...> --flow <flow>`，`uncomment` 迁移为 `enable`。
+## 上下文、预览和副作用
+
+Studio 命令按 schema 的 `requires_studio` 使用 `--expect-app`；它断言应用、不切换应用，不保证业务页面/窗口身份。Web Bridge 与 Win32 独立能力不要求打开 Studio，分别确认页面、窗口及权限。
+
+`--dry-run` 只适用于支持它的命令，做离线输入校验；不访问目标、不检查实时权限或断言、不证明后端接受性。`flow check` 静态，`flow verify` 真实运行。app save 是本地保存，sync 有上传/关闭副作用，publish 才是发布；这些证据不能互换。`--yes` 不是新的用户授权。
+
+复杂 JSON 优先 `@file` 或 stdin，源代码按文件参数传入；一次只用一个 stdin 消费者。保持布尔、数组、对象、表达式语义，不拼字符串载荷。不把密钥放到报告、命令回显或 shell 历史中。
+
+超时单位、范围、默认值逐命令查 schema；Win32 的动作/快照预算为 1–60 秒，不沿用其他命令的长预算。保留正确标识：Studio run_id、客户端 task_id、企业 scheduleUuid/taskUuid/jobUuid、Windows snapshot_id 各有作用域。
+
+## 动态工具及安装
+
+原始工具先 `tool studio list/schema` 或 `tool browser list/schema` 再 call。外层 CLI schema 不代替动态工具 schema，不靠 raw call/eval 绕过作用域、确认或发布边界。Web 常用动作走 Chrome Bridge；原始浏览器工具有独立可用性，不以任一通道状态代替另一通道。
+
+新任务用 flow code / flow visual、task、web、tool；code/visual、app run、browser、mcp、platform 等旧入口只作兼容。没有通用 repair 子命令；Skill 内 helper 须用 Node/Python 显式调用。
+
+`install --skills` 同时安装 xbot-app-dev 和 xbot-development-standards，保留原来的两个名称；本文维护优化已同步到这两份资源。安装、升级 CLI 或覆盖已安装 Skill 按用户任务范围执行，不隐式修改 PATH、系统依赖或现有 Skill。

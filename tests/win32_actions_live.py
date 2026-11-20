@@ -74,7 +74,7 @@ def main():
             info = act("inspect", snapshot, "Input")
             assert "Value" in info["control"]["patterns"]
             passed.append("snapshot + inspect capabilities")
-            act("click", snapshot, "Input", error="WIN32_PATTERN_UNSUPPORTED")
+            act("click", snapshot, "Input", "--method", "invoke", error="WIN32_PATTERN_UNSUPPORTED")
             act("fill", snapshot, "ReadOnly", "attempt", error="WIN32_CONTROL_READ_ONLY")
             act("click", snapshot, "Disabled", error="WIN32_CONTROL_DISABLED")
             passed.append("unsupported/read-only/disabled reject without consuming snapshot")
@@ -96,8 +96,11 @@ def main():
             result = act("fill", snapshot, "Input", literal)
             assert result["applied"] is False and result["outcome"] == "no_change"
             snapshot = result["snapshot"]
-            result = act("click", snapshot, "Invoke")
+            result = act("click", snapshot, "Invoke", "--method", "invoke")
             fixture_state(lambda state: state["count"] == 1)
+            assert result["execution"] == {"method": "invoke", "mouse_input": False,
+                                           "effect_verified": False}, result
+            assert result["target_control"]["automation_id"] == "Invoke", result
             snapshot = result["snapshot"]
             passed.append("Invoke executes once")
             for action, desired in (("check", True), ("uncheck", False)):
@@ -129,13 +132,19 @@ def main():
             passed.append("focus + keyboard chord + literal type")
             result = act("hover", snapshot, "Invoke")
             snapshot = result["snapshot"]
-            result = act("click", snapshot, "Invoke", "--method", "physical")
+            result = act("click", snapshot, "Invoke")
             fixture_state(lambda state: state["count"] == 2)
+            execution, bounds = result["execution"], result["target_control"]["bounds"]
+            assert execution["method"] == "physical" and execution["mouse_input"] is True, result
+            assert execution["effect_verified"] is False, result
+            assert execution["coordinate_space"] == "screen_physical_pixels", result
+            assert execution["point"] == [(bounds[0] + bounds[2]) // 2,
+                                           (bounds[1] + bounds[3]) // 2], result
             snapshot = result["snapshot"]
             result = act("dblclick", snapshot, "Invoke")
             fixture_state(lambda state: state["count"] >= 3)
             snapshot = result["snapshot"]
-            passed.append("physical hover/click/double click")
+            passed.append("default physical click + center coordinates + hover/double click")
             old = snapshot
             result = act("click", snapshot, "Replace")
             fixture_state(lambda state: state["replaced"] == 1)

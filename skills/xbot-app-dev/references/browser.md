@@ -134,9 +134,9 @@ VisualFlow 通过“获取元素对象（web）”的 XPath 模式得到对象�
 ## 专用工具与开发
 
 ```bash
-xbot tool browser list
-xbot tool browser schema web_download
-xbot tool browser call web_download @args.json
+xbot-cli tool browser list
+xbot-cli tool browser schema web_download
+xbot-cli tool browser call web_download @args.json
 ```
 
 选择器构建、表格、上传、下载、日期和验证码使用专用工具，先查询当前 schema，不猜参数。`web act <json>`、`browser act <json>` 保留为隐藏兼容入口，常用交互优先上表命令。

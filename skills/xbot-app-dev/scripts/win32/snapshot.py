@@ -60,8 +60,8 @@ def collect(root, max_nodes, max_depth, timeout, scope_check):
             return
         ref = "w" + str(len(nodes) + 1)
         runtime_id = relation(control, "GetRuntimeId", ref)
-        if runtime_id is not None:
-            runtime_id = list(runtime_id)
+        runtime_id = list(runtime_id) if runtime_id else None
+        if runtime_id:
             key = tuple(runtime_id)
             if key in seen:
                 reasons.add("repeated_runtime_id")
@@ -114,7 +114,8 @@ def collect(root, max_nodes, max_depth, timeout, scope_check):
         "duration_ms": round((time.monotonic() - started) * 1000),
         "ref_scope": "snapshot_only_evidence", "refs_resolvable_for_actions": False,
         "atomic": False, "business_completeness": "unknown",
-        "observation_warnings": ["ROOT_ONLY"] if len(nodes) == 1 else [],
+        "observation_warnings": (["ROOT_ONLY"] if len(nodes) == 1 else [])
+            + (["MISSING_RUNTIME_ID"] if any(not node["runtime_id"] for node in nodes) else []),
         "traversal_complete": not reasons, "partial_reasons": sorted(reasons),
         "node_count": len(nodes), "nodes": nodes, "issues": issues,
         "limits": {"max_nodes": max_nodes, "max_depth": max_depth, "timeout_seconds": timeout},

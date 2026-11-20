@@ -172,6 +172,9 @@ try {
     ['locator-usage', 'references/locator-usage.md'],
     ['collection-repair', 'references/collection-repair.md'],
     ['skill-updates', 'UPDATE-RECORD.md'],
+    ['maintenance', 'maintenance/workflow.md'],
+    ['element-preconditions', 'maintenance/element-preconditions.md'],
+    ['run-existing', 'references/run-existing.md'],
   ]) {
     const result = invoke(['guide', topic, '--json']);
     assert.equal(result.status, 0, result.stderr);

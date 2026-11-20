@@ -16,7 +16,7 @@
 | `win32 snapshot` | 读取 UIA 树并保存快照，供 ref 动作使用 |
 | `win32 inspect/click/fill/...` | 按快照 ref 校验实时控件并执行 UIA 动作 |
 | `win32 list` | 按窗口标题搜索，表格显示 PID、HWND 与进程名 |
-| `win32 activate` | 调用本机影刀 DLL，激活指定进程的元素树 |
+| `win32 activate` | 自动使用企微内置适配或本机影刀组件，激活指定进程的元素树 |
 | `tool studio` / `tool browser` | 按 schema 调用原始工具 |
 | `wiki` / `schema` / `guide` | 领域知识、命令契约和开发指南 |
 
@@ -89,7 +89,7 @@ CLI 将快照保存到 `%LOCALAPPDATA%\xbot-cli\win32-snapshots`，也可用 `XB
 ```powershell
 xbot-cli win32 inspect w4 --snapshot <SNAPSHOT_ID> --json
 xbot-cli win32 click w4 --snapshot <SNAPSHOT_ID> --format text
-xbot-cli win32 click w4 --snapshot <SNAPSHOT_ID> --method physical
+xbot-cli win32 click w4 --snapshot <SNAPSHOT_ID> --method invoke
 xbot-cli win32 dblclick w4 --snapshot <SNAPSHOT_ID>
 xbot-cli win32 fill w8 "替换文本" --snapshot <SNAPSHOT_ID>
 xbot-cli win32 fill w8 --file input.txt --snapshot <SNAPSHOT_ID>
@@ -105,9 +105,11 @@ xbot-cli win32 focus w8 --snapshot <SNAPSHOT_ID>
 xbot-cli win32 hover w4 --snapshot <SNAPSHOT_ID>
 ```
 
-`inspect` 只读返回当前属性、支持的 Pattern，以及可读取的 Value/勾选/选择/展开/滚动状态。`click` 默认只调用 InvokePattern；`fill` 使用 ValuePattern，不支持或只读时失败。`check/uncheck` 使用 TogglePattern，`select` 使用 SelectionItemPattern，`expand/collapse` 使用 ExpandCollapsePattern，`scroll` 使用 ScrollPattern，方向为 `up/down/left/right`，默认小步长。已是目标值或状态时不重复修改，返回 `applied: false, outcome: no_change`。控件支持哪些 Pattern 取决于目标软件，可先用 `inspect` 确认。
+`inspect` 只读返回当前属性、支持的 Pattern，以及可读取的 Value/勾选/选择/展开/滚动状态。`click` 默认使用 `physical`，物理点击控件实时中心；`--method invoke` 可选用 InvokePattern，不发送鼠标。`fill` 使用 ValuePattern，不支持或只读时失败。`check/uncheck` 使用 TogglePattern，`select` 使用 SelectionItemPattern，`expand/collapse` 使用 ExpandCollapsePattern，`scroll` 使用 ScrollPattern，方向为 `up/down/left/right`，默认小步长。已是目标值或状态时不重复修改，返回 `applied: false, outcome: no_change`。控件支持哪些 Pattern 取决于目标软件，可先用 `inspect` 确认。
 
-`click --method physical`、`dblclick` 和 `hover` 会将目标窗口置前，并核对控件中心的实时 UIA 命中对象。`type` 将控件置焦后输入字面文本，`{Enter}` 不会作为按键执行；`press` 只接受一个按键或组合键（如 `Enter`、`Ctrl+A`），不接受 UIAutomation 的任意按键脚本。`fill/type --file` 支持 UTF-8 文件或 `-` 标准输入，文本经 stdin 传给提供器，不放入 Python 进程命令行；预览不回显输入内容。不会自动从 Pattern 失败切换为物理点击、键盘模拟或坐标重试。
+默认 `click`（或显式 `--method physical`）、`dblclick` 和 `hover` 会将目标窗口置前，并核对控件中心的实时 UIA 命中对象。`type` 将控件置焦后输入字面文本，`{Enter}` 不会作为按键执行；`press` 只接受一个按键或组合键（如 `Enter`、`Ctrl+A`），不接受 UIAutomation 的任意按键脚本。`fill/type --file` 支持 UTF-8 文件或 `-` 标准输入，文本经 stdin 传给提供器，不放入 Python 进程命令行；预览不回显输入内容。每次点击只执行所选方式，physical 与 invoke 不会相互自动回退；其他 Pattern 动作失败也不会自动改成物理操作。
+
+点击、双击和悬停返回 `target_control`（名称、类型、AutomationId、类名、实时 bounds）及 `execution`（实际 method、是否使用鼠标、物理操作点及坐标系）。文本也显示这些信息。`execution.effect_verified: false` 表示尚未验证界面效果，不能仅凭调用返回成功判断页面已经切换。`invoke` 不发送鼠标点击，也没有点击坐标。微信 4.2.0.52 的通讯录导航实测会出现 Invoke 返回但页面不切换；重新观察后，使用 `click <按钮ref> --snapshot <新快照ID> --method physical` 可切换。物理点击选中的控件中心；若误选窗口根节点，点击点便是窗口中心，应先用 `inspect` 确认 ref 对应按钮。
 
 动作前核对 PID/HWND、进程启动时间、根及祖先 RuntimeId、控件类型/名称/AutomationId/类名/框架及启用状态。查找只沿原祖先链精确匹配，不按遍历下标或同名控件替代。没有 RuntimeId 或采集属性不完整的 ref 不能执行。每个目标进程只允许一个 CLI 动作并发；动作开始前独占写入 `.used` 标记，原快照随后拒绝再次执行或读取动作 ref。标记只防止同一快照重放，不等同业务幂等。
 
@@ -120,14 +122,29 @@ xbot-cli win32 hover w4 --snapshot <SNAPSHOT_ID>
 ```powershell
 xbot-cli win32 activate --hwnd 0x12345 --pid 1234 --dry-run --json
 xbot-cli win32 activate --hwnd 0x12345 --pid 1234 --timeout 30 --json
+xbot-cli win32 activate --hwnd 0x12345 --pid 1234 --provider wework --json
 xbot-cli win32 snapshot --hwnd 0x12345 --pid 1234 --json
 ```
 
-`activate` 从 **64 位注册表 `HKLM\SOFTWARE\ShadowBot x64` 的 `InstallPath`** 读取安装根目录，按数字版本号选择最大的 `shadowbot-*` 子目录，再定位 `Native\x64\RpaBuilder.dll`。不限制影刀版本，不回退到旧目录；最大版本缺文件时明确报错。不需要打开 Studio，也不需要额外的桥接 exe 或 Python 包。激活通过系统 Windows PowerShell 隔离调用原始 DLL 的 `InstallRpaDllSimple`。
+`--provider auto` 为默认值：对 x86 `WXWork.exe` 的 `WeWorkWindow` 使用内置企微适配，其他目标使用影刀 RpaBuilder。`--provider wework` 强制使用内置企微适配，目标身份或 ABI 不符即拒绝，不会改用其他注入方式。内置适配没有 Python/pefile/影刀依赖，从 DuiLib 的 OnGetObject 导出和活对象虚表解析消息入口；只接受经过校验的门控、虚表及完整五字节序言。使用独立代码页，不占用原程序代码洞穴；保留 this 指针，短暂暂停目标并检查线程指令位置，写入失败时回滚。成功后保留激活代码，脚本式执行一次即结束，无常驻 watch。
 
-该命令修改显式指定的 x64 目标进程，先核对 HWND/PID、进程实例和权限。相同进程的并发调用会拒绝；目标已经加载任一位置的 `RpaBuilder.dll` 时返回 `status: already_loaded`，并保留实际 `loaded_dll` 路径，不再次安装。首次安装返回成功且确认目标加载 DLL 后返回 `status: activated`。命令结束不恢复、不卸载，不保留辅助进程。没有 `--expect-app`；`--dry-run` 只校验参数与预览，完全不读取目标或加载 DLL。
+影刀路径从 **64 位注册表 `HKLM\SOFTWARE\ShadowBot x64` 的 `InstallPath`** 读取安装根目录，按数字版本号选择最大的 `shadowbot-*` 子目录。根据目标进程架构定位 `Native\x86\RpaBuilder.dll` 或 `Native\x64\RpaBuilder.dll`，并分别使用 `SysWOW64` 下的 32 位或 `System32` 下的 64 位 Windows PowerShell 隔离调用 `InstallRpaDllSimple`。不限制影刀版本，不回退到旧目录或其他架构。`--provider shadowbot` 对 x86 企微使用 `Native\x86\misc.exe wxwork <显式 HWND>`，其他应用使用 RpaBuilder。不需要打开 Studio，也不打包厂商 DLL。
+
+该命令修改显式指定的 x86 或 x64 目标进程，需要 Windows x64 系统及足够进程权限。调用前后核对 HWND/PID 和进程实例，工作进程再次核对架构及进程创建时间。影刀 DLL 结果提供 `target_architecture`、`worker_architecture` 和实际 DLL 路径。相同进程的并发调用会拒绝；RpaBuilder 路径检测到任一位置已有该 DLL 时返回 `status: already_loaded`，并保留实际 `loaded_dll` 路径，不再次安装。首次安装返回成功且确认目标加载 DLL 后返回 `status: activated`。命令结束不恢复、不卸载，没有常驻监听。没有 `--expect-app`；`--dry-run` 只校验参数与预览，完全不读取目标或加载 DLL。DLL 加载成功不代表应用已暴露完整元素树，应再通过 `win32 snapshot` 验证。
 
 `tree_verification: not_checked` 表示加载结果与树完整性分别核验，请随后用 `snapshot` 检查所需控件。该能力取决于 DLL 对目标程序的支持，不能保证所有软件均暴露完整元素树或自动获得点击、输入能力。`--timeout` 为 1–60 秒，默认 30 秒；超时、错误或子进程中断可能已经加载 DLL，错误标记为不可自动重试，保留状态后先核对。目标权限较高时使用同等权限运行 CLI。
+
+企微内置适配返回 `backend: wework_builtin`、首次 `activated`、重复 `already_active`。重复调用会核对完整已知钩子字节，`install_called: false`；已有未知跳转不会被覆盖。`hook_verification: confirmed_by_bytes` 与 `accessibility_verification: object_returned` 仍不证明元素树完整，应再采集 UIA 快照。代码已安装但 WM_GETOBJECT 未确认时返回 `WIN32_ACTIVATION_UNVERIFIED / installed_unverified`，下次只验证现有钩子，不再安装。内置适配的时间预算限制解析和消息验证，短暂写入事务会先恢复目标线程再返回。
+
+`misc.exe` 只有在厂商标记及两次消息回声探针都通过时才返回 `activated/already_active`。exit 0 或只有 `RpaBugFixFlags` 标记都不算成功；结果未知时记录进程实例并阻止重复安装。厂商 helper 超时仍可能运行，不强制杀死它，避免中断其内部短暂暂停操作。
+
+部分 DuiLib/MSAA 控件没有 RuntimeId。快照保留这些节点和子树，并提示 `MISSING_RUNTIME_ID`；真实重复的非空 ID 仍中止相应分支并提示采集不完整。无 ID 控件及其后代的 ref 当前不能通过安全动作定位。
+
+Java 引导器、WinForms 检查器、RPC 宿主及运行库的接入边界见 [Windows 原生组件](windows-native-components.md)。文件存在本身不证明应用受支持。
+
+若返回 `WIN32_ACTIVATION_PROVIDER_UNSUPPORTED`、`hresult: 0x80004001`，表示调用已进入影刀 DLL，但该入口对当前应用返回 `E_NOTIMPL`。它与 `WIN32_TARGET_ARCH_UNSUPPORTED` 不同，不能用更换 32/64 位调用解决。
+
+开发者可设置 `XBOT_TEST_QT_X86`、`XBOT_TEST_QT_X64` 为已有的匹配架构 Qt 5 运行库目录（包含 `Qt5Widgets.dll`，`platforms\qwindows.dll` 在该目录或上级目录），运行 `npm run test:win32-activation`。此可选实测需要本机影刀及 Visual Studio C++ 工具，只编译并操作临时目录中的自建隐藏窗口，验证两种架构的首次激活、重复调用、进程/窗口/位数校验、并发拒绝及 DLL 不支持应用时的返回结果。
 
 ## 开发流程
 
@@ -491,4 +508,4 @@ npm pack
 
 源码位于仓库根目录的 `src/`，集成测试位于 `tests/`。`npm run build` 将 Rust release 程序放入 `native/win32-x64/xbot-cli.exe`；`bin/xbot-cli.cjs` 是 npm 命令入口。`npm pack` 仅生成本地包，正式发布步骤见[发布说明](releasing.md)。
 
-Skill 源码位于 `skills/xbot-app-dev/` 和 `skills/xbot-development-standards/`，由构建嵌入 CLI，随 npm 包中的可执行文件提供，无需从维护者桌面读取。Agent 应遵守当前工作区 `AGENTS.md`、用户授权及项目实际提供的开发规范；不假定存在某个团队服务。已发布指令的名称、参数和调用契约不得擅自改变。
+Skill 源码位于 `skills/xbot-app-dev/` 和 `skills/xbot-development-standards/`，由构建嵌入 CLI，随 npm 包中的可执行文件提供，无需从维护者桌面读取。保留两个原有名称：前者按仅运行、开发、维护及元素故障分流，后者提供应用与指令集开发规范；维护资料及跨 Skill 引用随 `install --skills` 一起安装。新增离线指南 `guide maintenance`、`guide element-preconditions` 与 `guide run-existing`。Agent 应遵守当前工作区 `AGENTS.md`、用户授权及项目实际提供的开发规范；不假定存在某个团队服务。已发布指令的名称、参数和调用契约不得擅自改变。

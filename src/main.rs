@@ -28,6 +28,7 @@ mod win32_activation;
 mod win32_cmds;
 mod win32_session;
 mod win32_snapshot;
+mod win32_wework;
 mod win32_windows;
 
 use clap::FromArgMatches;

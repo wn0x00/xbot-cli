@@ -56,6 +56,7 @@ pub(crate) fn render(data: &Value) -> Option<String> {
         lines.push(match warning {
             "ROOT_ONLY" => "警告: 仅观察到根节点，不能据此判断子控件不存在".into(),
             "WINDOW_MINIMIZED" => "警告: 目标窗口已最小化".into(),
+            "MISSING_RUNTIME_ID" => "警告: 部分控件没有 RuntimeId，已保留元素树；这些控件及其后代的快照 ref 暂不支持安全动作定位".into(),
             other => format!("警告: {}", quoted(other)),
         });
     }

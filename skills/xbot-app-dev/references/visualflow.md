@@ -64,7 +64,7 @@ xbot-cli flow visual list report --detail
 
 ## 流程组织与 XPath
 
-按 [项目规范](project-conventions.md) 建立配置、业务、测试分组，主流程位于根级；当前接口不支持的分组写入明确记录为未执行，不伪造参数。
+按 [项目规范](project-conventions.md) 区分普通应用与指令集；普通应用从主流程进入业务实现，不新增正式测试流程。当前接口不支持的分组写入记录未执行，不伪造参数。
 
 网页元素优先使用“获取元素对象（web）”指令（`web.element.get_element`）搭配 XPath，取得动态元素对象后交给后续点击、输入或读取指令。不要为一个可直接 XPath 定位的元素先进行影刀元素捕获。
 

@@ -149,7 +149,7 @@ def physical_guard(auto, user32, hwnd, control):
         if hit is None:
             break
         if auto.ControlsAreSame(hit, control):
-            return x, y
+            return x, y, [rect.left, rect.top, rect.right, rect.bottom]
         hit = hit.GetParentControl()
     fail("WIN32_PHYSICAL_HIT_MISMATCH")
 
@@ -181,6 +181,20 @@ def execute(request, auto):
     if not control.IsEnabled:
         fail("WIN32_CONTROL_DISABLED")
     patterns = supported(auto, control)
+    if action in ("click", "dblclick", "hover"):
+        method = options["method"] if action == "click" else "physical"
+        # Optional diagnostics must not prevent an otherwise supported Invoke.
+        try:
+            rect = control.BoundingRectangle
+            bounds = [rect.left, rect.top, rect.right, rect.bottom]
+        except Exception:
+            bounds = None
+        result["target_control"] = {
+            "name": expected["name"], "control_type": expected["control_type"],
+            "automation_id": expected["automation_id"], "class_name": expected["class_name"],
+            "bounds": bounds}
+        result["execution"] = {"method": method, "mouse_input": method == "physical",
+                               "effect_verified": False}
 
     def require(name):
         value = patterns.get(name)
@@ -277,7 +291,9 @@ def execute(request, auto):
                 auto.SendKeys(keys, interval=0.002, waitTime=0)
         else:
             validate()
-            x, y = physical_guard(auto, user32, hwnd, control)
+            x, y, bounds = physical_guard(auto, user32, hwnd, control)
+            result["target_control"]["bounds"] = bounds
+            result["execution"].update(point=[x, y], coordinate_space="screen_physical_pixels")
             if action == "hover":
                 auto.MoveTo(x, y)
             elif action == "dblclick":

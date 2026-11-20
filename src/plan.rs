@@ -209,13 +209,14 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
         Group::Win32(Win32Sub::Activate {
             ref hwnd,
             pid,
+            ref provider,
             timeout,
         }) => {
             let hwnd = crate::win32_cmds::parse_hwnd(hwnd)?;
             Ok(planned(
                 "win32.activate",
                 json!({"pid":pid,"hwnd":format!("0x{hwnd:x}")}),
-                json!({"timeout":timeout,"discovery":"HKLM64\\SOFTWARE\\ShadowBot x64:InstallPath -> max numeric shadowbot-* -> Native\\x64\\RpaBuilder.dll","restore":false}),
+                json!({"timeout":timeout,"provider":provider,"discovery":"auto: x86 WXWork.exe + WeWorkWindow -> built-in WeWork adapter; shadowbot: HKLM64\\SOFTWARE\\ShadowBot x64:InstallPath -> max numeric shadowbot-* -> Native\\<target x86|x64>\\RpaBuilder.dll or Native\\x86\\misc.exe","worker":"target x86 -> SysWOW64 PowerShell; target x64 -> System32 PowerShell; built-in WeWork -> native CLI","restore":false}),
                 Operation::Command(group),
             ))
         }

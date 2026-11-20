@@ -172,6 +172,8 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
         ["win32", "activate"] => &[
             "xbot-cli win32 activate --hwnd <HWND> --pid <PID> --dry-run --json",
             "xbot-cli win32 activate --hwnd <HWND> --pid <PID> --timeout 30 --json",
+            "xbot-cli win32 activate --hwnd <HWND> --pid <PID> --provider wework --json",
+            "xbot-cli win32 activate --hwnd <HWND> --pid <PID> --provider shadowbot --json",
         ],
         ["win32", "snapshot"] => &[
             "xbot-cli win32 snapshot --hwnd <HWND> --pid <PID> --format text",
@@ -181,7 +183,7 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
         ["win32", "click"] => &[
             "xbot-cli win32 click w4 --snapshot <snapshot-id> --dry-run",
             "xbot-cli win32 click w4 --snapshot <snapshot-id> --format text",
-            "xbot-cli win32 click w4 --snapshot <snapshot-id> --method physical",
+            "xbot-cli win32 click w4 --snapshot <snapshot-id> --method invoke",
         ],
         ["win32", "fill" | "type"] => &[
             "xbot-cli win32 fill w8 文本 --snapshot <snapshot-id>",

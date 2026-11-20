@@ -150,7 +150,7 @@ pub(crate) enum Win32Sub {
         #[arg(long)]
         all: bool,
     },
-    /// 使用本机影刀 DLL 激活目标元素树；已加载时跳过，结束后不恢复
+    /// 激活目标元素树；自动适配企业微信或本机影刀原生组件
     Activate {
         /// 窗口句柄,十进制或 0x 十六进制
         #[arg(long)]
@@ -158,7 +158,10 @@ pub(crate) enum Win32Sub {
         /// 预期窗口所属进程 ID（Windows x64）
         #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
         pid: u32,
-        /// 激活子进程的时间上限；超时后须核对目标状态
+        /// auto 自动适配；shadowbot 使用影刀组件；wework 使用企微消息入口适配
+        #[arg(long, default_value = "auto", value_parser = ["auto", "shadowbot", "wework"])]
+        provider: String,
+        /// 激活时间预算；内置适配会先结束短暂写入事务再返回，超时后核对状态
         #[arg(long, default_value_t = 30, value_parser = clap::value_parser!(u64).range(1..=60))]
         timeout: u64,
     },
@@ -180,11 +183,12 @@ pub(crate) enum Win32Sub {
     },
     /// 读取 ref 的实时属性和支持的动作，不改变界面
     Inspect(Win32Target),
-    /// 点击控件；默认 InvokePattern，物理点击须显式指定
+    /// 点击控件；默认物理点击控件中心，可选 InvokePattern
     Click {
         #[command(flatten)]
         target: Win32Target,
-        #[arg(long, default_value = "invoke", value_parser = ["invoke", "physical"])]
+        /// physical 物理点击；invoke 调用 InvokePattern，不发送鼠标
+        #[arg(long, default_value = "physical", value_parser = ["physical", "invoke"])]
         method: String,
     },
     /// 物理双击控件，执行前核对前台和实时命中对象
