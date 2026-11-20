@@ -5,6 +5,7 @@
 ```powershell
 Get-Command xbot-cli | Select-Object Source
 xbot-cli version --json
+xbot-cli client info --json
 xbot-cli
 xbot-cli win32
 xbot-cli help win32 click
@@ -46,6 +47,10 @@ Studio 命令按 schema 的 `requires_studio` 使用 `--expect-app`；它断言�
 ## 动态工具及安装
 
 原始工具先 `tool studio list/schema` 或 `tool browser list/schema` 再 call。外层 CLI schema 不代替动态工具 schema，不靠 raw call/eval 绕过作用域、确认或发布边界。Web 常用动作走 Chrome Bridge；原始浏览器工具有独立可用性，不以任一通道状态代替另一通道。
+
+`client info --json` 返回 CLI 自身版本、运行中的影刀进程/文件版本/目录、选中的 shell-cli 路径与来源、客户端状态及实际 MCP provider/endpoint。不打开应用；离线或某项查询失败时保留其他信息，读取 `partial`、`client.detection_complete` 和每个通道的 `ok/error`，不能只看外层 `ok`。多安装同时运行或进程路径不可读时不猜唯一客户端；目录推断版本标为 `installation_directory`。`XBOT_SHELL_CLI` 只覆盖后端文件，不改变运行客户端身份。缺少新命令的旧 CLI，先用 version/status/doctor，并明确客户端版本未直接读取。
+
+Studio MCP 自动适配旧版与 6.4；`client info` 或 `doctor --json` 显示实际 provider/endpoint。6.4 的 VisualFlow 用 `flow source read/write/edit`，旧版块接口继续保留。接口差异、原始 xbot-bash 调用和配置见 [MCP 兼容](mcp-compatibility.md)（`guide mcp`）。
 
 新任务用 flow code / flow visual、task、web、tool；code/visual、app run、browser、mcp、platform 等旧入口只作兼容。没有通用 repair 子命令；Skill 内 helper 须用 Node/Python 显式调用。
 

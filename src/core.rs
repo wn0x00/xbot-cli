@@ -17,7 +17,7 @@ use chrono::TimeZone;
 use serde_json::{json, Map, Value};
 
 #[path = "transport.rs"]
-mod transport;
+pub(crate) mod transport;
 pub(crate) use transport::run_capture;
 pub use transport::{mcp, mcp_list, shell_cli, shell_cli_raw};
 

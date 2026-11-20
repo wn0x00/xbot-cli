@@ -77,6 +77,7 @@ fn missing_leaf_arguments_are_errors_but_command_groups_are_discoverable() {
         vec![],
         vec!["app"],
         vec!["activity"],
+        vec!["client"],
         vec!["flow", "code"],
         vec!["tool", "studio"],
         vec!["--help"],
@@ -96,6 +97,7 @@ fn schemas_support_canonical_and_legacy_nested_paths() {
         vec!["schema", "tool", "studio", "call"],
         vec!["schema", "activity", "list"],
         vec!["schema", "activity", "open"],
+        vec!["schema", "client", "info"],
         vec!["schema", "mcp", "call"],
         vec!["schema", "flow", "visual", "disable"],
         vec!["schema", "code", "write"],
@@ -732,7 +734,11 @@ struct MockMcp {
 impl MockMcp {
     fn new(handler: impl Fn(&Value) -> Value + Send + 'static) -> Self {
         Self::serve(move |request| {
-            let result = handler(request);
+            let result = if request["method"] == "tools/list" {
+                json!({"tools":[]})
+            } else {
+                handler(request)
+            };
             (
                 200,
                 json!({"jsonrpc":"2.0", "id":request["id"], "result":result}),

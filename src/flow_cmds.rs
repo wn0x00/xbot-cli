@@ -1,4 +1,4 @@
-//! flow 命令组:Studio 内开发调试；参数写入使用本地元数据适配器。
+//! flow 命令组:Studio 内开发调试；通过版本兼容层选择 MCP。
 
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -39,13 +39,21 @@ pub fn flow_new(name: &str, kind: &str) -> Res<CmdOut> {
     let nxt = if kind == "code" {
         vec![format!("xbot-cli flow code write {fid} --file main.py")]
     } else {
-        vec![format!("xbot-cli flow visual list {fid} --detail")]
+        vec![format!(
+            "xbot-cli flow source read {fid}   # 6.4 源码入口；6.3 使用 flow visual list"
+        )]
     };
     Ok((json!({"created": r, "flow_id": fid}), nxt))
 }
 
 pub fn flow_get(flow_id: Option<&str>) -> Res<CmdOut> {
     let flow_id = core::resolve_flow_id(flow_id, None)?;
+    if crate::studio_mcp::is_copilot()? {
+        return Ok((
+            core::mcp("flow.source.read", json!({"flow_id":flow_id}), 130)?,
+            vec![],
+        ));
+    }
     let info = core::mcp("app.list_flows", json!({}), 130)?;
     let kind = info.get("flows").and_then(Value::as_array).and_then(|fs| {
         fs.iter().find_map(|f| {
@@ -303,6 +311,9 @@ where
 }
 
 fn run_finished(state: &Value) -> bool {
+    if state.get("active").and_then(Value::as_bool) == Some(true) {
+        return false;
+    }
     state
         .get("terminal_status")
         .and_then(Value::as_str)
@@ -384,6 +395,18 @@ fn run_backend_error(run_id: Option<&str>, previous: &Value, error: BackendError
         None => json!({"run":returned,"outcome":"unknown"}),
     };
     data["backend_error"] = evidence;
+    if error.code == "run_id_mismatch" {
+        data.as_object_mut().unwrap().remove("resume_command");
+        return BackendError::new(
+            "FLOW_RUN_MISMATCH",
+            "客户端当前保留的运行记录与请求的 run_id 不匹配",
+        )
+        .with_data(data)
+        .with_retryable(false)
+        .with_hint(
+            "6.4 Studio 只保留当前一次运行记录；使用已保存的结果和日志核对原运行，不自动重新启动",
+        );
+    }
     let intervention = match error.code.as_str() {
         "user_paused" | "FLOW_RUN_PAUSED" => Some((
             "FLOW_RUN_PAUSED",
@@ -434,6 +457,12 @@ fn static_errors(diag: &Value) -> Res<Value> {
 }
 
 pub(crate) fn diagnose_after_mutation(operation: &str, result: &Value) -> Res<Value> {
+    if let Some(errors) = result
+        .pointer("/static_check/errors")
+        .filter(|v| v.is_array())
+    {
+        return Ok(errors.clone());
+    }
     let diagnostic =
         core::mcp("diagnostics.snapshot", json!({}), 130).and_then(|diag| static_errors(&diag));
     diagnostic.map_err(|error| mutation_diagnostics_error(operation, result, error))

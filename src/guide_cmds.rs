@@ -23,6 +23,9 @@ const WIN_REPAIR: &str = include_str!("../skills/xbot-app-dev/references/win-rep
 const CLI_CONTRACT: &str = include_str!("../skills/xbot-app-dev/references/cli-contract.md");
 const OAPI: &str = include_str!("../skills/xbot-app-dev/references/oapi.md");
 const CODEFLOW: &str = include_str!("../skills/xbot-app-dev/references/codeflow.md");
+const MCP_COMPATIBILITY: &str =
+    include_str!("../skills/xbot-app-dev/references/mcp-compatibility.md");
+const PYTHON_PACKAGES: &str = include_str!("../skills/xbot-app-dev/references/python-packages.md");
 const VISUALFLOW: &str = include_str!("../skills/xbot-app-dev/references/visualflow.md");
 const FLOW_PARAMETERS: &str = include_str!("../docs/flow-parameters.md");
 const BROWSER: &str = include_str!("../skills/xbot-app-dev/references/browser.md");
@@ -113,7 +116,17 @@ const TOPICS: &[(&str, &str, &str)] = &[
         CLI_CONTRACT,
     ),
     ("codeflow", "CodeFlow 开发、维护、参数和验收", CODEFLOW),
+    (
+        "python-packages",
+        "应用 Python 依赖查询、安装、卸载与新旧 MCP",
+        PYTHON_PACKAGES,
+    ),
     ("visualflow", "VisualFlow 块、参数、快照和验收", VISUALFLOW),
+    (
+        "mcp",
+        "影刀 6.3/6.4 MCP 自动分流、源码编辑与能力边界",
+        MCP_COMPATIBILITY,
+    ),
     (
         "flow-parameters",
         "流程参数类型、批量增改删、默认值和 reload",
@@ -256,7 +269,15 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
             CLI_CONTRACT,
         ),
         (root.join("references").join("codeflow.md"), CODEFLOW),
+        (
+            root.join("references").join("python-packages.md"),
+            PYTHON_PACKAGES,
+        ),
         (root.join("references").join("visualflow.md"), VISUALFLOW),
+        (
+            root.join("references").join("mcp-compatibility.md"),
+            MCP_COMPATIBILITY,
+        ),
         (root.join("references").join("browser.md"), BROWSER),
         (root.join("references").join("recovery.md"), RECOVERY),
         (

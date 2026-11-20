@@ -74,6 +74,10 @@ try {
     const windowListSchema = JSON.parse(invokeShim(['schema', 'win32', 'list']).stdout).data;
     assert.deepEqual(windowListSchema.effects, ['read']);
     assert.equal(windowListSchema.requires_studio, false);
+    const clientSchema = JSON.parse(invokeShim(['schema', 'client', 'info']).stdout).data;
+    assert.deepEqual(clientSchema.effects, ['read']);
+    assert.equal(clientSchema.requires_studio, false);
+    assert.equal(clientSchema.supports_dry_run, false);
     const windows = invokeShim(['win32', 'list', '--title', '__xbot_package_unmatched_window_83c29a__', '--json']);
     assert.deepEqual(JSON.parse(windows.stdout).data.windows, []);
     assert.equal(windows.stderr, '');
@@ -124,6 +128,26 @@ try {
   assert.equal(parameterGuide.status, 0, parameterGuide.stderr);
   assert.equal(JSON.parse(parameterGuide.stdout).data.markdown,
     readFileSync(join(root, 'docs/flow-parameters.md'), 'utf8'));
+  const sourcePreview = invoke(['flow', 'source', 'write', 'main', '--file', '-', '--dry-run', '--json'],
+    'xbot_visual.programing.log(text="preview")\n');
+  assert.equal(sourcePreview.status, 0, sourcePreview.stderr);
+  assert.equal(JSON.parse(sourcePreview.stdout).data.arguments.content, 'xbot_visual.programing.log(text="preview")\n');
+  const sourceSchema = invoke(['schema', 'flow', 'source', 'edit']);
+  assert.equal(sourceSchema.status, 0, sourceSchema.stderr);
+  assert.equal(JSON.parse(sourceSchema.stdout).data.supports_dry_run, true);
+  const packagePreview = invoke(['python', 'package', 'install', 'openpyxl==3.1.5', 'requests', '--dry-run', '--json']);
+  assert.equal(packagePreview.status, 0, packagePreview.stderr);
+  assert.deepEqual(JSON.parse(packagePreview.stdout).data.arguments.packages,
+    [{ package_name: 'openpyxl', version: '3.1.5' }, { package_name: 'requests' }]);
+  for (const operation of ['list', 'install', 'uninstall']) {
+    const result = invoke(['schema', 'python', 'package', operation]);
+    assert.equal(result.status, 0, result.stderr);
+    const contract = JSON.parse(result.stdout).data;
+    assert.equal(contract.requires_studio, true);
+    assert.equal(contract.supports_dry_run, operation !== 'list');
+    assert.deepEqual(contract.effects, operation === 'list' ? ['read'] :
+      ['modify_python_environment', 'write_app_dependencies']);
+  }
   const skill = invoke(['install', '--skills', '--json']);
   assert.equal(skill.status, 0, skill.stderr);
   const skillRoot = join(workdir, '.agents', 'skills', 'xbot-app-dev');
@@ -163,6 +187,8 @@ try {
     readFileSync(join(root, 'skills', 'xbot-development-standards', 'SKILL.md'), 'utf8'));
   assert.match(invoke(['guide', 'cli-contract']).stdout, /^# /);
   for (const [topic, resource] of [
+    ['mcp', 'references/mcp-compatibility.md'],
+    ['python-packages', 'references/python-packages.md'],
     ['oapi', 'references/oapi.md'],
     ['automation-routing', 'references/automation-routing.md'],
     ['web-module', 'modules/web.md'],

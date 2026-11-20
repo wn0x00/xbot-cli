@@ -75,6 +75,9 @@ fn render_success(data: Option<&Value>) -> String {
     let Some(data) = data else {
         return "完成".into();
     };
+    if data["command"] == "client.info" {
+        return render_client(data);
+    }
     if data["command"] == "win32.list" {
         return render_windows(data);
     }
@@ -196,6 +199,86 @@ fn render_success(data: Option<&Value>) -> String {
     }
     let mut lines = Vec::new();
     render_value(data, 0, &mut lines);
+    lines.join("\n")
+}
+
+fn render_client(data: &Value) -> String {
+    let known = |value: &Value| value.as_str().unwrap_or("未知").to_owned();
+    let mut lines = vec![
+        format!(
+            "影刀客户端: {}（{}）",
+            known(&data["client"]["version"]),
+            match data["client"]["running"].as_bool() {
+                Some(true) => "已发现运行进程",
+                Some(false) => "未运行",
+                None => "进程查询失败",
+            }
+        ),
+        format!("安装目录: {}", known(&data["client"]["install_dir"])),
+        format!("版本来源: {}", known(&data["client"]["version_source"])),
+        format!("xbot-cli: {}", known(&data["cli"]["version"])),
+        format!("CLI 路径: {}", known(&data["cli"]["executable"])),
+    ];
+    if let Some(processes) = data["client"]["processes"].as_array() {
+        let rows: Vec<Value> = processes
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "PID":p["pid"],"进程":p["name"],"版本":p["version"],"路径":p["executable"]
+                })
+            })
+            .collect();
+        render_value(&serde_json::json!({"进程":rows}), 0, &mut lines);
+        for process in processes {
+            if let Some(error) = process["path_error"].as_str() {
+                lines.push(format!(
+                    "PID {} 路径查询失败: {error}",
+                    scalar(&process["pid"])
+                ));
+            }
+        }
+    }
+    if let Some(error) = data["client"]["error"]["message"].as_str() {
+        lines.push(format!("进程查询: {error}"));
+    }
+    lines.push(format!(
+        "shell-cli: {}（{}）",
+        known(&data["shell_cli"]["backend"]["path"]),
+        known(&data["shell_cli"]["backend"]["source"])
+    ));
+    for (key, label) in [("shell_cli", "客户端状态"), ("studio_mcp", "MCP 连接")] {
+        if data[key]["ok"] != true {
+            lines.push(format!(
+                "{label}: [{}] {}",
+                known(&data[key]["error"]["code"]),
+                known(&data[key]["error"]["message"])
+            ));
+        }
+    }
+    if data["shell_cli"]["ok"] == true {
+        let state = &data["shell_cli"]["state"];
+        lines.push(format!(
+            "客户端状态: {} / Studio={} / 运行任务={}",
+            known(&state["currentMode"]),
+            scalar(&state["hasStudioOpened"]),
+            scalar(&state["hasRunningTask"])
+        ));
+    }
+    if data["studio_mcp"]["ok"] == true {
+        let connection = &data["studio_mcp"]["connection"];
+        lines.push(format!(
+            "MCP: {}（mode={}） {}",
+            known(&connection["provider"]),
+            known(&data["mcp_mode"]),
+            known(&connection["endpoint"])
+        ));
+    }
+    if data["partial"] == true {
+        lines.push("部分信息不可用；已保留其余查询结果，详见 --json。".into());
+    }
+    if let Some(notes) = data["notes"].as_array() {
+        lines.extend(notes.iter().filter_map(Value::as_str).map(str::to_owned));
+    }
     lines.join("\n")
 }
 

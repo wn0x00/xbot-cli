@@ -96,6 +96,8 @@ fn bare_groups_print_bounded_text_help_even_when_piped() {
         (vec!["app"], "open"),
         (vec!["flow"], "verify"),
         (vec!["flow", "code"], "write"),
+        (vec!["python"], "package"),
+        (vec!["python", "package"], "install"),
         (vec!["tool", "studio"], "call"),
         (vec!["web"], "fill"),
         (vec!["browser"], "fill"),

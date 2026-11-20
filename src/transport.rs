@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{json, Map, Value};
 
-use super::{mcp_endpoint, truncate, BackendError, Res};
+use super::{truncate, BackendError, Res};
 
 #[derive(Debug)]
 pub(crate) struct ProcessOutput {
@@ -281,16 +281,22 @@ fn code_value(value: &Value) -> Option<String> {
 }
 
 fn backend_error(value: &Value, fallback: &str, message: &str) -> BackendError {
-    let code = ["/data/code", "/error/data/code", "/error/code", "/code"]
-        .iter()
-        .find_map(|path| value.pointer(path).and_then(code_value))
-        .or_else(|| {
-            value
-                .get("apiCode")
-                .and_then(Value::as_i64)
-                .map(|n| format!("api_{n}"))
-        })
-        .unwrap_or_else(|| fallback.to_owned());
+    let code = [
+        "/data/code",
+        "/error/data/code",
+        "/error/code",
+        "/code",
+        "/details/code",
+    ]
+    .iter()
+    .find_map(|path| value.pointer(path).and_then(code_value))
+    .or_else(|| {
+        value
+            .get("apiCode")
+            .and_then(Value::as_i64)
+            .map(|n| format!("api_{n}"))
+    })
+    .unwrap_or_else(|| fallback.to_owned());
     let message = [
         "/error/data/message",
         "/error/message",
@@ -311,15 +317,17 @@ fn backend_error(value: &Value, fallback: &str, message: &str) -> BackendError {
 }
 
 pub fn mcp(tool: &str, args: Value, timeout_secs: u64) -> Res<Value> {
-    mcp_on(&mcp_endpoint(), tool, args, timeout_secs)
+    crate::studio_mcp::call(tool, args, timeout_secs)
 }
 
 pub fn mcp_list(browser: bool, timeout_secs: u64) -> Res<Vec<Value>> {
     if browser {
         return Ok(crate::bridge::tools());
     }
-    let endpoint = mcp_endpoint();
-    let response = rpc_on(&endpoint, "tools/list", json!({}), timeout_secs)?;
+    crate::studio_mcp::list(timeout_secs)
+}
+
+pub(crate) fn tools_from(response: Value) -> Res<Vec<Value>> {
     response
         .get("tools")
         .and_then(Value::as_array)
@@ -330,7 +338,7 @@ pub fn mcp_list(browser: bool, timeout_secs: u64) -> Res<Vec<Value>> {
         })
 }
 
-fn mcp_on(endpoint: &str, tool: &str, args: Value, timeout_secs: u64) -> Res<Value> {
+pub(crate) fn mcp_on(endpoint: &str, tool: &str, args: Value, timeout_secs: u64) -> Res<Value> {
     if !args.is_object() {
         return Err(BackendError::new(
             "BAD_ARGS",
@@ -345,7 +353,7 @@ fn mcp_on(endpoint: &str, tool: &str, args: Value, timeout_secs: u64) -> Res<Val
     )?)
 }
 
-fn decode_tool_result(response: Value) -> Res<Value> {
+pub(crate) fn decode_tool_result(response: Value) -> Res<Value> {
     if !response.is_object() {
         return Err(
             BackendError::new("MCP_BAD_RESPONSE", "MCP 工具结果不是对象").with_data(response),
@@ -359,7 +367,7 @@ fn decode_tool_result(response: Value) -> Res<Value> {
         .filter(|item| item.get("type").and_then(Value::as_str) == Some("text"))
         .filter_map(|item| item.get("text").and_then(Value::as_str))
         .collect();
-    let output = response
+    let mut output = response
         .get("structuredContent")
         .filter(|v| !v.is_null())
         .cloned()
@@ -385,21 +393,92 @@ fn decode_tool_result(response: Value) -> Res<Value> {
         {
             error = error.with_hint(truncate(&issues.to_string(), 300));
         }
-        return Err(error.with_data(json!({"response": response, "result": output})));
+        let mut data = json!({"response": response, "result": output});
+        if output.get("type").and_then(Value::as_str) == Some("xbot.command-error/1")
+            && output.get("category").and_then(Value::as_str) == Some("invalid_command_args")
+        {
+            data["applied"] = json!(false);
+            data["status"] = json!("not_started");
+        }
+        return Err(error.with_data(data));
+    }
+    if let Some(content) = response.get("content").and_then(Value::as_array) {
+        let media: Vec<Value> = content
+            .iter()
+            .filter(|item| item["type"] != "text")
+            .cloned()
+            .collect();
+        if !media.is_empty() {
+            if !output.is_object() {
+                output = json!({"result":output});
+            }
+            output["mcp_content"] = json!(media);
+        }
     }
     Ok(output)
 }
 
-fn rpc_on(endpoint: &str, method: &str, params: Value, timeout_secs: u64) -> Res<Value> {
+pub(crate) fn rpc_on(endpoint: &str, method: &str, params: Value, timeout_secs: u64) -> Res<Value> {
+    Ok(rpc_session(endpoint, method, params, timeout_secs, None, None)?.0)
+}
+
+pub(crate) fn rpc_session(
+    endpoint: &str,
+    method: &str,
+    params: Value,
+    timeout_secs: u64,
+    session: Option<&str>,
+    protocol: Option<&str>,
+) -> Res<(Value, Option<String>)> {
     let payload = json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
+    let response = http_rpc(endpoint, payload, timeout_secs, session, protocol)?;
+    let session = response.header("Mcp-Session-Id").map(str::to_owned);
+    let event_stream = response
+        .header("Content-Type")
+        .is_some_and(|header| header.starts_with("text/event-stream"));
+    let body = response
+        .into_string()
+        .map_err(|e| BackendError::new("MCP_READ_FAILED", format!("读取 MCP 响应失败: {e}")))?;
+    Ok((decode_rpc_body(&body, event_stream)?, session))
+}
+
+pub(crate) fn notify_initialized(
+    endpoint: &str,
+    session: &str,
+    protocol: &str,
+    timeout: u64,
+) -> Res<()> {
+    http_rpc(
+        endpoint,
+        json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+        timeout,
+        Some(session),
+        Some(protocol),
+    )?;
+    Ok(())
+}
+
+fn http_rpc(
+    endpoint: &str,
+    payload: Value,
+    timeout_secs: u64,
+    session: Option<&str>,
+    protocol: Option<&str>,
+) -> Res<ureq::Response> {
     let client = ureq::AgentBuilder::new()
         .timeout(Duration::from_secs(timeout_secs))
         .build();
-    let response = client
+    let mut request = client
         .post(endpoint)
         .set("Content-Type", "application/json")
-        .set("Accept", "application/json, text/event-stream")
-        .send_json(payload);
+        .set("Accept", "application/json, text/event-stream");
+    if let Some(id) = session {
+        request = request.set("Mcp-Session-Id", id);
+    }
+    if let Some(version) = protocol {
+        request = request.set("MCP-Protocol-Version", version);
+    }
+    let response = request.send_json(payload);
     let response = match response {
         Ok(response) => response,
         Err(ureq::Error::Status(status, response)) => {
@@ -424,14 +503,7 @@ fn rpc_on(endpoint: &str, method: &str, params: Value, timeout_secs: u64) -> Res
             .with_hint("先检查连接和已有操作状态；写入或运行可能已开始，不要自动重试"));
         }
     };
-    let event_stream = response
-        .header("Content-Type")
-        .map(|header| header.starts_with("text/event-stream"))
-        .unwrap_or(false);
-    let body = response
-        .into_string()
-        .map_err(|e| BackendError::new("MCP_READ_FAILED", format!("读取 MCP 响应失败: {e}")))?;
-    decode_rpc_body(&body, event_stream)
+    Ok(response)
 }
 
 fn decode_rpc_body(body: &str, event_stream: bool) -> Res<Value> {

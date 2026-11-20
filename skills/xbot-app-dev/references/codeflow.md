@@ -3,6 +3,7 @@
 ## 工作流
 
 Studio 命令建议追加 `--expect-app <app-id>`，它核对当前应用而不切换应用。以下流程名称应替换为实际返回的 `flow_id`。
+旧版与 6.4 均保留 `flow code` 命令；统一源码分页入口为 `flow source read`。协议及参数差异先看 [MCP 兼容](mcp-compatibility.md)，由 doctor 的实际 provider 判断。
 
 ```bash
 xbot-cli status
@@ -39,17 +40,18 @@ xbot-cli flow verify hello --timeout 600
 文件路径、文件夹路径标注主流程用途，但 6.3.39 子流程实测可用，因此允许并给出 warning，
 不据此保证编辑器可选性或跨版本兼容。对象默认 `None` 只是空占位，不会创建对象。
 
-`flow params set` 使用 CLI 本地元数据适配器，不是扩展原生 MCP 的六类型接口：
+legacy 后端的 `flow params set` 使用 CLI 本地元数据适配器，不是扩展原生 MCP 的六类型接口：
 整批校验，必要时先保存已有编辑，仅写参数区域，调用一次 reload 后回读。
 同类型同方向更新时未提供的字段保留旧值；类型或方向变化时重置不兼容初值。
 无变化不写入、不 reload，不 sync 或关闭编辑器，不手工改 Python 或签名文件。
 写入后失败先读阶段和 `written/reloaded/readback_verified`，不整批重试；
 `runtime_verified:false` 表示尚未运行。不要自行照搬该方法直接编辑应用目录。
 完整参数使用说明可离线读取 `xbot-cli guide flow-parameters`；不提供 `password` 参数类型。
+copilot 后端使用 6.4 原生参数 set/remove，同类型同方向更新保留省略字段。新增表达式参数不填初值时为 `None`；需数值、空列表等时明确填写。混合设置/删除失败读取 `completed_count/results`，不整批重试；主流程 In 仅支持 int/float/str/bool/file。
 
 ## 源码契约
 
-权威文档：`xbot-cli wiki read wiki/guides/codeflow wiki/guides/flow-parameters`。
+legacy 文档：`xbot-cli wiki read wiki/guides/codeflow wiki/guides/flow-parameters`。6.4 不提供旧 wiki 接口，按 [MCP 兼容](mcp-compatibility.md) 查询 `xbot-bash api get --names <精确 API/对象名>` 的定义。
 
 - 唯一入口 `def main(args):`，不要增加 `main()` 或 `if __name__ == "__main__":`。
 - 默认骨架：
@@ -92,7 +94,7 @@ args["搜索结果"] = search_result
 
 流程按 [项目规范](project-conventions.md)和同批安装的开发规范区分项目类型组织；普通应用由主流程进入主运行模块的 `main(args)`，不设置测试入口或测试流程。保持既有调用和参数契约，不为一次元素修复迁移整个应用。
 
-编写网页代码前读取 `wiki/guides/web/codeflow`、`wiki/xbot_sdk/web/browser` 和需要的 `wiki/xbot_sdk/web/element`，核对实际签名。本项目默认直接 XPath 定位，覆盖 Wiki 中默认通过 `package.selector()` 获取稳定控件的实现偏好；其他运行环境和 SDK 能力约束仍需遵守。
+编写网页代码前，legacy 读取 `wiki/guides/web/codeflow`、`wiki/xbot_sdk/web/browser` 和需要的 `wiki/xbot_sdk/web/element`；copilot 用 `api get` 查询精确 SDK API/对象名，核对实际签名。本项目默认直接 XPath 定位，覆盖 Wiki 中默认通过 `package.selector()` 获取稳定控件的实现偏好；其他运行环境和 SDK 能力约束仍需遵守。
 
 当前已核验的查找接口：
 
@@ -111,7 +113,7 @@ candidates = browser.find_all_by_xpath(verified_xpath, timeout=10)
 
 ## 第三方依赖
 
-依赖只装进应用 venv：
+依赖只装进应用 venv。legacy 调用：
 
 ```bash
 xbot-cli tool studio call python_pip @pip.json
@@ -120,6 +122,8 @@ xbot-cli tool studio call python_pip @pip.json
 ```json
 {"operation":"install","packages":[{"package_name":"requests","version":"2.32.3"}]}
 ```
+
+6.4 通过 `tool studio call xbot-bash @command.json` 调用；先以 `{"command":"xbot-bash python package install --help","explanation":"核对依赖安装参数"}` 读取当前契约，再执行已授权的安装。
 
 ## 验收
 

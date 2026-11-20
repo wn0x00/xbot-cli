@@ -40,7 +40,7 @@ pub fn cmd_status() -> Res<CmdOut> {
                 data["app"] = json!({
                     "app_id": app.get("app_id"),
                     "name": app.get("name").or_else(|| app.get("app_name")),
-                    "flow_count": info.get("flows").and_then(Value::as_array).map(|a| a.len()),
+                    "flow_count": info.pointer("/flows/flow_count").cloned().unwrap_or_else(|| json!(info.get("flows").and_then(Value::as_array).map(|a| a.len()))),
                 });
             }
             Err(e) => {
@@ -73,19 +73,26 @@ pub fn cmd_doctor() -> Res<CmdOut> {
         }
     }
     // 服务可达即可;"No Studio workspace" 只是当前没开应用,属正常态。
-    match core::mcp("app.get_info", json!({}), 8) {
+    let (connection, probe) = match crate::studio_mcp::connection() {
+        Ok(connection) => (Some(connection), core::mcp("app.get_info", json!({}), 8)),
+        Err(error) => (None, Err(error)),
+    };
+    match probe {
         Ok(info) => {
             report["studio_mcp"] = json!({"ok": true,
-                "app": info.pointer("/app/app_id")});
+                "app": info.pointer("/app/app_id"), "connection":connection});
         }
-        Err(e) if !e.message.contains("No Studio workspace is opened") => {
+        Err(e)
+            if !e.message.contains("No Studio workspace is opened")
+                && e.message != "studio is not open" =>
+        {
             let hint = format!("Studio MCP 通道失败，地址: {}。根据具体错误检查客户端服务与 XBOT_MCP_ENDPOINT；未打开应用不等于服务离线。", core::mcp_endpoint());
             hints.push(hint.clone());
             report["studio_mcp"] = json!({"ok": false, "error": e.message, "code":e.code,
                 "endpoint":core::mcp_endpoint(), "hint":hint});
         }
         Err(e) => {
-            report["studio_mcp"] = json!({"ok": true, "app": Value::Null,
+            report["studio_mcp"] = json!({"ok": true, "app": Value::Null, "connection":connection,
                 "note": core::truncate(&e.message, 80)});
         }
     }

@@ -4,10 +4,12 @@
 
 | 目的 | 发现入口 | 进一步资料 |
 | --- | --- | --- |
-| 版本、客户端连接和诊断 | version / status / doctor | [环境映射](environment-and-paths.md) |
+| 运行客户端版本、目录及连接 | client info；故障再查 doctor；仅 CLI 版本用 version | [环境映射](environment-and-paths.md) |
 | 应用或指令身份、查看/打开 | app / activity | [资产分类](asset-types.md) |
 | 流程、CodeFlow、In/Out | flow / flow code / flow params | [CodeFlow](../references/codeflow.md) |
-| VisualFlow 实例、字段、变量 | flow visual | [VisualFlow](../references/visualflow.md) |
+| VisualFlow 实例、字段、变量 | legacy: flow visual；copilot: flow source | [VisualFlow](../references/visualflow.md) |
+| 影刀升级、MCP 404、协议选择 | client info / doctor / guide mcp | [MCP 兼容](../references/mcp-compatibility.md) |
+| Python 依赖查询、安装与卸载 | python package list/install/uninstall | [依赖管理](../references/python-packages.md) |
 | 已发布应用及运行日志 | task run/status/logs | [运行](../references/run-existing.md) |
 | Studio 运行及超时续查 | flow run/verify/logs/wait，status | [验证](validation-and-delivery.md) |
 | 浏览器、网页、ref、XPath | web browser / web | [Web 模块](../modules/web.md) |

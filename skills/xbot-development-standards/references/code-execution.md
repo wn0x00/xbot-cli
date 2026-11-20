@@ -63,4 +63,6 @@ Web DOM 和 Windows 控件分别定位。业务窗口应核对进程、窗口及
 
 第三方依赖安装到应用虚拟环境并持久化版本约束；不依赖开发机全局安装。启动外部编码器等工具需校验返回码、真实输出和必要的内容解码；无关窗口不弹出。
 
+通过 `xbot-cli python package list/install/uninstall` 管理当前应用依赖，兼容两版 MCP；需要固定版本时安装 `NAME==VERSION`。以应用引擎和客户端回读为准，使用 `--expect-app`，安装/卸载超时不自动重试。具体参数见 [依赖管理](../../xbot-app-dev/references/python-packages.md) 或 `xbot-cli guide python-packages`。
+
 临时文件、数据库连接、线程和锁要有明确生命周期。读取产物和导出文件不覆盖既有文件，避免并发调用共享固定临时文件名。过期的预览原型、诊断残留只在确认无引用后清理，不删除平台必需资源或用户文件。

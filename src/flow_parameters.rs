@@ -1,4 +1,4 @@
-//! Local parameter metadata adapter, coordinated with Studio save/reload/readback.
+//! Native Copilot parameters with a legacy metadata save/reload/readback adapter.
 //! The helper reads managed resources without loading client assemblies.
 
 use std::fs::{self, File, OpenOptions};
@@ -250,6 +250,9 @@ fn stage_error(mut error: BackendError, stage: &str, progress: &Value) -> Backen
 
 pub fn set(flow_id: Option<&str>, payload: Value) -> Res<CmdOut> {
     let payload = crate::input::normalize_parameters(payload)?;
+    if crate::studio_mcp::is_copilot()? {
+        return set_copilot(flow_id, &payload);
+    }
     let app_id = core::require_current_edit_mode()?;
     let flow_id = core::resolve_flow_id(flow_id, None)?;
     let _lock = lock(&app_id)?;
@@ -346,6 +349,103 @@ pub fn set(flow_id: Option<&str>, payload: Value) -> Res<CmdOut> {
             "xbot-cli flow params list {flow_id} --expect-app {app_id}"
         )],
     ))
+}
+
+fn set_copilot(flow: Option<&str>, payload: &Value) -> Res<CmdOut> {
+    let app_id = core::require_current_edit_mode()?;
+    let flow_id = core::resolve_flow_id(flow, None)?;
+    let _lock = lock(&app_id)?;
+    let operations = payload["operations"]
+        .as_array()
+        .expect("validated operations");
+    let mut completed = 0;
+    let mut results = Vec::new();
+    while completed < operations.len() {
+        core::require_expected_app(&app_id)
+            .map_err(|e| native_parameter_error(e, completed, &results))?;
+        let start = completed;
+        let (tool, args, count) = if operations[start]["op"] == "remove" {
+            (
+                "flow.parameter.remove",
+                json!({"flow_id":flow_id,"name":operations[start]["name"]}),
+                1,
+            )
+        } else {
+            let current =
+                readback(&flow_id).map_err(|e| native_parameter_error(e, completed, &results))?;
+            let mut names = std::collections::HashSet::new();
+            let mut parameters = Vec::new();
+            for operation in &operations[start..] {
+                if operation["op"] != "upsert" || !names.insert(operation["name"].clone()) {
+                    break;
+                }
+                parameters.push(native_parameter(operation, &current));
+            }
+            let count = parameters.len();
+            (
+                "flow.parameter.set",
+                json!({"flow_id":flow_id,"parameters":parameters}),
+                count,
+            )
+        };
+        let result = core::mcp(tool, args, 130)
+            .map_err(|e| native_parameter_error(e, completed, &results))?;
+        results.push(result);
+        completed += count;
+    }
+    Ok((
+        json!({"command":"flow.params.set","backend":"copilot-mcp","success":true,
+        "app_id":app_id,"flow_id":flow_id,"completed_count":completed,"results":results,
+        "runtime_verified":false}),
+        vec![],
+    ))
+}
+
+// Native set fully updates a parameter. Preserve the public CLI's omitted-field semantics.
+fn native_parameter(operation: &Value, current: &Value) -> Value {
+    let mut parameter = operation.clone();
+    let object = parameter.as_object_mut().expect("validated parameter");
+    object.remove("op");
+    if let Some(old) = current
+        .as_array()
+        .and_then(|items| items.iter().find(|p| p["name"] == operation["name"]))
+    {
+        if old["type"] == operation["type"] && old["direction"] == operation["direction"] {
+            for field in ["kind", "value"] {
+                if !object.contains_key(field) {
+                    object.insert(field.into(), old[field].clone());
+                }
+            }
+        }
+        if !object.contains_key("description") {
+            object.insert("description".into(), old["description"].clone());
+        }
+    }
+    if let Some(kind) = object.remove("kind") {
+        object.insert("value_kind".into(), kind);
+    }
+    parameter
+}
+
+fn native_parameter_error(
+    error: BackendError,
+    completed: usize,
+    results: &[Value],
+) -> BackendError {
+    let outcome = if error
+        .data
+        .as_ref()
+        .is_some_and(|d| d["status"] == "not_started")
+    {
+        "not_started"
+    } else {
+        "unknown"
+    };
+    BackendError::new("PARAMETER_UPDATE_FAILED", "参数操作未全部完成，已停止后续操作")
+        .with_data(json!({"completed_count":completed,"results":results,"cause_code":error.code,
+            "cause_message":error.message,"cause":error.data,"current_operation_outcome":outcome}))
+        .with_retryable(false)
+        .with_hint("按 results 和参数列表核对已保存的修改；不要整批重试。6.4 的混合设置/删除按顺序执行，不提供跨命令事务")
 }
 
 #[cfg(test)]

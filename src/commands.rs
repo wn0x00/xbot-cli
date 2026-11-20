@@ -12,6 +12,11 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
     use flow_cmds as f;
     use misc_cmds as m;
     match group {
+        Group::Client(ClientSub::Info) => crate::client_cmds::info(),
+        Group::Python(_) => Err(BackendError::new(
+            "BAD_ARGS",
+            "Python 依赖操作必须先准备参数",
+        )),
         Group::Version => Ok((
             json!({"name":"xbot-cli","version":env!("CARGO_PKG_VERSION")}),
             vec![],
@@ -78,6 +83,13 @@ pub fn execute(group: Group, yes: bool) -> Res<CmdOut> {
             AppSub::Recycle { app_id } => a::app_recycle(&app_id),
         },
         Group::Flow(sub) => match sub {
+            FlowSub::Source(FlowSourceSub::Read {
+                flow_id,
+                offset,
+                limit,
+                block_nos,
+            }) => crate::flow_source::read(flow_id.as_deref(), offset, limit, block_nos.as_deref()),
+            FlowSub::Source(_) => Err(BackendError::new("BAD_ARGS", "源码写入必须先准备输入")),
             FlowSub::Code(sub) => execute(Group::Code(sub), yes),
             FlowSub::Visual(sub) => execute(Group::Visual(sub), yes),
             FlowSub::Check { flow_id } => f::flow_check(flow_id.as_deref()),

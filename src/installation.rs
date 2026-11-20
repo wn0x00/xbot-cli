@@ -24,6 +24,111 @@ pub struct Resolution {
     pub candidates: Vec<Candidate>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct RunningClient {
+    pub pid: u32,
+    pub name: String,
+    pub executable: Option<String>,
+    pub path_error: Option<String>,
+}
+
+#[cfg(windows)]
+pub fn running_clients() -> Result<Vec<RunningClient>, BackendError> {
+    use windows::core::PWSTR;
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::{
+        Diagnostics::ToolHelp::{
+            CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+            TH32CS_SNAPPROCESS,
+        },
+        Threading::{
+            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
+            PROCESS_QUERY_LIMITED_INFORMATION,
+        },
+    };
+    let mut clients = Vec::new();
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+            .map_err(|e| BackendError::new("CLIENT_PROCESS_QUERY_FAILED", e.to_string()))?;
+        let result = (|| {
+            let mut entry = PROCESSENTRY32W {
+                dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+                ..Default::default()
+            };
+            Process32FirstW(snapshot, &mut entry)
+                .map_err(|e| BackendError::new("CLIENT_PROCESS_QUERY_FAILED", e.to_string()))?;
+            loop {
+                let length = entry
+                    .szExeFile
+                    .iter()
+                    .position(|v| *v == 0)
+                    .unwrap_or(entry.szExeFile.len());
+                let name = String::from_utf16_lossy(&entry.szExeFile[..length]);
+                if [
+                    "ShadowBot.exe",
+                    "ShadowBot.Shell.exe",
+                    "ShadowBot.Explorer.exe",
+                ]
+                .iter()
+                .any(|n| name.eq_ignore_ascii_case(n))
+                {
+                    let path = OpenProcess(
+                        PROCESS_QUERY_LIMITED_INFORMATION,
+                        false,
+                        entry.th32ProcessID,
+                    )
+                    .and_then(|process| {
+                        let mut buffer = vec![0u16; 32768];
+                        let mut size = buffer.len() as u32;
+                        let result = QueryFullProcessImageNameW(
+                            process,
+                            PROCESS_NAME_WIN32,
+                            PWSTR(buffer.as_mut_ptr()),
+                            &mut size,
+                        )
+                        .map(|()| String::from_utf16_lossy(&buffer[..size as usize]));
+                        let _ = CloseHandle(process);
+                        result
+                    });
+                    let (executable, path_error) = match path {
+                        Ok(path) => (Some(path), None),
+                        Err(error) => (None, Some(error.to_string())),
+                    };
+                    clients.push(RunningClient {
+                        pid: entry.th32ProcessID,
+                        name,
+                        executable,
+                        path_error,
+                    });
+                }
+                if let Err(error) = Process32NextW(snapshot, &mut entry) {
+                    if error.code() != windows::Win32::Foundation::ERROR_NO_MORE_FILES.to_hresult()
+                    {
+                        return Err(BackendError::new(
+                            "CLIENT_PROCESS_QUERY_FAILED",
+                            error.to_string(),
+                        ));
+                    }
+                    break;
+                }
+            }
+            Ok(())
+        })();
+        let _ = CloseHandle(snapshot);
+        result?;
+    }
+    clients.sort_by_key(|client| client.pid);
+    Ok(clients)
+}
+
+#[cfg(not(windows))]
+pub fn running_clients() -> Result<Vec<RunningClient>, BackendError> {
+    Err(BackendError::new(
+        "CLIENT_PLATFORM_UNSUPPORTED",
+        "客户端进程查询需要 Windows",
+    ))
+}
+
 impl Resolution {
     pub fn evidence(&self) -> Value {
         serde_json::to_value(self).expect("installation resolution")
@@ -207,18 +312,7 @@ fn add_executable_root(roots: &mut Vec<(PathBuf, String)>, path: PathBuf, source
 #[cfg(windows)]
 fn windows_roots() -> Vec<(PathBuf, String)> {
     use windows::core::{PCWSTR, PWSTR};
-    use windows::Win32::Foundation::CloseHandle;
-    use windows::Win32::System::{
-        Diagnostics::ToolHelp::{
-            CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
-            TH32CS_SNAPPROCESS,
-        },
-        Registry::*,
-        Threading::{
-            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
-            PROCESS_QUERY_LIMITED_INFORMATION,
-        },
-    };
+    use windows::Win32::System::Registry::*;
     fn wide(s: &str) -> Vec<u16> {
         s.encode_utf16().chain(Some(0)).collect()
     }
@@ -260,56 +354,12 @@ fn windows_roots() -> Vec<(PathBuf, String)> {
         )
     }
     let mut roots = Vec::new();
-    unsafe {
-        if let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
-            let mut entry = PROCESSENTRY32W {
-                dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
-                ..Default::default()
-            };
-            let mut valid = Process32FirstW(snapshot, &mut entry).is_ok();
-            while valid {
-                let length = entry
-                    .szExeFile
-                    .iter()
-                    .position(|v| *v == 0)
-                    .unwrap_or(entry.szExeFile.len());
-                let name = String::from_utf16_lossy(&entry.szExeFile[..length]);
-                if [
-                    "ShadowBot.exe",
-                    "ShadowBot.Shell.exe",
-                    "ShadowBot.Explorer.exe",
-                ]
-                .iter()
-                .any(|n| name.eq_ignore_ascii_case(n))
-                {
-                    if let Ok(process) = OpenProcess(
-                        PROCESS_QUERY_LIMITED_INFORMATION,
-                        false,
-                        entry.th32ProcessID,
-                    ) {
-                        let mut buffer = vec![0u16; 32768];
-                        let mut size = buffer.len() as u32;
-                        if QueryFullProcessImageNameW(
-                            process,
-                            PROCESS_NAME_WIN32,
-                            PWSTR(buffer.as_mut_ptr()),
-                            &mut size,
-                        )
-                        .is_ok()
-                        {
-                            add_executable_root(
-                                &mut roots,
-                                PathBuf::from(String::from_utf16_lossy(&buffer[..size as usize])),
-                                "running-client",
-                            );
-                        }
-                        let _ = CloseHandle(process);
-                    }
-                }
-                valid = Process32NextW(snapshot, &mut entry).is_ok();
-            }
-            let _ = CloseHandle(snapshot);
+    for client in running_clients().unwrap_or_default() {
+        if let Some(path) = client.executable {
+            add_executable_root(&mut roots, PathBuf::from(path), "running-client");
         }
+    }
+    unsafe {
         for (hive, label) in [(HKEY_CURRENT_USER, "HKCU"), (HKEY_LOCAL_MACHINE, "HKLM")] {
             for prefix in [r"Software", r"Software\WOW6432Node"] {
                 for suffix in [

@@ -4,6 +4,8 @@ CLI 默认操作当前执行端，不能把当前桌面测试当成用户日志�
 
 影刀 app_id/flow_id 是工程身份，业务网页 URL/frame/记录键或软件 PID/HWND 是操作身份；两者分开。软件重启重新搜索窗口，不复用旧 PID/HWND。网页活动标签也不等于目标页面。
 
+客户端环境先读 `xbot-cli client info --json`：`cli.version` 属于 CLI，`client.version`/`processes` 属于运行中的影刀，`shell_cli.backend` 是本次选用的后端文件。显式覆盖可指向旧安装，不能据此把当前客户端记成旧版；有多个安装正在运行或路径无权限时保留未知。MCP 按 `studio_mcp.connection.provider` 分流，具体用法见 [兼容指南](../references/mcp-compatibility.md)。本地状态与 MCP 可能来自不同配置端点，逐项核对，不把远程端点的应用归给本机进程。
+
 ## 代表性输入
 
 用户路径在本机不可用时，可映射到本任务新目录并说明差异；保留缺陷相关的扩展名、编码、表结构、权限、空值、大小、路径字符及覆盖行为。用户指定固定值或路径本身触发缺陷时不静默替换。输出路径不覆盖现有业务文件。

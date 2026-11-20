@@ -8,6 +8,7 @@ use crate::core::{self, BackendError, Res};
 use crate::{app_cmds, commands, extra_cmds, flow_cmds, input, web_cmds};
 
 enum Operation {
+    PythonPackage(crate::python_cmds::PreparedPackage),
     Command(Group),
     Platform(crate::oapi::PreparedPlatform),
     TaskRun {
@@ -25,6 +26,16 @@ enum Operation {
         content: String,
     },
     CodeEdit {
+        flow_id: Option<String>,
+        old: String,
+        new: String,
+        replace_all: bool,
+    },
+    SourceWrite {
+        flow_id: Option<String>,
+        content: String,
+    },
+    SourceEdit {
         flow_id: Option<String>,
         old: String,
         new: String,
@@ -81,6 +92,7 @@ impl PreparedCommand {
 
     pub fn execute(self, yes: bool) -> Res<CmdOut> {
         match self.operation {
+            Operation::PythonPackage(command) => command.execute(),
             Operation::Platform(command) => command.execute(),
             Operation::Command(group) => commands::execute(group, yes),
             Operation::TaskRun {
@@ -101,6 +113,15 @@ impl PreparedCommand {
                 new,
                 replace_all,
             } => extra_cmds::code_edit_prepared(flow_id.as_deref(), &old, &new, replace_all),
+            Operation::SourceWrite { flow_id, content } => {
+                crate::flow_source::write(flow_id.as_deref(), &content)
+            }
+            Operation::SourceEdit {
+                flow_id,
+                old,
+                new,
+                replace_all,
+            } => crate::flow_source::edit(flow_id.as_deref(), &old, &new, replace_all),
             Operation::VisualEdit { flow_id, payload } => {
                 flow_cmds::flow_blocks_set_prepared(flow_id.as_deref(), payload)
             }
@@ -196,6 +217,53 @@ pub fn prepare(group: Group) -> Res<PreparedCommand> {
         other => other,
     };
     match group {
+        Group::Python(PythonSub::Package(sub)) => {
+            let command = crate::python_cmds::prepare(sub)?;
+            let preview = command.preview();
+            Ok(PreparedCommand {
+                operation: Operation::PythonPackage(command),
+                preview,
+                confirmation_required: false,
+            })
+        }
+        Group::Flow(FlowSub::Source(FlowSourceSub::Write { flow_id, file })) => {
+            let content = core::read_file_or_stdin(&file)?;
+            Ok(planned(
+                "flow.source.write",
+                flow_target(&flow_id)?,
+                json!({"content":content}),
+                Operation::SourceWrite { flow_id, content },
+            ))
+        }
+        Group::Flow(FlowSub::Source(FlowSourceSub::Edit {
+            flow_id,
+            old,
+            new,
+            replace_all,
+        })) => {
+            if old == "-" && new == "-" {
+                return Err(BackendError::new(
+                    "BAD_INPUT",
+                    "--old 和 --new 不能同时读取 stdin",
+                ));
+            }
+            let old = core::text_arg(&old)?;
+            let new = core::text_arg(&new)?;
+            if old.is_empty() || old == new {
+                return Err(BackendError::new("BAD_INPUT", "old 必须非空且与 new 不同"));
+            }
+            Ok(planned(
+                "flow.source.edit",
+                flow_target(&flow_id)?,
+                json!({"old_string":old,"new_string":new,"replace_all":replace_all}),
+                Operation::SourceEdit {
+                    flow_id,
+                    old,
+                    new,
+                    replace_all,
+                },
+            ))
+        }
         Group::Oapi(sub) => {
             let command = crate::oapi::prepare(sub)?;
             let preview = command.preview();

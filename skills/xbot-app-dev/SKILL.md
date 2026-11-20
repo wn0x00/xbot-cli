@@ -21,7 +21,7 @@ metadata:
 
 ## 共用约定
 
-1. 不确定命令先逐层 help，再查所选命令的 schema；机器读取显式 `--json`。首次交互确认实际 CLI 路径及版本，客户端任务再查 status。离线帮助、Web Bridge 和独立 Win32 能力不强套 Studio 前提。详见 [CLI 契约](references/cli-contract.md)。
+1. 不确定命令先逐层 help，再查所选命令的 schema；机器读取显式 `--json`。首次交互确认实际 CLI 路径；客户端任务用 `client info --json` 区分 CLI 版本、正在运行的客户端版本和选中的后端路径，按实际 MCP provider 选择接口。离线帮助、Web Bridge 和独立 Win32 能力不强套 Studio 前提。详见 [CLI 契约](references/cli-contract.md)。
 2. Studio 操作使用明确 flow_id 和 `--expect-app`；后者只是断言，不切换工程。影刀 app_id 不代表业务窗口、页面或账号。操作前确认真实业务目标，不抢占他人草稿。
 3. 修改前回读并保留可恢复的原文/结构；通过客户端及受支持 CLI 修改。只有已授权的指令注册/展示元数据维护，才按 [专用流程](../xbot-development-standards/references/metadata-delivery.md) 在设计器关闭后直接维护配置，不热改运行目录。
 4. 普通应用从主流程进入运行模块 `main(args)`，正式交付不新增测试入口。指令集可有不公开的测试辅助。两者的正式默认值均在流程参数配置，Out 先声明再写回同一个 args。获准的临时复现辅助按 [临时变更](maintenance/temporary-values.md) 恢复，不残留到交付。
@@ -33,6 +33,8 @@ metadata:
 ## 条件资源
 
 - 命令发现与上下文：[CLI 契约](references/cli-contract.md)；命令分组导航：[维护导航](maintenance/cli-contract.md)。
+- 客户端升级、MCP 404 或流程编辑接口变化：[6.3/6.4 兼容](references/mcp-compatibility.md)；先看 client info 的实际 provider，连接故障再查 doctor，然后选块编辑或源码编辑。
+- 缺少第三方包、管理应用 Python 依赖：[依赖管理](references/python-packages.md)；使用 `python package list/install/uninstall`，按应用引擎选版本，不使用系统 pip。
 - 页面、浏览器和窗口环境：[环境映射](maintenance/environment-and-paths.md)、[浏览器选择](maintenance/browser-policy.md)。
 - 恢复及保存/发布：[恢复](references/recovery.md)、[变更备份](maintenance/application-git-backup.md)、[验证交付](maintenance/validation-and-delivery.md)。
 - 企业用户明确选择开放 API 时，才读 [企业 API](references/oapi.md)，不作为客户端失败后的自动兜底。

@@ -1,6 +1,22 @@
 # VisualFlow 开发与维护
 
-## 工作流
+## 先确认 MCP
+
+先看 `xbot-cli doctor --json` 的 `studio_mcp.connection.provider`。6.4 的 copilot 与旧版 legacy 使用不同编辑接口，详见 [MCP 兼容](mcp-compatibility.md)。
+
+6.4 使用源码入口：
+
+```powershell
+xbot-cli flow source read main --offset 1 --limit 200 --expect-app <app-id>
+xbot-cli flow source read main --block-nos 10:20,25 --expect-app <app-id>
+xbot-cli flow source edit main --old @before.txt --new @after.txt --expect-app <app-id>
+xbot-cli flow source write main --file visual_source.py --expect-app <app-id>
+xbot-cli flow verify main --timeout 600 --expect-app <app-id>
+```
+
+新建或全量写入时只提交客户端支持的 `xbot_visual.*` Flow body；Studio 提供 `main(args)`、脚手架和 In 参数，body 直接引用参数名。普通 Python 业务写入 CodeFlow 后通过调用流程指令连接。块原型、参数签名通过原始 `xbot-bash api get --names <精确名称>` 查询。编译会改写源码，后续精确编辑以返回的持久化源码为准，保留 `_block` 和协议注释。静态错误不一定拒绝保存，分别检查 `static_check.errors/ready_to_run`。旧 block_id 不能当 `--block-nos` 使用。旧版块 JSON、wiki、静态变量与块快照接口在 6.4 没有相同入口；运行值用 `xbot-bash run variables --help` 查契约。
+
+## 旧版 legacy 工作流
 
 Studio 命令建议追加 `--expect-app <app-id>` 核对当前应用；它不会打开或切换应用。
 
@@ -44,7 +60,7 @@ xbot-cli flow visual list report --detail
 ]
 ```
 
-## 规则
+## 旧版块规则及共用参数
 
 - 块原型来自本地 `block_catalog.md` / `block_detail.md` 或 `wiki.read`，不要编造。
 - `flow visual edit` 只插/删实例，字段用 `flow visual fill`。
@@ -56,11 +72,12 @@ xbot-cli flow visual list report --detail
 - `flow visual variables` 是静态作用域，`flow visual snapshots` 是运行值，不要混淆。
 - 流程 In/Out 使用 `flow params list/set`；Visual Out 的产出块输出须与参数同名。
 - `type` 使用 `flow params types` 的真实 ID，列表/字典/对象不再改成 `any`。
-  CLI 内部整批校验并仅写参数区域，必要时先保存已有编辑，再 reload 一次并回读；
+  legacy 后端整批校验并仅写参数区域，必要时先保存已有编辑，再 reload 一次并回读；
   无变化不写入或 reload，不 sync、不关闭编辑器。用户不要直接编辑应用目录。
   计算型 Out 省略 `value`，客户端回读的空表达式不表示空字符串初值。
   对象的 `None` 默认值不创建真实对象；类型目录的 scope 与未知类型限制见 CodeFlow 指南。
   写入、reload、回读和实际运行分开报告，失败后不整批重试。
+  copilot 后端使用原生参数 set/remove；混合操作按顺序执行，失败保留已完成结果。新增表达式参数省略初值时使用客户端默认 `None`，需要 `[]` 等值请明确填写。6.4 主流程 In 类型限制见 [MCP 兼容](mcp-compatibility.md)。
 
 ## 流程组织与 XPath
 
@@ -68,7 +85,7 @@ xbot-cli flow visual list report --detail
 
 网页元素优先使用“获取元素对象（web）”指令（`web.element.get_element`）搭配 XPath，取得动态元素对象后交给后续点击、输入或读取指令。不要为一个可直接 XPath 定位的元素先进行影刀元素捕获。
 
-填充前读取 `wiki/blocks/web.element.get_element` 和目标块最新 form，核对：
+legacy 填充前读取 `wiki/blocks/web.element.get_element` 和目标块最新 form；6.4 查询 `xbot-bash api get --names xbot_visual.web.element.get_element` 的实际签名后编辑源码。旧版 form 字段核对：
 
 | 字段 | 填写规则 |
 |---|---|
@@ -83,4 +100,4 @@ xbot-cli flow visual list report --detail
 
 ## 验收
 
-`flow check` 检查整个应用的静态诊断，传入流程时先核验目标（`scope: app`），不启动流程；`flow verify` 检查后实际运行。需要定位块级问题时，再读 `flow visual snapshots` 和错误中的 `log_tail`。运行超时后用 `flow wait <run-id> --timeout 600` 继续等待，不重新启动。已发布指令的参数、名称和调用契约不得擅自改变。
+`flow check` 检查整个应用的静态诊断，传入流程时先核验目标（`scope: app`），不启动流程；`flow verify` 检查后实际运行。需要运行证据时，legacy 读 `flow visual snapshots`，copilot 查 `run variables`，同时保留错误中的 `log_tail`。运行超时后用 `flow wait <run-id> --timeout 600` 继续等待，不重新启动。已发布指令的参数、名称和调用契约不得擅自改变。

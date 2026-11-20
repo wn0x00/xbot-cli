@@ -34,6 +34,12 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand)]
 pub(crate) enum Group {
+    /// 查询正在运行的影刀客户端、版本及连接信息
+    #[command(subcommand)]
+    Client(ClientSub),
+    /// 管理当前 Studio 应用的 Python 依赖
+    #[command(subcommand)]
+    Python(PythonSub),
     /// 创建、打开、保存、同步和发布应用
     #[command(subcommand)]
     App(AppSub),
@@ -131,6 +137,55 @@ pub(crate) enum Group {
     /// 兼容入口:仅客户端全局状态
     #[command(hide = true)]
     State,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum ClientSub {
+    /// 只读查询客户端进程、文件版本、后端路径、状态及 MCP；不要求打开应用
+    Info,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum PythonSub {
+    /// 查看、安装与卸载应用依赖；自动适配两版 MCP
+    #[command(subcommand)]
+    Package(PythonPackageSub),
+}
+
+#[derive(Args)]
+pub(crate) struct PythonPackageOptions {
+    /// 客户端 pip 日志详细度，0–4
+    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(0..=4))]
+    pub verbosity: u8,
+    /// MCP 等待秒数；超时不会终止客户端 pip，不自动重试
+    #[arg(long, default_value_t = 390, value_parser = clap::value_parser!(u64).range(1..=MAX_TIMEOUT_SECS))]
+    pub timeout: u64,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum PythonPackageSub {
+    /// 列出当前应用工作区可用的 Python 包
+    List {
+        #[command(flatten)]
+        options: PythonPackageOptions,
+    },
+    /// 安装包并更新应用依赖；包名或 NAME==VERSION，一次最多 50 个
+    Install {
+        #[arg(required = true, num_args = 1..=50)]
+        packages: Vec<String>,
+        /// 本次安装使用的 HTTP(S) 包索引；省略使用客户端配置
+        #[arg(long)]
+        index_url: Option<String>,
+        #[command(flatten)]
+        options: PythonPackageOptions,
+    },
+    /// 卸载包并更新应用依赖；仅传包名，一次最多 50 个
+    Uninstall {
+        #[arg(required = true, num_args = 1..=50)]
+        packages: Vec<String>,
+        #[command(flatten)]
+        options: PythonPackageOptions,
+    },
 }
 
 #[derive(Subcommand)]
@@ -380,6 +435,9 @@ pub(crate) enum ActivitySub {
 
 #[derive(Subcommand)]
 pub(crate) enum FlowSub {
+    /// 流程源码读写；6.4 支持 VisualFlow 和 CodeFlow，6.3 支持 CodeFlow
+    #[command(subcommand)]
+    Source(FlowSourceSub),
     /// CodeFlow 源码读写
     #[command(subcommand)]
     Code(CodeSub),
@@ -436,12 +494,42 @@ pub(crate) enum FlowSub {
 }
 
 #[derive(Subcommand)]
+pub(crate) enum FlowSourceSub {
+    /// 分页读取源码，或按 6.4 可视化指令编号读取
+    Read {
+        flow_id: Option<String>,
+        #[arg(long, value_parser = clap::value_parser!(u64).range(1..=2147483647), conflicts_with = "block_nos")]
+        offset: Option<u64>,
+        #[arg(long, value_parser = clap::value_parser!(u64).range(1..=2000), conflicts_with = "block_nos")]
+        limit: Option<u64>,
+        #[arg(long)]
+        block_nos: Option<String>,
+    },
+    /// 整体写入源码，--file - 从标准输入读取
+    Write {
+        flow_id: Option<String>,
+        #[arg(long)]
+        file: String,
+    },
+    /// 精确替换当前源码；6.4 返回 VisualFlow 编译差异
+    Edit {
+        flow_id: Option<String>,
+        #[arg(long)]
+        old: String,
+        #[arg(long)]
+        new: String,
+        #[arg(long)]
+        replace_all: bool,
+    },
+}
+
+#[derive(Subcommand)]
 pub(crate) enum FlowParamsSub {
     /// 从已安装客户端资源列出真实参数类型 ID 和声明的适用范围
     Types,
     /// 查看流程参数
     List { flow_id: Option<String> },
-    /// 添加、更新或删除参数，写入本地元数据后 reload 并回读确认
+    /// 添加、更新或删除参数；6.4 使用原生 MCP，6.3 使用本地元数据适配
     Set {
         flow_id: Option<String>,
         /// operations 数组或完整 JSON,@文件 / '-' stdin

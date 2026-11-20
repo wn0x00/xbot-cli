@@ -3,6 +3,21 @@
 适用于 xbot-cli 0.9.3 及以上版本。CodeFlow 和 VisualFlow 使用同一套参数命令。
 完整文档也内置于 `xbot-cli guide flow-parameters`。
 
+当前兼容实现会按实际 MCP 分流：旧版 legacy 保留本地元数据适配，6.4 copilot 使用客户端原生参数接口。先用 `doctor --json` 查看 provider；连接配置见 [MCP 兼容](../skills/xbot-app-dev/references/mcp-compatibility.md)（`guide mcp`）。
+
+## 6.4 原生参数路径
+
+原 `flow params list/set` 和 operations 输入格式保留，无需更换调用脚本。CLI 将 `kind` 映射为原生 `value_kind`，同类型、同方向更新先回读并保留省略的 kind/value/description；更换类型或方向时使用新默认值，description 仍可保留。
+
+- 6.4 主流程 In 仅接受 `int/float/str/bool/file`；子流程使用客户端注册类型，以服务端校验为准。
+- 新参数的 str/file 默认 Text；表达式省略初值时为 `None`。需要 `0`、`False`、`[]` 等请明确指定 kind/value，不能沿用下方旧适配器的隐式默认值表。
+- 连续且名称不重复的 upsert 合并为一次原生批量设置；remove 或重复名称开始新请求，按原数组顺序执行。
+- 客户端原生操作保存工作区，CLI 不额外写磁盘元数据或 reload。混合批次不提供跨命令事务，后续失败保留先前结果。
+- 成功返回 `backend:copilot-mcp`、`completed_count/results/runtime_verified`；失败查看 `cause_code/cause` 和已完成前缀，核对参数后补未完成部分，不整批重试。
+- `flow params types` 仍从本机已安装客户端资源读取类型目录；离线 dry-run 不验证客户端接受性。
+
+本次已在 6.4.14 独立临时应用实测批量参数设置、省略字段保留、混合设置/删除，以及主流程调用 CodeFlow 并返回结构化 Out。测试应用已关闭并回收。下文保存/reload、类型范围提示、默认值表和已保存文件前提均描述 **legacy 元数据适配路径**；旧版由 6.3.39 契约与回归测试覆盖，本轮未重启旧客户端实测。
+
 ## 使用前提
 
 - Windows x64，已安装影刀，安装目录包含类型资源 DLL 和自带的 .NET 运行时。
@@ -176,7 +191,7 @@ VisualFlow 的产出变量需与 Out 参数同名，CodeFlow 按对应输出契�
 
 ## 写入过程与结果
 
-CLI 使用本地元数据适配器，而不是扩展客户端原生 `flow.write_parameters` 白名单：
+legacy 后端使用本地元数据适配器，而不是扩展客户端原生 `flow.write_parameters` 白名单：
 先核对编辑模式、应用身份和空闲状态，整批校验；存在未保存编辑时先保存，
 再检查磁盘与客户端参数一致，仅替换目标 `.dev/*.flow.json` 的参数区域，
 调用一次 `app.reload`，最后通过 MCP 回读完整参数契约。

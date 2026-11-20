@@ -17,6 +17,8 @@ xbot-cli 通过影刀客户端内置通道管理应用、编辑流程、运行�
 
 - **Agent 优先的输出契约。** 裸调用逐层返回帮助，`schema <path>` 给出机器可读的参数定义；成功写 stdout、失败写 stderr，配合明确的退出码与 `ok/data/error` JSON 信封。
 - **应用与流程全生命周期。** `app` 创建、打开、保存、同步、发布；`flow` 读取、静态检查、运行与等待；`task` 运行已发布应用。
+- **应用 Python 依赖管理。** `python package list/install/uninstall` 查询、安装和卸载当前应用依赖，支持精确版本、多包和安装源，兼容新旧 MCP；安装和卸载可用 `--dry-run` 预览。
+- **新旧 MCP 自动适配。** 保留旧版 Studio MCP，支持 6.4 Copilot MCP 会话；`flow source read/write/edit` 编辑 6.4 可视化流程和代码，`flow params set` 自动选择原生参数接口或旧适配器。用 `doctor --json` 查看实际通道，`guide mcp` 了解能力差异。
 - **安全的写入边界。** `--dry-run` 离线预览，`--expect-app` 断言当前应用，高风险操作必须显式 `--yes`。
 - **浏览器自动化。** `xbot-cli web` 提供“打开页面 → 快照 → 操作元素”的短命令循环，同时返回支持操作的影刀 Python；`web browser list` 查询插件安装与浏览器注册信息，`--browser <id>` 指定目标，打开网页时可自动启动目标浏览器；`web xpath <ref...>` 生成单元素或相似元素 XPath。
 - **安装环境自动发现。** 支持识别非默认影刀安装目录，诊断失败时显示实际后端路径和针对性修复建议。
@@ -44,7 +46,8 @@ xbot-cli update          # 升级到最新版本;--check 只检查不升级
 ## 快速上手
 
 ```powershell
-xbot-cli status --json                    # 确认客户端环境
+xbot-cli client info --json              # 客户端版本、目录、进程和实际 MCP 通道
+xbot-cli status --json                   # 当前客户端及应用状态
 xbot-cli app open <app-id> --json         # 打开应用
 xbot-cli flow verify <flow-id> --json     # 静态检查并运行流程
 xbot-cli task run <app-id> --json         # 运行已发布应用
@@ -58,6 +61,17 @@ xbot-cli app sync --expect-app <app-id> --json
 
 该命令调用 `shadowbot.shell-cli.exe studio current sync`，将当前编辑应用同步到云端并关闭
 Studio，不发布应用。`--dry-run` 可离线预览；结果分别报告同步、编辑器关闭和上传日志证据。
+
+管理当前 Studio 应用的 Python 依赖：
+
+```powershell
+xbot-cli python package list --expect-app <app-id> --json
+xbot-cli python package install openpyxl requests --expect-app <app-id> --json
+xbot-cli python package install "openpyxl==3.1.5" --expect-app <app-id> --dry-run --json
+xbot-cli python package uninstall openpyxl --expect-app <app-id> --json
+```
+
+依赖由客户端安装到应用工作区并更新应用配置；详见 `xbot-cli guide python-packages`。
 
 浏览器交互：
 
@@ -137,6 +151,7 @@ xbot-cli oapi job logs <jobUuid> --json
 - [0.9.1 更新说明](docs/updates/2026-10-30-web-python-xpath.md)：Web Python、XPath、安装环境发现及验证范围
 - [CLI 参考](docs/cli-reference.md)：完整命令、参数语义、输出契约与设计依据
 - [流程参数使用文档](docs/flow-parameters.md)：真实类型 ID、批量增改删、默认值及 reload 回读
+- [MCP 兼容指南](skills/xbot-app-dev/references/mcp-compatibility.md)：6.3/6.4 自动分流、源码编辑、动态工具和配置
 - [Skill v10 升级说明](docs/skill-v10-upgrade.md)：Skill 模块、依赖与限制
 - [平台指南](skills/xbot-app-dev/references/oapi.md)：开放 API 的配置、概念与排障
 - [发布说明](docs/releasing.md)：版本同步与发布流程

@@ -49,7 +49,9 @@ test('extended parameter preview and schema stay offline', () => {
   assert.equal(preview.validation.runtime, 'not_checked');
   assert.equal(preview.arguments.operations[0].type, 'list');
   const schema = JSON.parse(invoke(['schema', 'flow', 'params', 'set']).stdout).data;
-  assert.deepEqual(schema.effects, ['write_files', 'save_existing_edits', 'reload_studio_app']);
+  assert.deepEqual(schema.effects, ['write']);
+  assert.deepEqual(schema.backend_effects.legacy, ['write_files', 'save_existing_edits', 'reload_studio_app']);
+  assert.deepEqual(schema.backend_effects.copilot, ['write', 'save_studio_app']);
   assert.equal(schema.dynamic_schema_hint, 'xbot-cli flow params types --json');
   assert.equal(schema.input_shapes.operations.schema.oneOf[0].items.then.properties.type.type, 'string');
   const catalogSchema = JSON.parse(invoke(['schema', 'flow', 'params', 'types']).stdout).data;

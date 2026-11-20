@@ -72,6 +72,14 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         ["app", "view"] => (&["open_view"], "console", true, "none"),
         ["app", "publish" | "recycle"] => (&["write"], "console", true, "always"),
         ["app", ..] | ["status" | "doctor" | "state"] => (&["read"], "console", false, "none"),
+        ["client", ..] => (&["read"], "local_and_service", false, "none"),
+        ["python", "package", "install" | "uninstall"] => (
+            &["modify_python_environment", "write_app_dependencies"],
+            "studio",
+            true,
+            "none",
+        ),
+        ["python", ..] => (&["read"], "studio", false, "none"),
         ["task", "run"] => (&["execute"], "console", true, "none"),
         ["task", "stop"] => (&["stop_execution"], "console", true, "none"),
         ["task", ..] => (&["read"], "console", false, "none"),
@@ -94,13 +102,9 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         ["flow", "run" | "verify"] => (&["execute"], "studio", true, "none"),
         ["flow", "stop"] => (&["stop_execution"], "studio", true, "none"),
         ["flow", "params", "types"] => (&["read"], "local", false, "none"),
-        ["flow", "params", "set"] => (
-            &["write_files", "save_existing_edits", "reload_studio_app"],
-            "studio",
-            true,
-            "none",
-        ),
+        ["flow", "params", "set"] => (&["write"], "studio", true, "none"),
         ["flow", "create"]
+        | ["flow", "source", "write" | "edit"]
         | ["flow", "code", "write" | "edit"]
         | ["flow", "visual", "edit" | "fill" | "toggle" | "enable" | "disable"] => {
             (&["write"], "studio", true, "none")
@@ -184,6 +188,32 @@ pub fn cmd_schema(root: &Command, path: &[String]) -> Res<CmdOut> {
             }
         }
     }
+    if actual == ["flow", "params", "set"] {
+        data["backend_effects"] = json!({
+            "legacy":["write_files","save_existing_edits","reload_studio_app"],
+            "copilot":["write","save_studio_app"]
+        });
+    }
+    if actual == ["client", "info"] {
+        data["result_notes"] = json!([
+            "cli.version is xbot-cli itself; client.version is the observed running ShadowBot client",
+            "running process executable product version is preferred; installation directory fallback is labeled",
+            "multiple running installations or inaccessible process paths leave aggregate client identity unknown",
+            "shell_cli.backend is the selected backend, possibly overridden; it does not identify the running client",
+            "partial=true preserves available information when detection or a channel fails; inspect each channel ok/error",
+            "MCP provider is discovered independently of the client version; no application is opened or modified"
+        ]);
+    }
+    if actual.starts_with(&["python", "package"]) {
+        data["backend_notes"] = json!({
+            "legacy":"python_pip with operation and package_name/version objects",
+            "copilot":"xbot-bash python package list/install/uninstall",
+            "scope":"current Studio app workspace, not the system Python or a single flow",
+            "packages":"distribution name or NAME==VERSION for install; bare name for uninstall; max 50 distinct normalized names",
+            "timeout":"MCP wait only; does not cancel pip; do not replay mutations on timeout or disconnect",
+            "dry_run":"offline syntax and action preview; package existence, version compatibility and current app are not checked"
+        });
+    }
     if path.is_empty() {
         data["contract"] = json!({
             "success": "stdout; auto uses terminal text or non-terminal JSON; exit 0",
@@ -197,7 +227,11 @@ pub fn cmd_schema(root: &Command, path: &[String]) -> Res<CmdOut> {
             "routing": {
                 "default_application_backend": "shell-cli",
                 "default_flow_backend": "studio-mcp",
-                "flow_parameter_write_backend": "local-metadata+studio-reload",
+                "mcp_backends": ["legacy", "copilot"],
+                "flow_parameter_write_backend": "auto",
+                "flow_parameter_write_backends": {"legacy":"local-metadata+studio-reload","copilot":"native-mcp"},
+                "mcp_mode_environment": "XBOT_MCP_MODE=auto|legacy|copilot",
+                "mutation_protocol_fallback": false,
                 "platform_requires_explicit_command": true,
                 "automatic_platform_fallback": false,
             },
@@ -401,10 +435,11 @@ fn input_shapes(path: &[&str]) -> Value {
             }]},
             "constraints":[
                 "type is an exact installed-client type ID; discover with flow params types",
-                "client types are checked at execution, not in offline dry-run; main-flow scopes warn outside main because subflow loading was verified in 6.3.39; unknown new scopes fail",
-                "validates the whole batch, saves existing edits if needed, writes only parameters, reloads once, then verifies readback",
-                "no-op batches do not write or reload; does not sync, close the editor, or rewrite generated Python/signatures",
-                "reload/readback success is not runtime verification; write failures may have a partial or unknown outcome",
+                "client types are checked at execution, not in offline dry-run; 6.4 Main Flow In allows only int/float/str/bool/file",
+                "legacy: validates whole batch, saves existing edits if needed, writes parameters only, reloads once and verifies readback; no-op does not write/reload",
+                "copilot: native parameter set/remove; omitted existing fields are preserved; new expression defaults follow native client (None)",
+                "copilot: consecutive distinct-name upserts are batched; mixed set/remove is sequential without a cross-command transaction; failures retain completed_count/results",
+                "does not sync or close the editor; saves/readback are not runtime verification; failures can have a partial or unknown outcome",
                 "remove accepts only op and name; computed Out omits value"
             ],
             "examples":[
@@ -435,10 +470,10 @@ fn input_shapes(path: &[&str]) -> Value {
                 {"type":"object", "additionalProperties":false,"required":["op","block_ids"], "properties":{"op":{"const":"remove"},"block_ids":array_shape(nonempty_text(),1)}}
             ]},"examples":[{"op":"insert","block_index":-1,"blocks":[{"prototype_name":"programing.snippet","comment":"print greeting"}]}, {"op":"remove","block_ids":["<actual-block-id>"]}]}})
         }
-        ["flow", "code", "write"] => {
+        ["flow", "code" | "source", "write"] => {
             json!({"file":{"encoding":["file_path", "stdin:-"],"content_type":"text/x-python"}})
         }
-        ["flow", "code", "edit"] => {
+        ["flow", "code" | "source", "edit"] => {
             json!({"old":{"encoding":["literal_text", "@file", "stdin:-"]},"new":{"encoding":["literal_text", "@file", "stdin:-"]}})
         }
         ["task", "run"] => {
@@ -473,6 +508,13 @@ fn examples(command: &Command, path: &[&str]) -> Vec<String> {
         return vec![help.to_string()];
     }
     let examples: &[&str] = match path {
+        ["python", "package", "list"] => &["xbot-cli python package list --json"],
+        ["python", "package", "install"] => &[
+            "xbot-cli python package install openpyxl requests --expect-app <app-id> --dry-run --json",
+            "xbot-cli python package install openpyxl --expect-app <app-id> --json",
+        ],
+        ["python", "package", "uninstall"] => &["xbot-cli python package uninstall openpyxl --expect-app <app-id> --json"],
+        ["client", "info"] => &["xbot-cli client info", "xbot-cli client info --json"],
         ["app", "sync"] => &[
             "xbot-cli app sync --expect-app <app-id> --dry-run --json",
             "xbot-cli app sync --expect-app <app-id> --json",

@@ -6,10 +6,12 @@
 
 | 入口 | 职责 |
 |---|---|
+| `client info` | 查询运行中的客户端版本、进程/目录、后端配置、状态和实际 MCP 通道 |
 | `status` / `doctor` | 查看当前状态、诊断连接 |
 | `app` | 创建、打开、保存、同步、发布和回收应用 |
 | `flow` | Studio 流程的读取、参数、编辑、静态检查与运行 |
 | `flow code` / `flow visual` | CodeFlow 源码和 VisualFlow 块 |
+| `python package list/install/uninstall` | 管理当前 Studio 应用的 Python 依赖，兼容新旧 MCP |
 | `task` | 已发布应用的运行任务、状态、日志与停止 |
 | `oapi` | 企业版可选备用入口：开放 API 运行、调度记录与日志 |
 | `web`（兼容 `browser`） | 打开网页、快照、点击、填写和导航 |
@@ -31,9 +33,39 @@ xbot-cli install --skills --global --json  # 用户 ~/.agents/skills
 
 一次安装 `xbot-app-dev` 和 `xbot-development-standards` 两份 Skill。全部文件写入前统一检查冲突；已有 Skill 内容不同时不会静默覆盖，先查看差异，确认覆盖后追加 `--yes`。JSON 的 `data.skills` 按 Skill 返回 `name/path/files`；原 `data.path/files` 保留 `xbot-app-dev` 的含义以兼容旧调用。自动化调用下文的业务命令时均应显式添加 `--json`，示例中的 `<...>` 需替换为实际标识。
 
-当前源码安装 `xbot-app-dev` v10 的 39 个资源及 `xbot-development-standards` 的 13 个资源（规范、参考资料、检查脚本、测试和报告模板）。`guide development-standards` 提供开发规范入口；完整参考资料从安装目录按需读取，先区分普通应用与指令集。`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。仅在企业版用户明确选择备用入口时读取 `guide oapi`。
+当前源码安装 `xbot-app-dev` v10 的 57 个资源及 `xbot-development-standards` 的 13 个资源（规范、参考资料、检查脚本、测试和报告模板）。`guide development-standards` 提供开发规范入口；完整参考资料从安装目录按需读取，先区分普通应用与指令集。`guide mcp` 说明新旧客户端接口差异，`guide python-packages` 说明应用依赖管理；`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。仅在企业版用户明确选择备用入口时读取 `guide oapi`。
 
 `locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；依赖与已验证边界见 [Skill v10 升级说明](skill-v10-upgrade.md)。
+
+## 当前客户端信息
+
+```powershell
+xbot-cli client info
+xbot-cli client info --json
+xbot-cli schema client info
+```
+
+只读查询，不启动客户端、不打开或切换应用，兼容 6.3 和 6.4。`cli.version/executable` 是 xbot-cli 自身；`client.version/install_dir/processes` 来自正在运行的影刀进程，优先读取可执行文件产品版本，必要时用进程所在的版本目录并标记来源。多个安装同时运行、权限不足或版本未知时不选择任意一个。
+
+`shell_cli.backend` 单独列出实际选用文件、来源和环境覆盖；它不代表正在运行的客户端。`shell_cli.state` 返回模式、Studio 和任务状态，`studio_mcp.connection` 显示实际 provider、endpoint 和协议信息。协议仍由接口发现决定，不依赖版本字符串。内置 shell-cli 的 `system version` 仅表示该工具版本，不能当成影刀版本。
+
+此信息命令在部分查询失败时仍返回成功及已取得信息；机器调用须查看 `partial`、`client.detection_complete` 和各通道 `ok/error`，服务不可达不表示客户端进程未运行。`doctor` 继续提供必需通道失败时的非零退出语义。
+
+## 应用 Python 依赖
+
+先打开目标 Studio 应用，命令作用于应用工作区，供其中的流程使用。
+
+```powershell
+xbot-cli python package list --expect-app <app-id> --json
+xbot-cli python package install openpyxl requests --expect-app <app-id> --json
+xbot-cli python package install "openpyxl==3.1.5" --expect-app <app-id> --dry-run --json
+xbot-cli python package install openpyxl --index-url https://pypi.org/simple --expect-app <app-id> --json
+xbot-cli python package uninstall openpyxl --expect-app <app-id> --json
+```
+
+安装接受包名或 `NAME==VERSION`，卸载只接受包名，每批最多 50 个；客户端成功后更新应用依赖配置。`list` 返回工作区可用包，不等于直接依赖清单。支持 `--verbosity 0..4`（默认 1）、`--timeout <秒>`（默认 390），安装/卸载支持离线预览。超时只结束 CLI 等待，不代表客户端 pip 已停止；失败保留原始日志及部分结果，不自动重试。
+
+旧版使用 `python_pip`，新版使用 `xbot-bash python package`，不需要 `execute_cell`。完整参数与兼容边界见 `schema python package install` 和 `guide python-packages`。
 
 ## Windows UIA 快照（实验性）
 
@@ -163,7 +195,14 @@ xbot-cli flow code write hello --file hello.py --expect-app <app-id>
 xbot-cli flow check hello --expect-app <app-id>
 xbot-cli flow verify hello --timeout 600 --expect-app <app-id>
 
-# VisualFlow
+# VisualFlow（6.4 copilot）
+xbot-cli flow create report --kind visual --expect-app <app-id>
+xbot-cli flow source read report --offset 1 --limit 200 --expect-app <app-id>
+xbot-cli flow source write report --file visual_source.py --expect-app <app-id>
+xbot-cli flow source edit report --old @before.txt --new @after.txt --expect-app <app-id>
+xbot-cli flow verify report --timeout 600 --expect-app <app-id>
+
+# VisualFlow（旧版 legacy）
 xbot-cli flow create report --kind visual --expect-app <app-id>
 xbot-cli flow visual edit report --file ops.json --expect-app <app-id>
 xbot-cli flow visual fill report --fills @fills.json --expect-app <app-id>
@@ -174,6 +213,8 @@ xbot-cli flow visual snapshots report --expect-app <app-id>
 ```
 
 `flow check` 检查整个应用的静态诊断（`scope: app`），传入流程时先核验目标，不启动流程。`flow verify` 解析目标并检查后实际运行，再读取 Out；失败时附日志尾部，用户暂停或停止则立即返回。修改操作成功、静态检查通过和实际运行成功是不同的结果，不应混为一谈。
+
+MCP 通过只读发现自动选择旧版 Studio 接口或 6.4 Copilot 会话接口；`doctor --json` 返回实际 provider/endpoint。原 `flow get/read` 保留，6.4 返回源码；`flow code` 在两种后端均可用。`flow source` 在旧版仅支持 CodeFlow，在 6.4 也支持 VisualFlow；`--block-nos` 为指令编号而非旧 block_id，不能与源码 offset/limit 混用。详见 [MCP 兼容指南](../skills/xbot-app-dev/references/mcp-compatibility.md) 或 `xbot-cli guide mcp`。
 
 ### 流程参数类型与写入
 
@@ -191,10 +232,12 @@ xbot-cli flow params set process2 --operations @params.json --expect-app <app-id
 6.3.39 子流程实测可加载并运行，因此 CLI 允许写入但给出范围 warning，不推断编辑器一定提供该选项。
 未知的新 scope 明确拒绝，既有同类型同方向参数可保留并提示。
 
-CodeFlow 和 VisualFlow 共用本地参数元数据适配器：先整批校验，必要时保存已有编辑，
+legacy 后端的 CodeFlow 和 VisualFlow 共用本地参数元数据适配器：先整批校验，必要时保存已有编辑，
 仅替换 `.dev/*.flow.json` 的 `parameters` 区域，然后调用一次 `app.reload` 并通过
 MCP 回读。无净变化时不写入、不 reload。不调用 sync，不关闭编辑器，不手工修改
 Python、PDB 或签名文件。原始 `tool studio call flow.write_parameters` 仍受客户端自身限制。
+
+6.4 copilot 后端通过原生 parameter set/remove 修改参数，保留 operations 输入格式及既有参数省略字段。连续且名称不重复的 upsert 合批，混合修改按顺序执行；失败保留 `completed_count/results/cause`，没有跨命令事务，不自动整批重试。新增表达式参数省略初值时使用原生默认 `None`；需要下文 legacy 默认值时明确填写。主流程 In 仅支持 int/float/str/bool/file；子流程以客户端注册类型为准。结果使用 `backend:copilot-mcp` 和原生 results，不额外执行磁盘写入或 reload。
 
 `operations` 继续接受数组或 `{"operations":[...]}`；`upsert` 需要
 `name/direction/type`，可选 `kind/value/description`。同类型同方向更新时省略字段保留旧值，
@@ -205,7 +248,7 @@ In 常用默认值为：字符串/路径为空文本，整数 `0`、小数 `0.0`
 `any` 显式提供非空 `value` 时必须同时指定 `kind`。表达式作为文本保存，不由 CLI 求值。
 计算型 Out 省略 `value`，使用无初始化表达式语义；VisualFlow 的产出变量须与 Out 同名。
 
-成功结果区分 `written/reloaded/readback_verified/runtime_verified`。
+legacy 成功结果区分 `written/reloaded/readback_verified/runtime_verified`。
 reload 丢弃未保存的内存编辑，因此保存已有工作必须发生在外部写入之前。
 目标切换、并发编辑、磁盘与内存不一致时拒绝继续；写入后失败会保留阶段和已知/未知结果，
 不自动回滚或整批重试。`--dry-run` 仍保持离线，只校验输入结构，
@@ -505,6 +548,8 @@ npm pack
 ```
 
 客户端路径优先自动发现运行中客户端、注册表和有限已知安装目录，支持非默认盘符。`XBOT_SHELL_CLI`、`XBOT_LAUNCHER` 是权威覆盖项，即使路径无效也不会静默回退；`doctor` 保留实际路径、发现来源及具体修复建议。`XBOT_MCP_ENDPOINT`、`XBOT_BROWSER_MCP_ENDPOINT` 可覆盖对应通道配置，用于隔离测试。离线单元测试和 mock 后端只能证明对应契约，不能代替真实客户端的开发、运行、同步或发布验收。
+
+`XBOT_MCP_MODE=auto|legacy|copilot` 控制 Studio MCP 协议。auto 先只读发现旧接口，仅标准旧路径返回 404 时尝试同源 Copilot 路径；显式自定义路径、认证或服务异常不被静默改写。6.4 会话仅在当前 CLI 进程内复用；已发出的写入/运行不自动重试或跨协议重放。
 
 源码位于仓库根目录的 `src/`，集成测试位于 `tests/`。`npm run build` 将 Rust release 程序放入 `native/win32-x64/xbot-cli.exe`；`bin/xbot-cli.cjs` 是 npm 命令入口。`npm pack` 仅生成本地包，正式发布步骤见[发布说明](releasing.md)。
 
