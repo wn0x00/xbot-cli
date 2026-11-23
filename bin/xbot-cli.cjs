@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { dirname, join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
@@ -150,6 +150,19 @@ function nativeEnvironment(env = process.env, launcherPid = process.pid) {
   return { ...env, XBOT_CLI_LAUNCHER_PID: String(launcherPid) };
 }
 
+function runNative(executable, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, args, {
+      stdio: 'inherit',
+      shell: false,
+      windowsHide: true,
+      env: nativeEnvironment(),
+    });
+    child.once('error', reject);
+    child.once('exit', (status, signal) => resolve({ status, signal }));
+  });
+}
+
 async function main() {
   if (process.platform !== 'win32' || process.arch !== 'x64') {
     process.stderr.write('xbot-cli currently supports Windows x64 with ShadowBot installed.\n');
@@ -166,14 +179,11 @@ async function main() {
 
   // Preserve stdin, terminal detection, output streams, cwd and argument boundaries.
   const executable = join(__dirname, '..', 'native', 'win32-x64', 'xbot-cli.exe');
-  const result = spawnSync(executable, process.argv.slice(2), {
-    stdio: 'inherit',
-    shell: false,
-    windowsHide: true,
-    env: nativeEnvironment(),
-  });
-  if (result.error) {
-    process.stderr.write(`Unable to start xbot-cli (${result.error.code}). Reinstall the npm package.\n`);
+  let result;
+  try {
+    result = await runNative(executable, process.argv.slice(2));
+  } catch (error) {
+    process.stderr.write(`Unable to start xbot-cli (${error.code}). Reinstall the npm package.\n`);
     process.exit(1);
   }
   const notice = await noticePromise;

@@ -10,7 +10,7 @@ xbot-cli oapi api list --json
 xbot-cli oapi api schema job.status --json
 ```
 
-鉴权按现场 auth login schema 使用受控凭据来源；不在对话、日志或脚本内写真实密钥。环境配置与专有云地址以实际部署为准，不擅自切企业或账号。
+鉴权按现场 auth login schema 使用受控凭据来源；优先 `oapi auth login --ak <id> --sk-stdin` 从 stdin 读取密钥，不在对话、日志、命令行或脚本内写真实密钥。本地配置由当前 Windows 用户 DPAPI 加密；旧明文格式在下次登录或 token 刷新时迁移。环境配置与专有云地址以实际部署为准，不擅自切企业或账号。
 
 运行前查 app/robot 的实际身份、发布版参数及占用，再按 job start 的 schema 预览/执行；状态、日志使用同次 jobUuid。配置 scheduleUuid、一次任务 taskUuid、应用执行 jobUuid 与客户端 task_id、Studio run_id 不可互换。通用 API 用 oapi api schema 明确 endpoint 的 path/query/body，不猜 URL。
 

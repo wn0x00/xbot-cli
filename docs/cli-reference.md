@@ -24,7 +24,7 @@
 
 ## 安装与 Agent 接入
 
-Windows x64、Node.js 22+ 环境可通过 npm 包 `@guanzhu.me/xbot-cli` 安装预编译程序，无需安装 Rust；安装后以 `xbot-cli` 调用，安装前会自动清理旧版遗留的 `xbot` shim 和 PATH 中的旧程序。安装命令和可复制的 Agent 指令见[项目 README](../README.md#安装)。
+Windows x64、Node.js 22+ 环境可通过 npm 包 `@guanzhu.me/xbot-cli` 安装预编译程序，无需安装 Rust；安装后以 `xbot-cli` 调用，安装前只会清理当前 npm 目录中属于本包的旧版 `xbot` shim，不修改 PATH 中的其他程序。安装命令和可复制的 Agent 指令见[项目 README](../README.md#安装)。
 
 ```powershell
 xbot-cli install --skills --json           # 当前工作区 .agents/skills
@@ -289,10 +289,12 @@ xbot-cli task stop <task-id>
 `flow run/verify/wait`。只有企业版用户明确选择开放 API 运行、调度或平台日志时才用
 `oapi`（`platform` 为兼容别名），不会因凭据存在或普通命令失败而自动切换。
 
-此备用入口不依赖本机客户端或 Studio。`oapi auth <AccessKeyId> <AccessKeySecret>`
-一条命令完成登录并把凭据保存到本地配置，token 过期前复用、过期后自动刷新，
-`oapi auth logout` 清除当前授权；也可用环境变量 `XBOT_OAPI_ACCESS_KEY_ID` /
-`XBOT_OAPI_ACCESS_KEY_SECRET`（兼容 `XBOT_PLATFORM_*`），专有云设置 `XBOT_OAPI_BASE_URL`。
+此备用入口不依赖本机客户端或 Studio。推荐使用
+`oapi auth login --ak <AccessKeyId> --sk-stdin`，从标准输入读取密钥，避免密钥进入命令行。
+凭据使用当前 Windows 用户的 DPAPI 加密后原子写入本地配置，旧明文 JSON 在下次登录或 token 刷新时迁移。
+token 过期前复用、过期后自动刷新，`oapi auth logout` 清除当前授权；也可用环境变量
+`XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`（兼容 `XBOT_PLATFORM_*`），
+专有云设置 `XBOT_OAPI_BASE_URL`。旧版双位置参数和 `--sk` 仍兼容，但新脚本不应使用。
 接口范围、调度标识关系、分页和异步日志恢复详见[平台指南](../skills/xbot-app-dev/references/oapi.md)，
 也可离线运行 `xbot-cli guide oapi`。
 
@@ -328,7 +330,7 @@ xbot-cli oapi api schema job.start --json
 
 清单字段为 `activity`，每项仅保留 `appId`、`appName`、`appType` 和 `updateTime`，文本输出使用与 `app list` 相同的表格结构。`count` 是本次返回的指令数，`page.page/size/offset` 均对应指令分页，不再透传混合资源的分页数据。`page.total/pages` 只有在底层应用列表扫描完成后才是准确的指令总数/总页数，提前停止时为 `null`。`complete=true` 表示返回结果之后没有剩余指令；`truncated=true` 表示达到扫描上限、尚未扫描完整。普通分页若因上限无法填满请求页，返回 `ACTIVITY_PAGINATION_LIMIT` 而不是伪装成不足一页的末页；可用 `--search/--owner` 缩小范围，或用 `--all` 读取上限内的部分结果并检查 `truncated`。
 
-未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
+未配置凭据时返回 `PLATFORM_AUTH` 和配置引导，需要运行 `xbot-cli oapi auth login --ak <AccessKeyId> --sk-stdin`，或设置 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`。
 
 ```powershell
 xbot-cli activity list --json

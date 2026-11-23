@@ -35,7 +35,7 @@ npm install -g '@guanzhu.me/xbot-cli'
 xbot-cli version
 ```
 
-安装后通过 `xbot-cli` 调用（0.8.2 起仅保留此入口；安装时会自动清理旧版遗留的 `xbot` shim 和 PATH 中的旧程序）。升级直接运行：
+安装后通过 `xbot-cli` 调用（0.8.2 起仅保留此入口；安装时只清理当前 npm 目录中属于本包的旧版 `xbot` shim，不修改 PATH 中的其他程序）。如果旧程序截获命令，请手动调整 PATH 或清理对应文件。升级直接运行：
 
 ```powershell
 xbot-cli update          # 升级到最新版本;--check 只检查不升级
@@ -130,7 +130,7 @@ xbot-cli web open example.com --browser ziniaobrowser --json
 企业版用户可选择开放 API 通道，独立于本机客户端。
 
 ```powershell
-xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>   # 登录并保存凭据,token 自动刷新
+xbot-cli oapi auth login --ak <AccessKeyId> --sk-stdin   # 从 stdin 读取密钥,DPAPI 加密保存,token 自动刷新
 xbot-cli oapi auth status                            # 查看凭据来源与 token 缓存
 xbot-cli oapi auth logout                            # 清除当前授权
 
@@ -163,7 +163,7 @@ npm test               # 全部自动化测试
 npm run test:package   # 检查 npm 包与启动器
 ```
 
-Rust 也可单独构建：`cargo test`、`cargo clippy --all-targets -- -D warnings`。源码托管于 [wn0x00/xbot-cli](https://github.com/wn0x00/xbot-cli)；贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)，发版流程见[发布说明](docs/releasing.md)。
+Rust 也可单独构建：`cargo test`、`cargo clippy --all-targets -- -D warnings`。开发使用 `rust-toolchain.toml` 固定的工具链，由 rustup 自动选择。源码托管于 [wn0x00/xbot-cli](https://github.com/wn0x00/xbot-cli)；贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)，发版流程见[发布说明](docs/releasing.md)。
 
 ## 许可
 

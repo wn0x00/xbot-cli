@@ -75,7 +75,7 @@ pub(crate) enum Group {
         name = "oapi",
         alias = "platform",
         subcommand,
-        long_about = "影刀开放平台 Open API,独立于本机客户端。\n先用 oapi auth <AccessKeyId> <AccessKeySecret> 保存凭据;普通命令失败不会自动切换到此通道。\nplatform 是兼容别名,新脚本请使用 oapi。"
+        long_about = "影刀开放平台 Open API,独立于本机客户端。\n先用 oapi auth login --ak <AccessKeyId> --sk-stdin 从 stdin 读取密钥并加密保存;普通命令失败不会自动切换到此通道。\nplatform 是兼容别名,新脚本请使用 oapi。"
     )]
     Oapi(crate::oapi_cli::OapiSub),
     /// 查看 CLI 自身的命令与参数 schema

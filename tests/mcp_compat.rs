@@ -10,6 +10,8 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
+static PARAMETER_TEST_LOCK: Mutex<()> = Mutex::new(());
+
 #[derive(Clone, Debug)]
 struct Request {
     path: String,
@@ -556,6 +558,7 @@ fn source_write_preserves_stdin_compiled_feedback_and_reuses_one_session() {
 
 #[test]
 fn parameter_batch_uses_native_mcp_without_shell_or_metadata_reload() {
+    let _guard = PARAMETER_TEST_LOCK.lock().unwrap();
     let server = Server::modern(|a| {
         match a["command"].as_str().unwrap() {
         "xbot-bash app info" => app(),
@@ -951,6 +954,7 @@ fn legacy_completed_still_requires_canonical_success_and_raw_copilot_keeps_tool_
 
 #[test]
 fn native_parameter_updates_keep_omitted_fields_and_report_completed_prefix_on_failure() {
+    let _guard = PARAMETER_TEST_LOCK.lock().unwrap();
     let server = Server::modern(|a| {
         match a["command"].as_str().unwrap() {
         "xbot-bash app info" => app(),

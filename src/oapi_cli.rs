@@ -3,7 +3,7 @@ use clap::{Args, Subcommand};
 
 #[derive(Subcommand)]
 pub(crate) enum OapiSub {
-    /// 登录、查看与验证开放平台凭据;也可直接 oapi auth <ak> <sk> 登录
+    /// 登录、查看与验证开放平台凭据;旧版 oapi auth <ak> <sk> 仅作兼容
     Auth(AuthArgs),
     /// RPA 应用资产与版本;records 查询运行数据
     #[command(subcommand)]
@@ -33,7 +33,7 @@ pub(crate) enum OapiSub {
     Docs { id: Option<String> },
 }
 
-/// `oapi auth <ak> <sk>` 等价于 `oapi auth login --ak <ak> --sk <sk>`。
+/// 兼容旧版双位置参数登录；新脚本使用 auth login --ak <ak> --sk-stdin。
 #[derive(Args)]
 #[command(args_conflicts_with_subcommands = true)]
 pub(crate) struct AuthArgs {
@@ -46,14 +46,22 @@ pub(crate) struct AuthArgs {
 
 #[derive(Subcommand)]
 pub(crate) enum AuthSub {
-    /// 验证并保存 AccessKey 到本地配置;密钥只从参数读取,不回显
+    /// 验证并保存 AccessKey;推荐用 --sk-stdin 避免密钥进入命令行
     Login {
         /// AccessKey ID,形如 xxxx@platform
         #[arg(long, visible_alias = "access-key-id")]
         ak: String,
-        /// AccessKey Secret
-        #[arg(long, visible_alias = "access-key-secret")]
-        sk: String,
+        /// AccessKey Secret(兼容入口;推荐改用 --sk-stdin)
+        #[arg(
+            long,
+            visible_alias = "access-key-secret",
+            required_unless_present = "sk_stdin",
+            conflicts_with = "sk_stdin"
+        )]
+        sk: Option<String>,
+        /// 从标准输入读取 AccessKey Secret,不把密钥放入命令行
+        #[arg(long)]
+        sk_stdin: bool,
         /// 专有云 HTTPS origin;缺省为 https://api.yingdao.com
         #[arg(long)]
         base_url: Option<String>,

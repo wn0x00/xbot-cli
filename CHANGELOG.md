@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## [0.11.5](https://github.com/wn0x00/xbot-cli/compare/v0.11.4...v0.11.5) (2026-11-23)
+
+v0.11.5 — 安全边界、传输治理与交付可靠性
+
+1. **收窄安装与凭据风险**
+   - `preinstall` 只清理当前 npm 目录中属于本包的旧 `xbot` shim，不再移动 PATH 中的其他同名程序。
+   - 新增 `oapi auth login --ak <id> --sk-stdin`，避免密钥进入命令行；旧双位置参数和 `--sk` 保持兼容。
+   - 本地凭据使用当前 Windows 用户 DPAPI 加密、64KB 文件上限和原子替换；旧明文 JSON 在下次登录或 token 刷新时迁移。
+   - 损坏、不可读或无法解密的凭据文件返回明确错误；注销失败不再被静默忽略。
+
+2. **统一资源、进程与超时治理**
+   - shell 后端 stdout/stderr 分别最多保留 16MB 尾部并记录丢弃字节数，MCP 响应限制为 16MB。
+   - shell、DLL 查询和 UIA worker 使用 Windows Job Object，超时后清理整棵进程树，并保留结果未知语义。
+   - Web 的 60/120 秒预算现在会传到命名管道并按剩余时间执行；`app open` 尊重用户指定的超时。
+   - Win32 快照按 24 小时、64 份和 256MB 上限回收；Skill 多文件安装增加暂存、失败回滚和临时文件清理。
+
+3. **收紧契约并优化执行路径**
+   - 流程创建缺少可确认的真实 ID 时返回 `FLOW_CREATE_UNKNOWN`，不再把名称伪装成 `flow_id`。
+   - npm 启动器改为异步启动原生进程，更新检查可真正并行；MCP 复用 HTTP Agent，发布确认立即进行首次查询。
+   - 浏览器命名管道、凭据存储和进程 Job 拆为独立模块；167 个命令入口纳入 effects/context/confirmation 审查。
+
+4. **加强测试与发布供应链**
+   - 验包实际执行隔离的 `preinstall`；CI 增加 Node.js 22 测试及无 UI 的原生故障测试。
+   - GitHub Actions 固定提交 SHA，Rust 固定为 `1.93.1`；新增 Dependabot 和每周 `cargo audit` 工作流。
+   - 自动化测试、静态检查和 npm 安装验包覆盖当前变更；真实影刀 6.3/6.4 业务链路仍需按发布文档现场验收。
+
 ## [0.11.4](https://github.com/wn0x00/xbot-cli/compare/v0.11.3...v0.11.4) (2026-11-23)
 
 v0.11.4 — Skill 当前规则与验收边界优化

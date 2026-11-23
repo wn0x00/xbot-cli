@@ -142,7 +142,7 @@ fn examples(path: &[&str]) -> &'static [&'static str] {
             "xbot-cli task status <task-id>",
         ],
         ["oapi"] => &[
-            "xbot-cli oapi auth login --ak <AccessKeyId> --sk <AccessKeySecret>",
+            "xbot-cli oapi auth login --ak <AccessKeyId> --sk-stdin",
             "xbot-cli oapi robot list --json",
             "xbot-cli oapi job start --app <appUuid> --robot <accountName> --yes --json",
             "xbot-cli guide oapi",

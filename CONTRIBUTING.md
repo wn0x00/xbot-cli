@@ -24,7 +24,7 @@ Conventional Commits 用于评审和整理变更记录，不自动计算或发�
 
 ## 开发与验证
 
-环境为 Windows x64、Node.js 22+、Rust stable 和 MSVC 构建工具。Skill 用途分析回归还需要 Python 3.8+，默认调用 `python`，可用 `XBOT_TEST_PYTHON` 指定测试解释器。在仓库根目录运行：
+环境为 Windows x64、Node.js 22+、仓库 `rust-toolchain.toml` 固定的 Rust 工具链和 MSVC 构建工具。Skill 用途分析回归还需要 Python 3.8+，默认调用 `python`，可用 `XBOT_TEST_PYTHON` 指定测试解释器。在仓库根目录运行：
 
 ```powershell
 npm ci --ignore-scripts

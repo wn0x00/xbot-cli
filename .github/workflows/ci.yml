@@ -18,11 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
           package-manager-cache: false
@@ -31,28 +31,25 @@ jobs:
         run: node --test tests/npm/versions.test.cjs tests/npm/set-version.test.cjs tests/npm/release-tag.test.cjs tests/npm/release.test.cjs
 
   windows:
-    name: Windows x64 / Node.js 24
+    name: Windows x64 / Node.js 24 + Node.js 22 compatibility
     runs-on: windows-latest
     timeout-minutes: 30
     defaults:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
           architecture: x64
           package-manager-cache: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          rustup default stable
+      - name: Install pinned Rust toolchain
+        run: rustup show
 
       - name: Install npm project
         run: npm ci --ignore-scripts
@@ -69,17 +66,30 @@ jobs:
       - name: Test Rust and Node launcher
         run: npm test
 
+      - name: Test native provider faults without UI access
+        run: npm run test:win32-faults
+
       - name: Test development standards metadata checker
         run: python -B skills/xbot-development-standards/scripts/test_check_metadata.py
 
       - name: Test UIA tree traversal without live providers
         run: python -B tests/win32_snapshot_collect.py
 
+      - name: Test minimum supported Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          architecture: x64
+          package-manager-cache: false
+
+      - name: Test launcher and npm tooling on Node.js 22
+        run: npm run test:npm
+
       - name: Pack and test installed package
         run: npm run test:package
 
       - name: Upload tested npm package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: xbot-cli-windows-x64-${{ github.sha }}
           path: dist/*.tgz

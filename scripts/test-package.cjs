@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { mkdirSync, mkdtempSync, existsSync, readFileSync, readdirSync, rmSync } = require('node:fs');
+const { mkdirSync, mkdtempSync, existsSync, readFileSync, readdirSync, rmSync, writeFileSync } = require('node:fs');
 const { join, resolve, relative } = require('node:path');
 const { tmpdir } = require('node:os');
 const { createHash } = require('node:crypto');
@@ -21,10 +21,12 @@ const scratch = mkdtempSync(join(tmpdir(), 'xbot-cli package test '));
 const prefix = join(scratch, 'install prefix');
 const workdir = join(scratch, 'user workspace');
 mkdirSync(workdir, { recursive: true });
+mkdirSync(prefix, { recursive: true });
+writeFileSync(join(prefix, 'xbot.cmd'), '@echo off\r\nrem legacy shim for @guanzhu.me/xbot-cli\r\n');
 
 try {
-  // Local tarball, no dependencies, and lifecycle scripts disabled: no compiler or download.
-  npm(['install', '--global', '--prefix', prefix, '--ignore-scripts', '--offline', '--no-audit', '--no-fund', tarball]);
+  // Exercise the real preinstall lifecycle inside this isolated npm prefix.
+  npm(['install', '--global', '--prefix', prefix, '--offline', '--no-audit', '--no-fund', tarball]);
   const launcher = join(prefix, 'node_modules', ...manifest.name.split('/'), 'bin', 'xbot-cli.cjs');
   assert.ok(!existsSync(join(prefix, 'xbot.cmd')), '0.8.2 起不再创建 xbot shim');
   for (const command of ['xbot-cli']) {

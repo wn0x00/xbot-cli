@@ -10,26 +10,88 @@ use serde_json::{json, Map, Value};
 
 use super::{truncate, BackendError, Res};
 
+const MAX_PROCESS_STREAM_SIZE: usize = 16 * 1024 * 1024;
+const MAX_MCP_RESPONSE_SIZE: u64 = 16 * 1024 * 1024;
+
 #[derive(Debug)]
 pub(crate) struct ProcessOutput {
     pub status: ExitStatus,
     pub stdout: String,
     pub stderr: String,
+    pub stdout_truncated: bool,
+    pub stderr_truncated: bool,
 }
 
 impl ProcessOutput {
     fn evidence(&self) -> Value {
-        json!({"exit_code": self.status.code(), "stdout": self.stdout, "stderr": self.stderr})
+        json!({
+            "exit_code": self.status.code(),
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+            "stdout_truncated": self.stdout_truncated,
+            "stderr_truncated": self.stderr_truncated,
+        })
     }
 }
 
-fn captured(buffer: &Arc<Mutex<Vec<u8>>>) -> String {
-    String::from_utf8_lossy(&buffer.lock().unwrap_or_else(|e| e.into_inner())).into_owned()
+#[derive(Default)]
+struct CaptureBuffer {
+    bytes: Vec<u8>,
+    omitted: u64,
+}
+
+impl CaptureBuffer {
+    fn append(&mut self, chunk: &[u8]) {
+        if self.bytes.len() + chunk.len() <= MAX_PROCESS_STREAM_SIZE {
+            self.bytes.extend_from_slice(chunk);
+            return;
+        }
+        let overflow = self.bytes.len() + chunk.len() - MAX_PROCESS_STREAM_SIZE;
+        self.omitted = self.omitted.saturating_add(overflow as u64);
+        if chunk.len() >= MAX_PROCESS_STREAM_SIZE {
+            self.bytes.clear();
+            self.bytes
+                .extend_from_slice(&chunk[chunk.len() - MAX_PROCESS_STREAM_SIZE..]);
+        } else {
+            self.bytes.drain(..overflow);
+            self.bytes.extend_from_slice(chunk);
+        }
+    }
+
+    fn snapshot(&self) -> (String, bool, u64) {
+        (
+            String::from_utf8_lossy(&self.bytes).into_owned(),
+            self.omitted > 0,
+            self.omitted,
+        )
+    }
+}
+
+type SharedCapture = Arc<Mutex<CaptureBuffer>>;
+
+fn captured(buffer: &SharedCapture) -> (String, bool, u64) {
+    buffer
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .snapshot()
+}
+
+fn capture_evidence(stdout: &SharedCapture, stderr: &SharedCapture) -> Value {
+    let (stdout, stdout_truncated, stdout_omitted_bytes) = captured(stdout);
+    let (stderr, stderr_truncated, stderr_omitted_bytes) = captured(stderr);
+    json!({
+        "stdout": stdout,
+        "stderr": stderr,
+        "stdout_truncated": stdout_truncated,
+        "stderr_truncated": stderr_truncated,
+        "stdout_omitted_bytes": stdout_omitted_bytes,
+        "stderr_omitted_bytes": stderr_omitted_bytes,
+    })
 }
 
 fn drain<R: Read + Send + 'static>(
     mut pipe: R,
-    buffer: Arc<Mutex<Vec<u8>>>,
+    buffer: SharedCapture,
     finished: mpsc::Sender<std::io::Result<()>>,
 ) {
     thread::spawn(move || {
@@ -42,21 +104,22 @@ fn drain<R: Read + Send + 'static>(
                 }
                 buffer
                     .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .extend_from_slice(&chunk[..size]);
+                    .unwrap_or_else(|error| error.into_inner())
+                    .append(&chunk[..size]);
             }
         })();
         let _ = finished.send(result);
     });
 }
 
-/// Drain both pipes while the child is alive; retain both streams and its exit status.
+/// Drain both pipes with bounded memory and terminate the whole Windows job on exit.
 pub(crate) fn run_capture(mut cmd: Command, timeout_secs: u64) -> Res<ProcessOutput> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
+    let job = crate::process_job::ProcessJob::new()?;
     let mut child = cmd
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -70,8 +133,13 @@ pub(crate) fn run_capture(mut cmd: Command, timeout_secs: u64) -> Res<ProcessOut
             };
             BackendError::new(code, format!("无法启动后端进程: {e}"))
         })?;
-    let stdout = Arc::new(Mutex::new(Vec::new()));
-    let stderr = Arc::new(Mutex::new(Vec::new()));
+    if let Err(error) = job.assign(&child) {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(error);
+    }
+    let stdout = Arc::new(Mutex::new(CaptureBuffer::default()));
+    let stderr = Arc::new(Mutex::new(CaptureBuffer::default()));
     let (sender, receiver) = mpsc::channel();
     drain(
         child.stdout.take().expect("piped stdout"),
@@ -93,32 +161,62 @@ pub(crate) fn run_capture(mut cmd: Command, timeout_secs: u64) -> Res<ProcessOut
                 if killed {
                     let _ = child.wait();
                 }
-                return Err(BackendError::new("TIMEOUT", format!("后端进程超过 {timeout_secs}s，执行结果尚未确认"))
-                    .with_data(json!({"stdout": captured(&stdout), "stderr": captured(&stderr), "process_killed": killed, "outcome": "unknown"}))
-                    .with_hint("先查询已有操作或任务状态；不要自动重复执行写入或启动任务"));
+                drop(job);
+                let mut data = capture_evidence(&stdout, &stderr);
+                data["process_killed"] = json!(killed);
+                data["outcome"] = json!("unknown");
+                return Err(BackendError::new(
+                    "TIMEOUT",
+                    format!("后端进程超过 {timeout_secs}s，执行结果尚未确认"),
+                )
+                .with_data(data)
+                .with_hint(
+                    "进程树已请求终止；先查询已有操作或任务状态，不要自动重复执行写入或启动任务",
+                ));
             }
             Err(e) => {
                 if child.kill().is_ok() {
                     let _ = child.wait();
                 }
-                return Err(BackendError::new("WAIT_FAILED", format!("{e}"))
-                    .with_data(json!({"stdout": captured(&stdout), "stderr": captured(&stderr), "outcome": "unknown"})));
+                drop(job);
+                let mut data = capture_evidence(&stdout, &stderr);
+                data["outcome"] = json!("unknown");
+                return Err(BackendError::new("WAIT_FAILED", format!("{e}")).with_data(data));
             }
         }
     };
+    let drain_deadline = Instant::now() + Duration::from_secs(5);
     for _ in 0..2 {
-        match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+        match receiver.recv_timeout(drain_deadline.saturating_duration_since(Instant::now())) {
             Ok(Ok(())) => {}
-            Ok(Err(e)) => return Err(BackendError::new("PROCESS_READ_FAILED", format!("读取后端输出失败: {e}"))
-                .with_data(json!({"stdout": captured(&stdout), "stderr": captured(&stderr), "exit_code": status.code()}))),
-            Err(_) => return Err(BackendError::new("TIMEOUT", "后端进程结束，但输出管道未在期限内关闭")
-                .with_data(json!({"stdout": captured(&stdout), "stderr": captured(&stderr), "exit_code": status.code(), "outcome": "unknown"}))),
+            Ok(Err(e)) => {
+                let mut data = capture_evidence(&stdout, &stderr);
+                data["exit_code"] = json!(status.code());
+                return Err(BackendError::new(
+                    "PROCESS_READ_FAILED",
+                    format!("读取后端输出失败: {e}"),
+                )
+                .with_data(data));
+            }
+            Err(_) => {
+                let mut data = capture_evidence(&stdout, &stderr);
+                data["exit_code"] = json!(status.code());
+                data["outcome"] = json!("unknown");
+                return Err(
+                    BackendError::new("TIMEOUT", "后端进程结束，但输出管道未在期限内关闭")
+                        .with_data(data),
+                );
+            }
         }
     }
+    let (stdout, stdout_truncated, _) = captured(&stdout);
+    let (stderr, stderr_truncated, _) = captured(&stderr);
     Ok(ProcessOutput {
         status,
-        stdout: captured(&stdout),
-        stderr: captured(&stderr),
+        stdout,
+        stderr,
+        stdout_truncated,
+        stderr_truncated,
     })
 }
 
@@ -436,10 +534,26 @@ pub(crate) fn rpc_session(
     let event_stream = response
         .header("Content-Type")
         .is_some_and(|header| header.starts_with("text/event-stream"));
-    let body = response
-        .into_string()
-        .map_err(|e| BackendError::new("MCP_READ_FAILED", format!("读取 MCP 响应失败: {e}")))?;
+    let body = read_mcp_body(response)?;
     Ok((decode_rpc_body(&body, event_stream)?, session))
+}
+
+fn read_mcp_body(response: ureq::Response) -> Res<String> {
+    let mut bytes = Vec::new();
+    response
+        .into_reader()
+        .take(MAX_MCP_RESPONSE_SIZE + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            BackendError::new("MCP_READ_FAILED", format!("读取 MCP 响应失败: {error}"))
+        })?;
+    if bytes.len() as u64 > MAX_MCP_RESPONSE_SIZE {
+        return Err(BackendError::new(
+            "MCP_BAD_RESPONSE",
+            "MCP 响应超过 16MB 限制",
+        ));
+    }
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
 pub(crate) fn notify_initialized(
@@ -465,11 +579,11 @@ fn http_rpc(
     session: Option<&str>,
     protocol: Option<&str>,
 ) -> Res<ureq::Response> {
-    let client = ureq::AgentBuilder::new()
-        .timeout(Duration::from_secs(timeout_secs))
-        .build();
+    static AGENT: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
+    let client = AGENT.get_or_init(|| ureq::AgentBuilder::new().build());
     let mut request = client
         .post(endpoint)
+        .timeout(Duration::from_secs(timeout_secs))
         .set("Content-Type", "application/json")
         .set("Accept", "application/json, text/event-stream");
     if let Some(id) = session {
@@ -482,12 +596,7 @@ fn http_rpc(
     let response = match response {
         Ok(response) => response,
         Err(ureq::Error::Status(status, response)) => {
-            let body = response.into_string().map_err(|e| {
-                BackendError::new(
-                    "MCP_READ_FAILED",
-                    format!("HTTP {status} 响应读取失败: {e}"),
-                )
-            })?;
+            let body = read_mcp_body(response)?;
             let value = serde_json::from_str(&body)
                 .unwrap_or_else(|_| json!({"text": truncate(&body, 4096)}));
             let mut error = backend_error(&value, "MCP_HTTP", &format!("MCP 返回 HTTP {status}"));
@@ -573,6 +682,19 @@ mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
+
+    #[test]
+    fn captured_output_is_bounded_and_retains_the_tail() {
+        let mut capture = CaptureBuffer::default();
+        for value in [b'a', b'b', b'c'] {
+            capture.append(&vec![value; MAX_PROCESS_STREAM_SIZE]);
+        }
+        let (text, truncated, omitted) = capture.snapshot();
+        assert_eq!(text.len(), MAX_PROCESS_STREAM_SIZE);
+        assert!(truncated);
+        assert_eq!(omitted, 2 * MAX_PROCESS_STREAM_SIZE as u64);
+        assert!(text.bytes().all(|byte| byte == b'c'));
+    }
 
     fn fake_http(status: u16, content_type: &str, body: &str) -> (String, thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -822,6 +944,15 @@ mod tests {
     }
 
     #[test]
+    fn oversized_mcp_response_is_rejected_before_full_buffering() {
+        let body = "x".repeat(MAX_MCP_RESPONSE_SIZE as usize + 1);
+        let (endpoint, server) = fake_http(200, "application/json", &body);
+        let error = rpc_on(&endpoint, "tools/list", json!({}), 10).unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, "MCP_BAD_RESPONSE");
+    }
+
+    #[test]
     fn http_error_preserves_backend_error() {
         let (endpoint, server) = fake_http(
             409,
@@ -870,6 +1001,13 @@ mod tests {
                 std::io::stdout().flush().unwrap();
                 thread::sleep(Duration::from_secs(10));
             }
+            Ok("tree") => {
+                let mut grandchild = child("timeout").spawn().unwrap();
+                println!("tree-child={}", grandchild.id());
+                std::io::stdout().flush().unwrap();
+                thread::sleep(Duration::from_secs(10));
+                let _ = grandchild.wait();
+            }
             _ => {}
         }
     }
@@ -906,6 +1044,43 @@ mod tests {
         assert!(started.elapsed() < Duration::from_secs(4));
     }
 
+    #[test]
+    fn timeout_terminates_descendant_processes() {
+        use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
+        use windows::Win32::System::Threading::{
+            OpenProcess, WaitForSingleObject, PROCESS_QUERY_LIMITED_INFORMATION,
+        };
+
+        let error = run_capture(child("tree"), 1).unwrap_err();
+        let evidence = error.data.unwrap();
+        let pid = evidence["stdout"]
+            .as_str()
+            .unwrap()
+            .lines()
+            .find_map(|line| line.strip_prefix("tree-child="))
+            .unwrap()
+            .parse::<u32>()
+            .unwrap();
+        let mut terminated = false;
+        for _ in 0..50 {
+            terminated = unsafe {
+                match OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+                    Ok(process) => {
+                        let waited = WaitForSingleObject(process, 0);
+                        let _ = CloseHandle(process);
+                        waited == WAIT_OBJECT_0
+                    }
+                    Err(_) => true,
+                }
+            };
+            if terminated {
+                break;
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+        assert!(terminated, "descendant process {pid} survived the timeout");
+    }
+
     fn successful_status() -> ExitStatus {
         #[cfg(windows)]
         {
@@ -919,9 +1094,19 @@ mod tests {
         }
     }
 
+    fn process_output(stdout: &str, stderr: &str) -> ProcessOutput {
+        ProcessOutput {
+            status: successful_status(),
+            stdout: stdout.into(),
+            stderr: stderr.into(),
+            stdout_truncated: false,
+            stderr_truncated: false,
+        }
+    }
+
     #[test]
     fn shell_summary_overrides_initial_success_with_terminal_failure() {
-        let output = ProcessOutput { status: successful_status(), stdout: "log\n{\"ok\":true,\"data\":{\"success\":true}}\n[task-summary] taskId=t123 success=false durationMs=22".into(), stderr: "diagnostic".into() };
+        let output = process_output("log\n{\"ok\":true,\"data\":{\"success\":true}}\n[task-summary] taskId=t123 success=false durationMs=22", "diagnostic");
         let value = decode_shell_output(output).unwrap();
         assert_eq!(value["data"]["taskId"], "t123");
         assert_eq!(value["data"]["success"], false);
@@ -929,11 +1114,7 @@ mod tests {
 
     #[test]
     fn shell_summary_only_is_supported() {
-        let output = ProcessOutput {
-            status: successful_status(),
-            stdout: "[task-summary] taskId=t123 success=true durationMs=22".into(),
-            stderr: String::new(),
-        };
+        let output = process_output("[task-summary] taskId=t123 success=true durationMs=22", "");
         let value = decode_shell_output(output).unwrap();
         assert_eq!(value["ok"], true);
         assert_eq!(value["data"]["taskId"], "t123");
@@ -941,13 +1122,10 @@ mod tests {
 
     #[test]
     fn shell_error_on_stderr_is_not_hidden_by_stdout_diagnostics() {
-        let output = ProcessOutput {
-            status: successful_status(),
-            stdout: "diagnostic {\"level\":\"warning\"}".into(),
-            stderr:
-                "{\"ok\":false,\"data\":{\"code\":\"studio_already_open\",\"message\":\"busy\"}}"
-                    .into(),
-        };
+        let output = process_output(
+            "diagnostic {\"level\":\"warning\"}",
+            "{\"ok\":false,\"data\":{\"code\":\"studio_already_open\",\"message\":\"busy\"}}",
+        );
         let value = decode_shell_output(output).unwrap();
         let error = backend_error(&value, "SHELL_CLI_FAILED", "failed");
         assert_eq!(error.code, "studio_already_open");

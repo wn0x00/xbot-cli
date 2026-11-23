@@ -2,6 +2,7 @@
 mod activity_cmds;
 mod app_cmds;
 mod bridge;
+mod bridge_pipe;
 mod browser_cmds;
 mod cli;
 mod client_cmds;
@@ -18,8 +19,10 @@ mod installation;
 mod misc_cmds;
 mod oapi;
 mod oapi_cli;
+mod oapi_store;
 mod output;
 mod plan;
+mod process_job;
 mod python_cmds;
 mod schema_cmds;
 mod studio_mcp;

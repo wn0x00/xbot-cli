@@ -106,7 +106,7 @@ fn list_page(search: Option<&str>, owner: Option<&str>, page: u32, page_size: u3
     .execute()
     .map_err(|error| {
         if error.code == "PLATFORM_AUTH" {
-            error.with_hint("activity list 需要开放平台凭据：运行 xbot-cli oapi auth <AccessKeyId> <AccessKeySecret>，或配置 XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET 后重试；activity open 不依赖开放平台")
+            error.with_hint("activity list 需要开放平台凭据：运行 xbot-cli oapi auth login --ak <AccessKeyId> --sk-stdin，或配置 XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET 后重试；activity open 不依赖开放平台")
         } else {
             error
         }

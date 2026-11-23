@@ -132,7 +132,8 @@ pub fn command_metadata(path: &[&str]) -> CommandMetadata {
         ["wiki", ..] => (&["read"], "service", false, "none"),
         ["install"] => (&["write_files"], "local", true, "when_overwriting"),
         ["update"] => (&["self_update"], "local", false, "none"),
-        _ => (&["read"], "local", false, "none"),
+        ["schema" | "guide" | "help" | "version"] => (&["read"], "local", false, "none"),
+        _ => (&["review_required"], "unknown", false, "review_required"),
     };
     CommandMetadata {
         effects,
@@ -695,6 +696,37 @@ mod tests {
             "xbot-cli tool studio schema <tool>"
         );
         assert_eq!(raw["effects"], json!(["tool_defined"]));
+    }
+
+    #[test]
+    fn every_leaf_command_has_reviewed_semantics() {
+        use clap::CommandFactory;
+
+        fn leaves(command: &Command, prefix: &mut Vec<String>, output: &mut Vec<Vec<String>>) {
+            for child in command.get_subcommands().filter(|c| c.get_name() != "help") {
+                prefix.push(child.get_name().to_owned());
+                if child.has_subcommands() {
+                    leaves(child, prefix, output);
+                } else {
+                    output.push(prefix.clone());
+                }
+                prefix.pop();
+            }
+        }
+
+        let mut paths = Vec::new();
+        leaves(&crate::cli::Cli::command(), &mut Vec::new(), &mut paths);
+        for path in &paths {
+            let refs = path.iter().map(String::as_str).collect::<Vec<_>>();
+            let metadata = command_metadata(&refs);
+            assert_ne!(metadata.context, "unknown", "未审查的命令: {path:?}");
+            assert!(!metadata.effects.is_empty(), "缺少 effects: {path:?}");
+        }
+        assert_eq!(
+            command_metadata(&["future", "write"]).confirmation,
+            "review_required"
+        );
+        assert_eq!(paths.len(), 167, "新增或删除叶子命令时，必须逐项复核 schema 的 effects/context/confirmation；当前路径: {paths:?}");
     }
 
     #[test]

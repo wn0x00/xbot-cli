@@ -13,6 +13,44 @@ pub fn flow_list() -> Res<CmdOut> {
     Ok((core::mcp("app.list_flows", json!({}), 130)?, vec![]))
 }
 
+fn created_flow_id(response: &Value, name: &str) -> Res<String> {
+    let flows = response
+        .get("results")
+        .or_else(|| response.get("flows"))
+        .and_then(Value::as_array);
+    let selected = flows.and_then(|flows| {
+        flows
+            .iter()
+            .find(|flow| flow.get("flow_name").and_then(Value::as_str) == Some(name))
+            .or_else(|| {
+                if flows.len() == 1 && flows[0].get("flow_name").is_none() {
+                    flows.first()
+                } else {
+                    None
+                }
+            })
+    });
+    selected
+        .and_then(|flow| flow.get("flow_id"))
+        .and_then(Value::as_str)
+        .filter(|id| !id.trim().is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            BackendError::new(
+                "FLOW_CREATE_UNKNOWN",
+                "流程创建已返回，但响应中没有可确认的真实 flow_id",
+            )
+            .with_data(json!({
+                "applied": true,
+                "outcome": "unknown",
+                "flow_name": name,
+                "response": response,
+            }))
+            .with_retryable(false)
+            .with_hint("先运行 flow list 核对实际流程并获取 flow_id；不要重复创建")
+        })
+}
+
 pub fn flow_new(name: &str, kind: &str) -> Res<CmdOut> {
     core::require_current_edit_mode()?;
     let r = core::mcp(
@@ -20,22 +58,7 @@ pub fn flow_new(name: &str, kind: &str) -> Res<CmdOut> {
         json!({"flows": [{"flow_name": name, "kind": kind}]}),
         130,
     )?;
-    let fid = r
-        .get("results")
-        .or_else(|| r.get("flows"))
-        .and_then(Value::as_array)
-        .and_then(|fs| {
-            fs.iter().find_map(|f| {
-                if f.get("flow_name").and_then(Value::as_str) == Some(name)
-                    || f.get("flow_id").is_some()
-                {
-                    f.get("flow_id").and_then(Value::as_str).map(str::to_string)
-                } else {
-                    None
-                }
-            })
-        })
-        .unwrap_or_else(|| name.to_string());
+    let fid = created_flow_id(&r, name)?;
     let nxt = if kind == "code" {
         vec![format!("xbot-cli flow code write {fid} --file main.py")]
     } else {
@@ -651,6 +674,32 @@ mod tests {
             static_errors(&json!({"static_errors":[]})).unwrap(),
             json!([])
         );
+    }
+
+    #[test]
+    fn created_flow_requires_a_real_unambiguous_id() {
+        assert_eq!(
+            created_flow_id(&json!({"results":[{"flow_id":"flow-1"}]}), "main").unwrap(),
+            "flow-1"
+        );
+        assert_eq!(
+            created_flow_id(
+                &json!({"results":[{"flow_id":"flow-2","flow_name":"main"}]}),
+                "main"
+            )
+            .unwrap(),
+            "flow-2"
+        );
+        for response in [
+            json!({"results":[{"flow_name":"main"}]}),
+            json!({"results":[{"flow_id":"other-id","flow_name":"other"}]}),
+            json!({"success":true}),
+        ] {
+            let error = created_flow_id(&response, "main").unwrap_err();
+            assert_eq!(error.code, "FLOW_CREATE_UNKNOWN");
+            assert_eq!(error.data.unwrap()["applied"], true);
+            assert_eq!(error.retryable, Some(false));
+        }
     }
 
     #[test]

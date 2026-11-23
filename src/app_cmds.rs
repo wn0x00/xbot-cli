@@ -101,7 +101,7 @@ pub fn app_open(app_id: &str, timeout: u64, force: bool) -> Res<CmdOut> {
     if force {
         close_studio_for_switch()?;
     }
-    let d = core::edit_open_app(app_id, timeout.max(120))?;
+    let d = core::edit_open_app(app_id, timeout)?;
     if d.get("already_open").and_then(Value::as_bool) == Some(true) {
         // 已开着:确认是同一个应用,且必须是编辑模式(View 会话要重开)
         core::require_expected_app(app_id)?;
@@ -263,22 +263,20 @@ pub fn app_publish(app_id: &str, log: Option<&str>) -> Res<CmdOut> {
     let deadline = Instant::now() + Duration::from_secs(60);
     let mut last_error = None;
     while Instant::now() < deadline {
-        sleep(Duration::from_secs(3));
-        let versions = match versions_of(app_id) {
-            Ok(versions) => versions,
-            Err(error) => {
-                last_error = Some(flow_cmds::error_evidence(&error));
-                continue;
+        match versions_of(app_id) {
+            Ok(versions) => {
+                for v in versions {
+                    if is_new_release(&v, &known, log) {
+                        return Ok((
+                            json!({"confirmed":true,"app_id":app_id,"version":v.get("version"),"version_id":v.get("versionId"),"log":v.get("versionLog"),"publish":publish}),
+                            vec![format!("xbot-cli task run {app_id}   # 运行已发布版本验证")],
+                        ));
+                    }
+                }
             }
-        };
-        for v in versions {
-            if is_new_release(&v, &known, log) {
-                return Ok((
-                    json!({"confirmed":true,"app_id":app_id,"version":v.get("version"),"version_id":v.get("versionId"),"log":v.get("versionLog"),"publish":publish}),
-                    vec![format!("xbot-cli task run {app_id}   # 运行已发布版本验证")],
-                ));
-            }
+            Err(error) => last_error = Some(flow_cmds::error_evidence(&error)),
         }
+        sleep(Duration::from_secs(3));
     }
     Err(BackendError::new("PUBLISH_NOT_CONFIRMED",
         "publish 调用成功但 60s 内 versions 未出现新版本(服务端内容无变化?)")

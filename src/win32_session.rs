@@ -1,7 +1,7 @@
 //! Explicit snapshot IDs bind refs to a saved process instance and UIA ancestry.
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
@@ -79,13 +79,67 @@ pub(crate) fn receipt(id: &str) -> Res<PathBuf> {
     Ok(path(id)?.with_extension("used"))
 }
 
+const MAX_SNAPSHOT_FILES: usize = 64;
+const MAX_SNAPSHOT_TOTAL_BYTES: u64 = 256 * 1024 * 1024;
+
+fn remove_snapshot(path: &Path) {
+    let _ = fs::remove_file(path);
+    let _ = fs::remove_file(path.with_extension("used"));
+}
+
+fn prune_at(directory: &Path, now: std::time::SystemTime) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    let mut snapshots = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let extension = path.extension().and_then(|value| value.to_str());
+        if extension != Some("json") {
+            continue;
+        }
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        let modified = metadata.modified().unwrap_or(std::time::UNIX_EPOCH);
+        if now
+            .duration_since(modified)
+            .is_ok_and(|age| age.as_secs() > 24 * 3600)
+        {
+            remove_snapshot(&path);
+            continue;
+        }
+        snapshots.push((path, modified, metadata.len()));
+    }
+    if let Ok(entries) = fs::read_dir(directory) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|value| value == "used")
+                && !path.with_extension("json").is_file()
+            {
+                let _ = fs::remove_file(path);
+            }
+        }
+    }
+    snapshots.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+    let mut total_bytes = snapshots.iter().map(|item| item.2).sum::<u64>();
+    while snapshots.len() > MAX_SNAPSHOT_FILES || total_bytes > MAX_SNAPSHOT_TOTAL_BYTES {
+        let (path, _, size) = &snapshots[0];
+        remove_snapshot(path);
+        total_bytes = total_bytes.saturating_sub(*size);
+        snapshots.remove(0);
+    }
+}
+
 pub(crate) fn save(data: &mut Value) -> Res<()> {
     let id = data["snapshot_id"]
         .as_str()
         .ok_or_else(|| BackendError::new("WIN32_SNAPSHOT_STORE", "快照缺少编号"))?;
     let path = path(id)?;
-    fs::create_dir_all(path.parent().expect("snapshot parent"))
+    let parent = path.parent().expect("snapshot parent");
+    fs::create_dir_all(parent)
         .map_err(|_| BackendError::new("WIN32_SNAPSHOT_STORE", "无法创建本地快照目录"))?;
+    prune_at(parent, std::time::SystemTime::now());
     data["ref_scope"] = json!("snapshot_scoped_actions");
     data["refs_resolvable_for_actions"] = json!(true);
     data["snapshot_file"] = json!(path);
@@ -149,4 +203,69 @@ pub(crate) fn load(id: &str) -> Res<Value> {
         .with_retryable(false));
     }
     Ok(data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snapshot_store_prunes_expired_or_excess_files_only() {
+        let root = std::env::temp_dir().join(format!(
+            "xbot-snapshot-prune-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&root).unwrap();
+        for index in 0..70 {
+            let path = root.join(format!("{index:02}.json"));
+            fs::write(&path, b"{}").unwrap();
+            if index % 2 == 0 {
+                fs::write(path.with_extension("used"), b"").unwrap();
+            }
+        }
+        fs::write(root.join("unrelated.txt"), b"keep").unwrap();
+        prune_at(&root, std::time::SystemTime::now());
+        assert_eq!(
+            fs::read_dir(&root)
+                .unwrap()
+                .flatten()
+                .filter(|entry| entry
+                    .path()
+                    .extension()
+                    .is_some_and(|value| value == "json"))
+                .count(),
+            MAX_SNAPSHOT_FILES
+        );
+        assert!(root.join("unrelated.txt").is_file());
+        for entry in fs::read_dir(&root).unwrap().flatten() {
+            if entry
+                .path()
+                .extension()
+                .is_some_and(|value| value == "used")
+            {
+                assert!(entry.path().with_extension("json").is_file());
+            }
+        }
+        prune_at(
+            &root,
+            std::time::SystemTime::now() + std::time::Duration::from_secs(25 * 3600),
+        );
+        assert_eq!(
+            fs::read_dir(&root)
+                .unwrap()
+                .flatten()
+                .filter(|entry| entry
+                    .path()
+                    .extension()
+                    .is_some_and(|value| value == "json"))
+                .count(),
+            0
+        );
+        assert!(root.join("unrelated.txt").is_file());
+        fs::remove_dir_all(root).unwrap();
+    }
 }

@@ -1,22 +1,20 @@
 use std::collections::HashSet;
-use std::fs::{self, OpenOptions};
-use std::io::{Read, Write};
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::fs;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use base64::Engine;
 use serde_json::{json, Value};
-use windows::Win32::Foundation::HANDLE;
-use windows::Win32::System::Pipes::PeekNamedPipe;
 
+use crate::bridge_pipe::NamedPipe;
+#[cfg(test)]
+use crate::bridge_pipe::{decode_payload, encode_frame, response_content, MAX_FRAME_SIZE};
 use crate::browser_cmds::{self, BrowserTarget};
 use crate::core::{BackendError, Res};
 
 const CHROME_BRIDGE_PREFIX: &str = "9F5EDA99-AA91-4278-A19C-3F0227CD119B";
 const SHADOWBOT_BROWSER_BRIDGE_PREFIX: &str = "b99c93f4-6881-4d74-af43-2f3463fe1cc5";
 const ALT_BROWSER_BRIDGE_PREFIX: &str = "678D1584-66CD-4D54-BFE1-B8D4200147B4";
-const MAX_FRAME_SIZE: usize = 16 * 1024 * 1024;
 const ENGINE_CORE: &str = include_str!("web_assets/01-uiaDispatcher.core.js");
 const ENGINE_PAGE: &str = include_str!("web_assets/02-uiaDispatcher.selector-engine.js");
 const PW_ARIA: &str = include_str!("web_assets/pw-aria.js");
@@ -48,13 +46,14 @@ pub fn tools() -> Vec<Value> {
     .collect()
 }
 
-pub fn call(tool: &str, args: Value) -> Res<Value> {
+pub fn call(tool: &str, args: Value, timeout_secs: u64) -> Res<Value> {
+    let timeout = Duration::from_secs(timeout_secs);
     match tool {
         "web_create" => {
             let url = required_string(&args, "url")?;
-            open(url, request_browser(&args)?.as_deref(), false)
+            open(url, request_browser(&args)?.as_deref(), false, timeout)
         }
-        "web_get_active" => with_provider(request_browser(&args)?.as_deref(), |provider| {
+        "web_get_active" => with_provider(request_browser(&args)?.as_deref(), timeout, |provider| {
             let tab_id = provider.active_tab()?;
             let context = provider.verified_context(tab_id, None);
             let mut data = json!({"success":true,"backend":"chrome-bridge","browser_context":context});
@@ -62,7 +61,7 @@ pub fn call(tool: &str, args: Value) -> Res<Value> {
             provider.remember(tab_id, None, &mut data);
             Ok(data)
         }),
-        "web_snapshot" => with_provider_at(args.get("pipe").and_then(Value::as_str), request_browser(&args)?.as_deref(), |provider| {
+        "web_snapshot" => with_provider_at(args.get("pipe").and_then(Value::as_str), request_browser(&args)?.as_deref(), timeout, |provider| {
             let tab_id = match args.get("tab_id").and_then(Value::as_i64) {
                 Some(tab) => tab,
                 None => provider.bound_tab()?,
@@ -84,9 +83,9 @@ pub fn call(tool: &str, args: Value) -> Res<Value> {
             data.as_object_mut().unwrap().remove("snapshot");
             Ok(data)
         }),
-        "web_action" => action(args),
-        "web_xpath" => xpath_candidates(&args),
-        "web_evaluate_playwright" => evaluate_page(&args),
+        "web_action" => action(args, timeout),
+        "web_xpath" => xpath_candidates(&args, timeout),
+        "web_evaluate_playwright" => evaluate_page(&args, timeout),
         _ => Err(BackendError::new(
             "MCP_TOOL_UNKNOWN",
             format!("Chrome Bridge 不支持工具: {tool}"),
@@ -95,8 +94,8 @@ pub fn call(tool: &str, args: Value) -> Res<Value> {
     }
 }
 
-fn open(url: &str, mode: Option<&str>, snapshot: bool) -> Res<Value> {
-    let mut provider = Provider::connect_for_open(mode)?;
+fn open(url: &str, mode: Option<&str>, snapshot: bool, timeout: Duration) -> Res<Value> {
+    let mut provider = Provider::connect_for_open(mode, timeout)?;
     let tab_id = provider.create(url)?;
     let context = provider.verified_context(tab_id, mode);
     let mut data = json!({
@@ -173,24 +172,26 @@ fn connect_or_start<T>(
 
 fn with_provider(
     browser: Option<&str>,
+    timeout: Duration,
     run: impl FnOnce(&mut Provider) -> Res<Value>,
 ) -> Res<Value> {
-    run(&mut Provider::connect(browser)?)
+    run(&mut Provider::connect(browser, timeout)?)
 }
 
 fn with_provider_at(
     path: Option<&str>,
     browser: Option<&str>,
+    timeout: Duration,
     run: impl FnOnce(&mut Provider) -> Res<Value>,
 ) -> Res<Value> {
     let mut provider = match path {
-        Some(path) => Provider::connect_path(path, browser)?,
-        None => Provider::connect_bound(browser)?,
+        Some(path) => Provider::connect_path(path, browser, timeout)?,
+        None => Provider::connect_bound(browser, timeout)?,
     };
     run(&mut provider)
 }
 
-fn action(args: Value) -> Res<Value> {
+fn action(args: Value, timeout: Duration) -> Res<Value> {
     let target = required_string(&args, "target")?;
     let method = required_string(&args, "method")?;
     let values = args
@@ -198,157 +199,169 @@ fn action(args: Value) -> Res<Value> {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    with_provider_at(None, request_browser(&args)?.as_deref(), |provider| {
-        let tab_id = provider.bound_tab()?;
-        let context = provider.verified_context(tab_id, None);
-        if target == "locator" {
-            provider.validate_ref(tab_id, required_string(&args, "refid")?)?;
-        }
-        // Capture before the side effect, on this exact tab and provider.
-        let locator = if target == "locator" && args["no_python"] != true {
-            match provider.python_locator(tab_id, required_string(&args, "refid")?) {
-                Ok(locator) => locator,
-                Err(error) => json!({"capture_error":{"code":error.code,"message":error.message}}),
+    with_provider_at(
+        None,
+        request_browser(&args)?.as_deref(),
+        timeout,
+        |provider| {
+            let tab_id = provider.bound_tab()?;
+            let context = provider.verified_context(tab_id, None);
+            if target == "locator" {
+                provider.validate_ref(tab_id, required_string(&args, "refid")?)?;
             }
-        } else {
-            Value::Null
-        };
-        let result = match (target, method) {
-            ("page", "goto") => {
-                let url = argument_string(&values, 0, "url")?;
-                provider.cdp(tab_id, "Page.enable", json!({}))?;
-                let result = provider.cdp(tab_id, "Page.navigate", json!({"url":url}))?;
-                provider.wait_info(tab_id, url, Duration::from_secs(20))?;
-                provider.wait_ready(tab_id, Duration::from_secs(20))?;
-                result
-            }
-            ("page", "reload") => {
-                let result = provider.cdp(tab_id, "Page.reload", json!({}))?;
-                provider.wait_ready(tab_id, Duration::from_secs(20))?;
-                result
-            }
-            ("page", "goBack") => {
-                let result = provider.evaluate(tab_id, "history.back()".into())?;
-                provider.wait_ready(tab_id, Duration::from_secs(20))?;
-                result
-            }
-            ("page", "goForward") => {
-                let result = provider.evaluate(tab_id, "history.forward()".into())?;
-                provider.wait_ready(tab_id, Duration::from_secs(20))?;
-                result
-            }
-            ("page", "close") => provider.cdp(tab_id, "Page.close", json!({}))?,
-            ("keyboard", "type") => provider.evaluate(
-                tab_id,
-                wrap_js(&format!(
-                    "return $$.typeActive({},false);",
-                    js_string(argument_string(&values, 0, "text")?)
-                )),
-            )?,
-            ("keyboard", "press") => provider.evaluate(
-                tab_id,
-                wrap_js(&format!(
-                    "return $$.press(null,{});",
-                    js_string(argument_string(&values, 0, "key")?)
-                )),
-            )?,
-            ("locator", method) => {
-                let refid = required_string(&args, "refid")?;
-                match method {
-                    "click" | "dblclick" => {
-                        let button = args
-                            .pointer("/kwargs/button")
-                            .and_then(Value::as_str)
-                            .unwrap_or("left");
-                        provider.trusted_click(
-                            tab_id,
-                            refid,
-                            button,
-                            if method == "dblclick" { 2 } else { 1 },
-                        )?
-                    }
-                    "hover" => {
-                        let (x, y) = provider.point_of(tab_id, refid)?;
-                        provider.cdp(
-                            tab_id,
-                            "Input.dispatchMouseEvent",
-                            json!({"type":"mouseMoved","x":x,"y":y}),
-                        )?
-                    }
-                    "fill" => provider.el_eval(
-                        tab_id,
-                        refid,
-                        &format!(
-                            "$$.fill(el,{})",
-                            js_string(argument_string(&values, 0, "text")?)
-                        ),
-                    )?,
-                    "press" => provider.el_eval(
-                        tab_id,
-                        refid,
-                        &format!(
-                            "$$.press(el,{})",
-                            js_string(argument_string(&values, 0, "key")?)
-                        ),
-                    )?,
-                    "check" | "uncheck" => provider.el_eval(
-                        tab_id,
-                        refid,
-                        &format!("$$.setChecked(el,{})", method == "check"),
-                    )?,
-                    "selectOption" => provider.el_eval(
-                        tab_id,
-                        refid,
-                        &format!(
-                            "$$.select(el,{})",
-                            serde_json::to_string(
-                                &values.first().cloned().unwrap_or_else(|| json!([]))
-                            )
-                            .unwrap()
-                        ),
-                    )?,
-                    _ => {
-                        return Err(BackendError::new(
-                            "BAD_INPUT",
-                            format!("不支持的元素操作: {method}"),
-                        ))
+            // Capture before the side effect, on this exact tab and provider.
+            let locator = if target == "locator" && args["no_python"] != true {
+                match provider.python_locator(tab_id, required_string(&args, "refid")?) {
+                    Ok(locator) => locator,
+                    Err(error) => {
+                        json!({"capture_error":{"code":error.code,"message":error.message}})
                     }
                 }
+            } else {
+                Value::Null
+            };
+            let result = match (target, method) {
+                ("page", "goto") => {
+                    let url = argument_string(&values, 0, "url")?;
+                    provider.cdp(tab_id, "Page.enable", json!({}))?;
+                    let result = provider.cdp(tab_id, "Page.navigate", json!({"url":url}))?;
+                    provider.wait_info(tab_id, url, Duration::from_secs(20))?;
+                    provider.wait_ready(tab_id, Duration::from_secs(20))?;
+                    result
+                }
+                ("page", "reload") => {
+                    let result = provider.cdp(tab_id, "Page.reload", json!({}))?;
+                    provider.wait_ready(tab_id, Duration::from_secs(20))?;
+                    result
+                }
+                ("page", "goBack") => {
+                    let result = provider.evaluate(tab_id, "history.back()".into())?;
+                    provider.wait_ready(tab_id, Duration::from_secs(20))?;
+                    result
+                }
+                ("page", "goForward") => {
+                    let result = provider.evaluate(tab_id, "history.forward()".into())?;
+                    provider.wait_ready(tab_id, Duration::from_secs(20))?;
+                    result
+                }
+                ("page", "close") => provider.cdp(tab_id, "Page.close", json!({}))?,
+                ("keyboard", "type") => provider.evaluate(
+                    tab_id,
+                    wrap_js(&format!(
+                        "return $$.typeActive({},false);",
+                        js_string(argument_string(&values, 0, "text")?)
+                    )),
+                )?,
+                ("keyboard", "press") => provider.evaluate(
+                    tab_id,
+                    wrap_js(&format!(
+                        "return $$.press(null,{});",
+                        js_string(argument_string(&values, 0, "key")?)
+                    )),
+                )?,
+                ("locator", method) => {
+                    let refid = required_string(&args, "refid")?;
+                    match method {
+                        "click" | "dblclick" => {
+                            let button = args
+                                .pointer("/kwargs/button")
+                                .and_then(Value::as_str)
+                                .unwrap_or("left");
+                            provider.trusted_click(
+                                tab_id,
+                                refid,
+                                button,
+                                if method == "dblclick" { 2 } else { 1 },
+                            )?
+                        }
+                        "hover" => {
+                            let (x, y) = provider.point_of(tab_id, refid)?;
+                            provider.cdp(
+                                tab_id,
+                                "Input.dispatchMouseEvent",
+                                json!({"type":"mouseMoved","x":x,"y":y}),
+                            )?
+                        }
+                        "fill" => provider.el_eval(
+                            tab_id,
+                            refid,
+                            &format!(
+                                "$$.fill(el,{})",
+                                js_string(argument_string(&values, 0, "text")?)
+                            ),
+                        )?,
+                        "press" => provider.el_eval(
+                            tab_id,
+                            refid,
+                            &format!(
+                                "$$.press(el,{})",
+                                js_string(argument_string(&values, 0, "key")?)
+                            ),
+                        )?,
+                        "check" | "uncheck" => provider.el_eval(
+                            tab_id,
+                            refid,
+                            &format!("$$.setChecked(el,{})", method == "check"),
+                        )?,
+                        "selectOption" => provider.el_eval(
+                            tab_id,
+                            refid,
+                            &format!(
+                                "$$.select(el,{})",
+                                serde_json::to_string(
+                                    &values.first().cloned().unwrap_or_else(|| json!([]))
+                                )
+                                .unwrap()
+                            ),
+                        )?,
+                        _ => {
+                            return Err(BackendError::new(
+                                "BAD_INPUT",
+                                format!("不支持的元素操作: {method}"),
+                            ))
+                        }
+                    }
+                }
+                _ => {
+                    return Err(BackendError::new(
+                        "BAD_INPUT",
+                        format!("不支持的网页操作: {target}.{method}"),
+                    ))
+                }
+            };
+            if target == "page" && method == "close" {
+                crate::web_session::clear(provider.browser.as_deref());
             }
-            _ => {
-                return Err(BackendError::new(
-                    "BAD_INPUT",
-                    format!("不支持的网页操作: {target}.{method}"),
-                ))
-            }
-        };
-        if target == "page" && method == "close" {
-            crate::web_session::clear(provider.browser.as_deref());
-        }
-        Ok(json!({
-            "success":true,
-            "backend":"chrome-bridge",
-            "result":result,
-            "browser_context":context,
-            "python_locator":locator,
-        }))
-    })
+            Ok(json!({
+                "success":true,
+                "backend":"chrome-bridge",
+                "result":result,
+                "browser_context":context,
+                "python_locator":locator,
+            }))
+        },
+    )
 }
 
-fn evaluate_page(args: &Value) -> Res<Value> {
+fn evaluate_page(args: &Value, timeout: Duration) -> Res<Value> {
     let code = required_string(args, "code")?;
-    with_provider_at(None, request_browser(args)?.as_deref(), |provider| {
-        let tab_id = provider.bound_tab()?;
-        let expression = format!(
+    with_provider_at(
+        None,
+        request_browser(args)?.as_deref(),
+        timeout,
+        |provider| {
+            let tab_id = provider.bound_tab()?;
+            let expression = format!(
             "(async function(){{const activePage={{title:async()=>document.title,url:async()=>location.href,evaluate:async(fn,...args)=>{{if(typeof fn==='string')return eval(fn);return fn(...args);}}}};return (async function(){{{code}}})();}})()"
         );
-        Ok(json!({
-            "success":true,
-            "backend":"chrome-bridge",
-            "result":provider.evaluate(tab_id, expression)?,
-            "browser_context":provider.verified_context(tab_id, None),
-        }))
-    })
+            Ok(json!({
+                "success":true,
+                "backend":"chrome-bridge",
+                "result":provider.evaluate(tab_id, expression)?,
+                "browser_context":provider.verified_context(tab_id, None),
+            }))
+        },
+    )
 }
 
 fn attach_frame_tree(node: &mut Value, owner: &str, document: &Value) -> bool {
@@ -365,125 +378,129 @@ fn attach_frame_tree(node: &mut Value, owner: &str, document: &Value) -> bool {
     })
 }
 
-fn xpath_candidates(args: &Value) -> Res<Value> {
+fn xpath_candidates(args: &Value, timeout: Duration) -> Res<Value> {
     let refs = args["refs"]
         .as_array()
         .filter(|a| !a.is_empty() && a.len() <= 20)
         .ok_or_else(|| BackendError::new("BAD_INPUT", "请提供 1 到 20 个当前快照 ref"))?;
-    with_provider_at(None, request_browser(args)?.as_deref(), |provider| {
-        let tab = provider.bound_tab()?;
-        let mut locals = Vec::new();
-        let mut scope = None;
-        let mut scope_set = false;
-        for value in refs {
-            let id = value
-                .as_str()
-                .ok_or_else(|| BackendError::new("BAD_INPUT", "ref 必须是字符串"))?;
-            provider.validate_ref(tab, id)?;
-            let (context, local, _) = provider.ref_context(tab, id)?;
-            if scope_set && scope != context {
-                return Ok(
-                    json!({"status":"unavailable","xpaths":[],"reason":"元素不在同一个 iframe 文档，无法生成相似元素 XPath"}),
-                );
+    with_provider_at(
+        None,
+        request_browser(args)?.as_deref(),
+        timeout,
+        |provider| {
+            let tab = provider.bound_tab()?;
+            let mut locals = Vec::new();
+            let mut scope = None;
+            let mut scope_set = false;
+            for value in refs {
+                let id = value
+                    .as_str()
+                    .ok_or_else(|| BackendError::new("BAD_INPUT", "ref 必须是字符串"))?;
+                provider.validate_ref(tab, id)?;
+                let (context, local, _) = provider.ref_context(tab, id)?;
+                if scope_set && scope != context {
+                    return Ok(
+                        json!({"status":"unavailable","xpaths":[],"reason":"元素不在同一个 iframe 文档，无法生成相似元素 XPath"}),
+                    );
+                }
+                scope = context;
+                scope_set = true;
+                locals.push(local);
             }
-            scope = context;
-            scope_set = true;
-            locals.push(local);
-        }
-        let script = format!(
-            "{PYTHON_LOCATOR}\nreturn window.__xbotPythonXPaths({}.map(id=>$$.must(id)));",
-            serde_json::to_string(&locals).unwrap()
-        );
-        let result = provider.evaluate_in(tab, scope.as_ref(), wrap_js(&script))?;
-        if crate::web_python::closed_shadow(&result) {
-            return Ok(closed_xpath_result(refs));
-        }
-        let frame_locator = if scope.is_some() {
-            let locator = provider.python_locator(tab, refs[0].as_str().unwrap())?;
-            if crate::web_python::closed_shadow(&locator) {
+            let script = format!(
+                "{PYTHON_LOCATOR}\nreturn window.__xbotPythonXPaths({}.map(id=>$$.must(id)));",
+                serde_json::to_string(&locals).unwrap()
+            );
+            let result = provider.evaluate_in(tab, scope.as_ref(), wrap_js(&script))?;
+            if crate::web_python::closed_shadow(&result) {
                 return Ok(closed_xpath_result(refs));
             }
-            Some(locator)
-        } else {
-            None
-        };
-        let mut xpaths = Vec::new();
-        let shadow = result["shadow"] == true;
-        let mut warnings = if shadow {
-            vec!["影刀语法，请使用影刀验证；仅以分层 DOM 查询核对目标，未验证影刀执行结果，不是普通浏览器 XPath".to_owned()]
-        } else {
-            vec![]
-        };
-        let requires_review = result["candidates"]
-            .as_array()
-            .is_some_and(|c| !c.is_empty() && c.iter().all(|item| item["requires_review"] == true));
-        if requires_review {
-            warnings.push(format!(
+            let frame_locator = if scope.is_some() {
+                let locator = provider.python_locator(tab, refs[0].as_str().unwrap())?;
+                if crate::web_python::closed_shadow(&locator) {
+                    return Ok(closed_xpath_result(refs));
+                }
+                Some(locator)
+            } else {
+                None
+            };
+            let mut xpaths = Vec::new();
+            let shadow = result["shadow"] == true;
+            let mut warnings = if shadow {
+                vec!["影刀语法，请使用影刀验证；仅以分层 DOM 查询核对目标，未验证影刀执行结果，不是普通浏览器 XPath".to_owned()]
+            } else {
+                vec![]
+            };
+            let requires_review = result["candidates"].as_array().is_some_and(|c| {
+                !c.is_empty() && c.iter().all(|item| item["requires_review"] == true)
+            });
+            if requires_review {
+                warnings.push(format!(
                 "注意：当前候选匹配 {} 个同类元素，未唯一定位到该 ref；请勿直接用于单元素点击。",
                 result["candidates"][0]["count"]
             ));
-        }
-        if let Some(candidates) = result["candidates"].as_array().filter(|c| !c.is_empty()) {
-            if scope.is_some() {
-                let locator = frame_locator.as_ref().unwrap();
-                let steps = locator["steps"].as_array().ok_or_else(|| {
-                    BackendError::new("WEB_LOCATOR_CAPTURE", "Missing iframe locator steps")
-                })?;
-                let Some(last_frame) = steps.iter().rposition(|s| s["kind"] == "frame") else {
-                    return Ok(json!({"status":"unavailable","xpaths":[],
-                        "reason":"缺少完整的 iframe 层级，无法构建 Selector"}));
-                };
-                let owners = &steps[..=last_frame];
-                if owners.iter().any(|s| {
-                    s["requires_review"] == true
-                        || matches!(s["quality"].as_str(), Some("weak" | "structural"))
-                }) {
-                    return Ok(json!({"status":"unavailable","xpaths":[],
-                        "reason":"iframe 或外层 Shadow Host 缺少可靠语义锚点，无法生成稳定的 Selector 层级；请补充稳定属性"}));
-                }
-                let mut composed = Vec::new();
-                for candidate in candidates.iter().take(5) {
-                    let mut full = owners.to_vec();
-                    full.push(json!({"kind":"element","xpath":candidate["xpath"]}));
-                    let Some(segments) = crate::web_python::xpath_segments(&full) else {
+            }
+            if let Some(candidates) = result["candidates"].as_array().filter(|c| !c.is_empty()) {
+                if scope.is_some() {
+                    let locator = frame_locator.as_ref().unwrap();
+                    let steps = locator["steps"].as_array().ok_or_else(|| {
+                        BackendError::new("WEB_LOCATOR_CAPTURE", "Missing iframe locator steps")
+                    })?;
+                    let Some(last_frame) = steps.iter().rposition(|s| s["kind"] == "frame") else {
                         return Ok(json!({"status":"unavailable","xpaths":[],
-                            "reason":"iframe XPath 层级不完整，无法构建 Selector"}));
+                        "reason":"缺少完整的 iframe 层级，无法构建 Selector"}));
                     };
-                    let mut item = candidate.clone();
-                    item.as_object_mut().unwrap().remove("xpath");
-                    item["local_xpath"] = candidate["xpath"].clone();
-                    item["segments"] = json!(segments);
-                    item["syntax"] = json!("shadowbot-selector");
-                    item["validation"] = json!("requires_shadowbot");
-                    item["runtime_verified"] = json!(false);
-                    item["segments_scope_verified"] = json!(true);
-                    item["unique_verified"] = json!(false);
-                    composed.push(item);
-                    xpaths.push(serde_json::to_string(&segments).unwrap());
+                    let owners = &steps[..=last_frame];
+                    if owners.iter().any(|s| {
+                        s["requires_review"] == true
+                            || matches!(s["quality"].as_str(), Some("weak" | "structural"))
+                    }) {
+                        return Ok(json!({"status":"unavailable","xpaths":[],
+                        "reason":"iframe 或外层 Shadow Host 缺少可靠语义锚点，无法生成稳定的 Selector 层级；请补充稳定属性"}));
+                    }
+                    let mut composed = Vec::new();
+                    for candidate in candidates.iter().take(5) {
+                        let mut full = owners.to_vec();
+                        full.push(json!({"kind":"element","xpath":candidate["xpath"]}));
+                        let Some(segments) = crate::web_python::xpath_segments(&full) else {
+                            return Ok(json!({"status":"unavailable","xpaths":[],
+                            "reason":"iframe XPath 层级不完整，无法构建 Selector"}));
+                        };
+                        let mut item = candidate.clone();
+                        item.as_object_mut().unwrap().remove("xpath");
+                        item["local_xpath"] = candidate["xpath"].clone();
+                        item["segments"] = json!(segments);
+                        item["syntax"] = json!("shadowbot-selector");
+                        item["validation"] = json!("requires_shadowbot");
+                        item["runtime_verified"] = json!(false);
+                        item["segments_scope_verified"] = json!(true);
+                        item["unique_verified"] = json!(false);
+                        composed.push(item);
+                        xpaths.push(serde_json::to_string(&segments).unwrap());
+                    }
+                    if !shadow {
+                        warnings.push("影刀语法，请使用影刀验证；以下每行是 Selector.xpath.segments 列表，不是可直接传给 find_by_xpath 的一条 XPath".into());
+                    } else {
+                        warnings.push("以下每行是 Selector.xpath.segments 列表；shadow 边界保留在所属文档的 segment 内".into());
+                    }
+                    return Ok(json!({
+                        "status":if requires_review{"needs_review"}else{"ready"},
+                        "kind":if refs.len()==1{"single"}else{"similar"},"refs":refs,
+                        "xpaths":xpaths, "xpath_lists":composed.iter().map(|c| c["segments"].clone()).collect::<Vec<_>>(),
+                        "candidates":composed, "reason":result["reason"], "warnings":warnings,
+                        "requires_review":requires_review, "requires_selector":true,
+                        "syntax":"shadowbot-selector","validation":"requires_shadowbot",
+                        "context_format":"Selector.xpath.segments: outer iframe -> inner iframe -> target",
+                        "iframe_context_required":true,"runtime_verified":false,
+                        "browser_context":provider.verified_context(tab,None)
+                    }));
                 }
-                if !shadow {
-                    warnings.push("影刀语法，请使用影刀验证；以下每行是 Selector.xpath.segments 列表，不是可直接传给 find_by_xpath 的一条 XPath".into());
-                } else {
-                    warnings.push("以下每行是 Selector.xpath.segments 列表；shadow 边界保留在所属文档的 segment 内".into());
+                for candidate in candidates.iter().take(5) {
+                    xpaths.push(candidate["xpath"].as_str().unwrap_or("").to_owned());
                 }
-                return Ok(json!({
-                    "status":if requires_review{"needs_review"}else{"ready"},
-                    "kind":if refs.len()==1{"single"}else{"similar"},"refs":refs,
-                    "xpaths":xpaths, "xpath_lists":composed.iter().map(|c| c["segments"].clone()).collect::<Vec<_>>(),
-                    "candidates":composed, "reason":result["reason"], "warnings":warnings,
-                    "requires_review":requires_review, "requires_selector":true,
-                    "syntax":"shadowbot-selector","validation":"requires_shadowbot",
-                    "context_format":"Selector.xpath.segments: outer iframe -> inner iframe -> target",
-                    "iframe_context_required":true,"runtime_verified":false,
-                    "browser_context":provider.verified_context(tab,None)
-                }));
             }
-            for candidate in candidates.iter().take(5) {
-                xpaths.push(candidate["xpath"].as_str().unwrap_or("").to_owned());
-            }
-        }
-        Ok(
-            json!({"status":if xpaths.is_empty(){"unavailable"}else if requires_review{"needs_review"}else{"ready"},
+            Ok(
+                json!({"status":if xpaths.is_empty(){"unavailable"}else if requires_review{"needs_review"}else{"ready"},
             "kind":if refs.len()==1{"single"}else{"similar"},"refs":refs,
             "xpaths":xpaths,"candidates":result["candidates"],"reason":result["reason"],
             "syntax":if shadow{"shadowbot"}else{"xpath1"},
@@ -492,8 +509,9 @@ fn xpath_candidates(args: &Value) -> Res<Value> {
             "warnings":warnings, "requires_review":requires_review,
             "context_format":"ordinary document: XPath; open ShadowRoot: ShadowBot XPath string; iframe: Selector.xpath.segments list",
             "browser_context":provider.verified_context(tab,None)}),
-        )
-    })
+            )
+        },
+    )
 }
 
 fn closed_xpath_result(refs: &[Value]) -> Value {
@@ -554,12 +572,12 @@ impl FrameContext {
 }
 
 impl Provider {
-    fn connect_bound(browser: Option<&str>) -> Res<Self> {
+    fn connect_bound(browser: Option<&str>, timeout: Duration) -> Res<Self> {
         let target = browser.map(browser_cmds::target).transpose()?;
         match crate::web_session::load(target.as_ref().map(|t| t.id.as_str()))? {
-            Some(binding) => Self::connect_target_path(&binding.pipe, target).map_err(|e| e.with_hint(
+            Some(binding) => Self::connect_target_path(&binding.pipe, target, timeout).map_err(|e| e.with_hint(
                 "绑定的浏览器已断开；请运行 web active 或 web open 重新绑定，不会自动切换其他浏览器")),
-            None => Self::connect_target(target),
+            None => Self::connect_target(target, timeout),
         }
     }
 
@@ -632,35 +650,43 @@ impl Provider {
         })
     }
 
-    fn connect(mode: Option<&str>) -> Res<Self> {
-        Self::connect_target(mode.map(browser_cmds::target).transpose()?)
+    fn connect(mode: Option<&str>, timeout: Duration) -> Res<Self> {
+        Self::connect_target(mode.map(browser_cmds::target).transpose()?, timeout)
     }
 
-    fn connect_for_open(mode: Option<&str>) -> Res<Self> {
+    fn connect_for_open(mode: Option<&str>, timeout: Duration) -> Res<Self> {
         let target = mode.map(browser_cmds::target).transpose()?;
         let explicit_pipe =
             std::env::var("XBOT_WEB_PIPE").is_ok_and(|pipe| !pipe.trim().is_empty());
         match target {
             Some(target) if target.id != "cef" && !explicit_pipe => connect_or_start(
                 &target,
-                Duration::from_secs(20),
-                || Self::connect_target(Some(target.clone())),
+                Duration::from_secs(20).min(timeout),
+                || Self::connect_target(Some(target.clone()), timeout),
                 || target.start_if_needed(),
             ),
-            target => Self::connect_target(target),
+            target => Self::connect_target(target, timeout),
         }
     }
 
-    fn connect_target(target: Option<BrowserTarget>) -> Res<Self> {
+    fn connect_target(target: Option<BrowserTarget>, timeout: Duration) -> Res<Self> {
         let pipe_info = resolve_pipe(target.as_ref())?;
-        Self::connect_info(pipe_info, target.map(|t| t.id))
+        Self::connect_info(pipe_info, target.map(|t| t.id), timeout)
     }
 
-    fn connect_path(path: &str, browser: Option<&str>) -> Res<Self> {
-        Self::connect_target_path(path, browser.map(browser_cmds::target).transpose()?)
+    fn connect_path(path: &str, browser: Option<&str>, timeout: Duration) -> Res<Self> {
+        Self::connect_target_path(
+            path,
+            browser.map(browser_cmds::target).transpose()?,
+            timeout,
+        )
     }
 
-    fn connect_target_path(path: &str, target: Option<BrowserTarget>) -> Res<Self> {
+    fn connect_target_path(
+        path: &str,
+        target: Option<BrowserTarget>,
+        timeout: Duration,
+    ) -> Res<Self> {
         let path = normalize_pipe_path(path);
         assert_pipe_target(&path, target.as_ref())?;
         let name = path.trim_start_matches(r"\\.\pipe\").to_owned();
@@ -674,12 +700,21 @@ impl Provider {
                 multi_profile: false,
             },
             target.map(|t| t.id),
+            timeout,
         )
     }
 
-    fn connect_info(pipe_info: BridgePipeInfo, browser: Option<String>) -> Res<Self> {
+    fn connect_info(
+        pipe_info: BridgePipeInfo,
+        browser: Option<String>,
+        timeout: Duration,
+    ) -> Res<Self> {
         let mut provider = Self {
-            pipe: NamedPipe::connect(&pipe_info.path, Duration::from_secs(8))?,
+            pipe: NamedPipe::connect(
+                &pipe_info.path,
+                Duration::from_secs(8).min(timeout),
+                timeout,
+            )?,
             pipe_info,
             extension_version: Value::Null,
             attached_targets: HashSet::new(),
@@ -1627,196 +1662,6 @@ impl Drop for Provider {
     }
 }
 
-struct NamedPipe {
-    file: std::fs::File,
-    inbuf: Vec<u8>,
-}
-
-impl NamedPipe {
-    fn connect(path: &str, timeout: Duration) -> Res<Self> {
-        let started = Instant::now();
-        loop {
-            match OpenOptions::new().read(true).write(true).open(path) {
-                Ok(file) => {
-                    return Ok(Self {
-                        file,
-                        inbuf: Vec::new(),
-                    })
-                }
-                Err(_) if started.elapsed() < timeout => thread::sleep(Duration::from_millis(250)),
-                Err(error) => {
-                    return Err(BackendError::new(
-                        "WEB_BRIDGE_UNAVAILABLE",
-                        format!("连接影刀 Chrome Bridge 命名管道失败: {path}: {error}"),
-                    )
-                    .with_hint("先打开带影刀扩展的 Chrome、Edge 或影刀浏览器"));
-                }
-            }
-        }
-    }
-
-    fn send(&mut self, method: &str, params: Value) -> Res<Value> {
-        self.write_frame(&json!({"method":method,"options":{},"params":params}))?;
-        loop {
-            let message = self.read_frame(Duration::from_secs(30))?;
-            if let Some(method) = message.get("method").and_then(Value::as_str) {
-                match method {
-                    "BridgeGetInterfaceVersion" => {
-                        self.write_frame(&json!({"method":"Bridge.GetInterfaceVersion","params":{"version":"3.1.1"}}))?;
-                    }
-                    "BridgeRegisterWindowId" => {
-                        static NEXT_HWND: AtomicI64 = AtomicI64::new(1000);
-                        let window = message.get("params").cloned().unwrap_or_else(|| json!({}));
-                        self.write_frame(&json!({
-                            "method":"Bridge.Callback",
-                            "requestId":message.get("requestId"),
-                            "params":{"wndId":window.get("wndId"),"hwnd":NEXT_HWND.fetch_add(1, Ordering::Relaxed)}
-                        }))?;
-                    }
-                    _ => {}
-                }
-                continue;
-            }
-            return response_content(message);
-        }
-    }
-
-    fn write_frame(&mut self, value: &Value) -> Res<()> {
-        let frame = encode_frame(value)?;
-        self.file.write_all(&frame).map_err(|error| {
-            BackendError::new(
-                "WEB_BRIDGE_WRITE_FAILED",
-                format!("写入 Chrome Bridge 失败: {error}"),
-            )
-        })?;
-        self.file.flush().map_err(|error| {
-            BackendError::new(
-                "WEB_BRIDGE_WRITE_FAILED",
-                format!("刷新 Chrome Bridge 失败: {error}"),
-            )
-        })
-    }
-
-    fn read_frame(&mut self, timeout: Duration) -> Res<Value> {
-        let deadline = Instant::now() + timeout;
-        loop {
-            if self.inbuf.len() >= 4 {
-                let length = u32::from_le_bytes([
-                    self.inbuf[0],
-                    self.inbuf[1],
-                    self.inbuf[2],
-                    self.inbuf[3],
-                ]) as usize;
-                if length > MAX_FRAME_SIZE {
-                    return Err(BackendError::new(
-                        "WEB_BRIDGE_BAD_RESPONSE",
-                        format!("Chrome Bridge 响应帧过大: {length}"),
-                    ));
-                }
-                if self.inbuf.len() >= 4 + length {
-                    let payload = self.inbuf[4..4 + length].to_vec();
-                    self.inbuf.drain(..4 + length);
-                    return decode_payload(&payload);
-                }
-            }
-            if Instant::now() >= deadline {
-                return Err(
-                    BackendError::new("WEB_BRIDGE_TIMEOUT", "读取 Chrome Bridge 响应超时")
-                        .with_hint("操作结果可能未知；先检查页面，不要自动重试"),
-                );
-            }
-            if self.peek_available()? == 0 {
-                thread::sleep(Duration::from_millis(20));
-                continue;
-            }
-            let mut chunk = [0_u8; 8192];
-            let count = self.file.read(&mut chunk).map_err(|error| {
-                BackendError::new(
-                    "WEB_BRIDGE_READ_FAILED",
-                    format!("读取 Chrome Bridge 失败: {error}"),
-                )
-            })?;
-            if count == 0 {
-                return Err(BackendError::new(
-                    "WEB_BRIDGE_READ_FAILED",
-                    "Chrome Bridge 管道已关闭",
-                ));
-            }
-            self.inbuf.extend_from_slice(&chunk[..count]);
-        }
-    }
-
-    fn peek_available(&self) -> Res<u32> {
-        let mut available = 0_u32;
-        let handle = HANDLE(std::os::windows::io::AsRawHandle::as_raw_handle(&self.file));
-        unsafe { PeekNamedPipe(handle, None, 0, None, Some(&mut available), None) }.map_err(
-            |error| {
-                BackendError::new(
-                    "WEB_BRIDGE_READ_FAILED",
-                    format!("检查 Chrome Bridge 响应失败: {error}"),
-                )
-            },
-        )?;
-        Ok(available)
-    }
-}
-
-fn response_content(message: Value) -> Res<Value> {
-    if let Some(error) = message
-        .pointer("/result/error")
-        .filter(|error| !error.is_null())
-    {
-        let detail = error
-            .get("message")
-            .and_then(Value::as_str)
-            .map(str::to_owned)
-            .unwrap_or_else(|| error.to_string());
-        return Err(BackendError::new("WEB_BRIDGE_FAILED", detail).with_data(message));
-    }
-    if message
-        .get("code")
-        .and_then(Value::as_i64)
-        .is_some_and(|code| code != 200)
-    {
-        return Err(
-            BackendError::new("WEB_BRIDGE_FAILED", "Chrome Bridge 返回失败").with_data(message),
-        );
-    }
-    Ok(message
-        .pointer("/result/content")
-        .cloned()
-        .unwrap_or(message))
-}
-
-fn encode_frame(value: &Value) -> Res<Vec<u8>> {
-    let payload = serde_json::to_vec(value).map_err(|error| {
-        BackendError::new(
-            "WEB_BRIDGE_BAD_REQUEST",
-            format!("序列化 Bridge 请求失败: {error}"),
-        )
-    })?;
-    if payload.len() > MAX_FRAME_SIZE {
-        return Err(BackendError::new(
-            "WEB_BRIDGE_BAD_REQUEST",
-            "Chrome Bridge 请求帧过大",
-        ));
-    }
-    let mut frame = Vec::with_capacity(payload.len() + 4);
-    frame.extend_from_slice(&(payload.len() as u32).to_le_bytes());
-    frame.extend_from_slice(&payload);
-    Ok(frame)
-}
-
-fn decode_payload(payload: &[u8]) -> Res<Value> {
-    serde_json::from_slice(payload).map_err(|error| {
-        BackendError::new(
-            "WEB_BRIDGE_BAD_RESPONSE",
-            format!("Chrome Bridge 响应不是有效 JSON: {error}"),
-        )
-        .with_data(json!({"text":String::from_utf8_lossy(payload)}))
-    })
-}
-
 fn assert_pipe_target(path: &str, target: Option<&BrowserTarget>) -> Res<()> {
     if let Some(target) = target {
         if !browser_cmds::matches_pipe(path, &target.pipe_prefix) {
@@ -2013,6 +1858,33 @@ var $$=window.__xbotPythonPreviewHelpersV2||(window.__xbotPythonPreviewHelpersV2
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs::{self, OpenOptions};
+
+    #[test]
+    fn operation_deadline_is_enforced_before_pipe_poll() {
+        let path = std::env::temp_dir().join(format!(
+            "xbot-pipe-deadline-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .unwrap();
+        let mut pipe = NamedPipe {
+            file,
+            inbuf: Vec::new(),
+            deadline: Instant::now(),
+        };
+        let error = pipe.send("test", json!({})).unwrap_err();
+        assert_eq!(error.code, "WEB_BRIDGE_TIMEOUT");
+        fs::remove_file(path).unwrap();
+    }
 
     #[test]
     fn selected_browsers_never_accept_a_different_browser_pipe() {

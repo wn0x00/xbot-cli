@@ -165,6 +165,98 @@ pub fn cmd_guide(topic: Option<&str>) -> Res<CmdOut> {
     Ok((json!({"topics": topics}), vec![]))
 }
 
+struct PendingWrite {
+    target: PathBuf,
+    temp: PathBuf,
+    backup: Option<PathBuf>,
+    touched: bool,
+}
+
+fn rollback(writes: &mut [PendingWrite]) {
+    for write in writes.iter_mut().rev() {
+        if write.temp.exists() {
+            let _ = fs::remove_file(&write.temp);
+        }
+        if !write.touched {
+            continue;
+        }
+        if write.target.exists() {
+            let _ = fs::remove_file(&write.target);
+        }
+        if let Some(backup) = write.backup.take() {
+            let _ = fs::rename(backup, &write.target);
+        }
+    }
+}
+
+fn install_atomically(files: &[(PathBuf, &str)], fail_at: Option<usize>) -> Res<()> {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let mut writes = Vec::new();
+    for (index, (target, content)) in files.iter().enumerate() {
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                rollback(&mut writes);
+                BackendError::new("FILE_WRITE", format!("{}: {error}", parent.display()))
+            })?;
+        }
+        let name = target.file_name().unwrap_or_default().to_string_lossy();
+        let temp = target.with_file_name(format!(
+            ".{name}.xbot-{}-{nonce}-{index}.tmp",
+            std::process::id()
+        ));
+        writes.push(PendingWrite {
+            target: target.clone(),
+            temp: temp.clone(),
+            backup: None,
+            touched: false,
+        });
+        fs::write(&temp, content).map_err(|error| {
+            rollback(&mut writes);
+            BackendError::new("FILE_WRITE", format!("{}: {error}", temp.display()))
+        })?;
+    }
+    for index in 0..writes.len() {
+        if fail_at == Some(index) {
+            rollback(&mut writes);
+            return Err(BackendError::new("FILE_WRITE", "模拟提交失败"));
+        }
+        let name = writes[index]
+            .target
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        let backup = writes[index].target.with_file_name(format!(
+            ".{name}.xbot-{}-{nonce}-{index}.bak",
+            std::process::id()
+        ));
+        let result = (|| -> Res<()> {
+            writes[index].touched = true;
+            if writes[index].target.exists() {
+                fs::rename(&writes[index].target, &backup).map_err(|error| {
+                    BackendError::new("FILE_WRITE", format!("备份失败: {error}"))
+                })?;
+                writes[index].backup = Some(backup);
+            }
+            fs::rename(&writes[index].temp, &writes[index].target)
+                .map_err(|error| BackendError::new("FILE_WRITE", format!("替换失败: {error}")))?;
+            Ok(())
+        })();
+        if let Err(error) = result {
+            rollback(&mut writes);
+            return Err(error);
+        }
+    }
+    for write in &writes {
+        if let Some(backup) = &write.backup {
+            let _ = fs::remove_file(backup);
+        }
+    }
+    Ok(())
+}
+
 pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
     let base = if global {
         home_dir()?
@@ -179,7 +271,11 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
             development_standards_files(&root.join("xbot-development-standards")),
         ),
     ];
-    for (path, content) in bundles.iter().flat_map(|(_, files)| files) {
+    let files: Vec<(PathBuf, &str)> = bundles
+        .iter()
+        .flat_map(|(_, files)| files.iter().map(|(path, content)| (path.clone(), *content)))
+        .collect();
+    for (path, content) in &files {
         if path.exists() && fs::read_to_string(path).ok().as_deref() != Some(*content) && !overwrite
         {
             return Err(BackendError::new(
@@ -190,15 +286,7 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
             .with_hint("确认覆盖后,在原命令末尾追加 --yes"));
         }
     }
-    for (path, content) in bundles.iter().flat_map(|(_, files)| files) {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| {
-                BackendError::new("FILE_WRITE", format!("{}: {e}", parent.display()))
-            })?;
-        }
-        fs::write(path, content)
-            .map_err(|e| BackendError::new("FILE_WRITE", format!("{}: {e}", path.display())))?;
-    }
+    install_atomically(&files, None)?;
     let skills: Vec<Value> = bundles
         .iter()
         .map(|(name, files)| {
@@ -463,4 +551,41 @@ fn home_dir() -> Res<PathBuf> {
         .or_else(|| std::env::var_os("HOME"))
         .map(PathBuf::from)
         .ok_or_else(|| BackendError::new("INTERNAL", "无法确定用户主目录"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skill_file_commit_rolls_back_without_touching_uncommitted_targets() {
+        let root = std::env::temp_dir().join(format!(
+            "xbot-skill-atomic-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&root).unwrap();
+        let files = vec![
+            (root.join("a.md"), "new-a"),
+            (root.join("b.md"), "new-b"),
+            (root.join("c.md"), "new-c"),
+        ];
+        for (path, name) in [("a.md", "old-a"), ("b.md", "old-b"), ("c.md", "old-c")] {
+            fs::write(root.join(path), name).unwrap();
+        }
+        install_atomically(&files, Some(1)).unwrap_err();
+        for (path, expected) in [("a.md", "old-a"), ("b.md", "old-b"), ("c.md", "old-c")] {
+            assert_eq!(fs::read_to_string(root.join(path)).unwrap(), expected);
+        }
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 3);
+        install_atomically(&files, None).unwrap();
+        for (path, expected) in [("a.md", "new-a"), ("b.md", "new-b"), ("c.md", "new-c")] {
+            assert_eq!(fs::read_to_string(root.join(path)).unwrap(), expected);
+        }
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 3);
+        fs::remove_dir_all(root).unwrap();
+    }
 }

@@ -799,13 +799,19 @@ fn auth_login_stores_credentials_and_logout_removes_them() {
             other => panic!("unexpected request: {other:?}"),
         }
     });
-    // 位置参数形式:oapi auth <ak> <sk> 等价于 auth login。
     let login = envelope(
         invoke_env(
-            &["oapi", "auth", "saved@platform", "saved-secret"],
+            &[
+                "oapi",
+                "auth",
+                "login",
+                "--ak",
+                "saved@platform",
+                "--sk-stdin",
+            ],
             Some(&server),
             false,
-            None,
+            Some("saved-secret\n"),
             &auth_env,
         ),
         0,
@@ -813,11 +819,12 @@ fn auth_login_stores_credentials_and_logout_removes_them() {
     assert_eq!(login["data"]["saved"], true);
     assert_eq!(login["data"]["verified"], true);
     assert!(!login.to_string().contains("saved-secret"));
-    let stored: Value =
-        serde_json::from_slice(&std::fs::read(&auth_file).expect("auth file saved")).unwrap();
-    assert_eq!(stored["access_key_id"], "saved@platform");
-    assert_eq!(stored["access_token"], "stored-token");
-    assert!(stored["token_expires_at"].as_u64().unwrap() > 0);
+    let stored = std::fs::read(&auth_file).expect("auth file saved");
+    assert!(stored.starts_with(b"XBOT-OAPI-DPAPI1\n"));
+    let raw = String::from_utf8_lossy(&stored);
+    for secret in ["saved@platform", "saved-secret", "stored-token"] {
+        assert!(!raw.contains(secret));
+    }
 
     // 后续命令不带环境变量凭据,直接复用本地缓存的 token,不再请求鉴权接口。
     let list = envelope(
@@ -917,8 +924,9 @@ fn expired_token_is_refreshed_with_the_stored_keys() {
         0,
     );
     assert_eq!(server.requests.lock().unwrap().len(), 2);
-    let stored: Value = serde_json::from_slice(&std::fs::read(&auth_file).unwrap()).unwrap();
-    assert_eq!(stored["access_token"], "fresh-token");
+    let stored = std::fs::read(&auth_file).unwrap();
+    assert!(stored.starts_with(b"XBOT-OAPI-DPAPI1\n"));
+    assert!(!String::from_utf8_lossy(&stored).contains("fresh-token"));
     let _ = std::fs::remove_dir_all(&dir);
 }
 

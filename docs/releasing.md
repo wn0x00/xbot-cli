@@ -92,7 +92,7 @@ npx --yes npm@11.21.1 trust github '@guanzhu.me/xbot-cli' --repo wn0x00/xbot-cli
 
 ## 本地验包
 
-维护者需要 Windows x64、Node.js 22+、Rust stable 和 MSVC 构建工具。从仓库根目录运行：
+维护者需要 Windows x64、Node.js 22+、仓库 `rust-toolchain.toml` 固定的 Rust 工具链和 MSVC 构建工具。从仓库根目录运行：
 
 ```powershell
 npm ci --ignore-scripts
@@ -101,9 +101,9 @@ npm test
 npm run test:package
 ```
 
-`test:package` 构建 Rust release，检查包内文件白名单，把生成的 `.tgz` 离线安装到独立临时目录，再验证命令、JSON 和 Skill。通过后保留 `dist/guanzhu.me-xbot-cli-<version>.tgz`，发布使用已验收的包；`.backups/`、`.local-archive/`、`target/` 和本地配置不属于发布内容。
+`test:package` 构建 Rust release，检查包内文件白名单，把生成的 `.tgz` 离线安装到独立临时目录，实际执行 `preinstall`，再验证命令、JSON 和 Skill。通过后保留 `dist/guanzhu.me-xbot-cli-<version>.tgz`，发布使用已验收的包；`.backups/`、`.local-archive/`、`target/` 和本地配置不属于发布内容。
 
-每次 Release 包含 `guanzhu.me-xbot-cli-<version>.tgz`、`xbot-cli-<version>-windows-x64.zip` 和 `SHA256SUMS.txt`。Windows 压缩包中的程序来自同一份已验收的 npm 包。CI 通过不代表真实影刀应用运行已验证；后者需要已启动并登录影刀的本机环境。
+每次 Release 包含 `guanzhu.me-xbot-cli-<version>.tgz`、`xbot-cli-<version>-windows-x64.zip` 和 `SHA256SUMS.txt`。Windows 压缩包中的程序来自同一份已验收的 npm 包。CI 通过不代表真实影刀应用运行已验证；后者需要已启动并登录影刀的本机环境。维护真实兼容性时，在隔离的测试客户端依次覆盖当前支持的 6.3/6.4 黄金链路，并按需运行 `npm run test:win32-faults`、`test:win32-activation` 和其他 `test:win32-*`；这些现场结果不能由模拟测试代替。
 
 ## 失败恢复与重新运行
 

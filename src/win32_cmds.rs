@@ -114,11 +114,17 @@ pub(crate) fn run_worker(
         command.creation_flags(0x08000000);
     }
     let started = Instant::now();
+    let job = crate::process_job::ProcessJob::new()?;
     let mut child = command.spawn().map_err(|_| {
         BackendError::new("WIN32_DEPENDENCY_MISSING", "无法启动 UIA Python 提供器").with_hint(
             "设置 XBOT_UIA_PYTHON 为已安装 uiautomation 的 Python 路径；不会自动安装依赖",
         )
     })?;
+    if let Err(error) = job.assign(&child) {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(error);
+    }
     let mut stdin = child.stdin.take().expect("piped stdin");
     // Source and literal inputs travel over stdin, avoiding Windows' command-line
     // length limit and exposing no typed text in process arguments.
@@ -162,6 +168,7 @@ pub(crate) fn run_worker(
             }
         }
     };
+    drop(job);
     let output = out_reader.join();
     let _ = in_writer.join();
     let _ = err_reader.join();

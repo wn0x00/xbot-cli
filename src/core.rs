@@ -30,8 +30,8 @@ pub fn mcp_endpoint() -> String {
 }
 
 /// 兼容既有调用方；实际传输全部使用 Chrome Bridge 命名管道。
-pub fn mcp_browser(tool: &str, args: Value, _timeout_secs: u64) -> Res<Value> {
-    crate::bridge::call(tool, args)
+pub fn mcp_browser(tool: &str, args: Value, timeout_secs: u64) -> Res<Value> {
+    crate::bridge::call(tool, args, timeout_secs)
 }
 
 // ---------- 错误 ----------

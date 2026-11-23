@@ -164,10 +164,11 @@ fn auth_file() -> Option<PathBuf> {
     env_value("LOCALAPPDATA").map(|dir| PathBuf::from(dir).join("xbot-cli").join("oapi-auth.json"))
 }
 
-fn read_stored_auth() -> Option<Value> {
-    let content = fs::read_to_string(auth_file()?).ok()?;
-    let value: Value = serde_json::from_str(&content).ok()?;
-    Some(value)
+fn read_stored_auth() -> Res<Option<Value>> {
+    match auth_file() {
+        Some(path) => crate::oapi_store::read(&path),
+        None => Ok(None),
+    }
 }
 
 fn stored_string(auth: &Value, key: &str) -> Option<String> {
@@ -197,11 +198,7 @@ fn stored_token(auth: &Value) -> Option<(String, u64)> {
 fn write_stored_auth(value: &Value) -> Res<PathBuf> {
     let path = auth_file()
         .ok_or_else(|| BackendError::new("PLATFORM_CONFIG", "无法确定本地凭据存储路径"))?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| BackendError::new("FILE_WRITE", e.to_string()))?;
-    }
-    fs::write(&path, serde_json::to_vec_pretty(value).unwrap())
-        .map_err(|e| BackendError::new("FILE_WRITE", e.to_string()))?;
+    crate::oapi_store::write(&path, value)?;
     Ok(path)
 }
 
@@ -222,7 +219,7 @@ struct Credentials {
 }
 
 impl Credentials {
-    fn resolve() -> Self {
+    fn resolve() -> Res<Self> {
         let token = env_any(&["XBOT_OAPI_ACCESS_TOKEN", "XBOT_PLATFORM_ACCESS_TOKEN"]);
         let key_id = env_any(&["XBOT_OAPI_ACCESS_KEY_ID", "XBOT_PLATFORM_ACCESS_KEY_ID"]);
         let key_secret = env_any(&[
@@ -231,17 +228,17 @@ impl Credentials {
         ]);
         let env_base = env_any(&["XBOT_OAPI_BASE_URL", "XBOT_PLATFORM_BASE_URL"]);
         if token.is_some() || key_id.is_some() || key_secret.is_some() {
-            return Self {
+            return Ok(Self {
                 token,
                 key_id,
                 key_secret,
                 base_url: env_base,
                 stored_token: None,
                 source: "environment",
-            };
+            });
         }
-        let stored = read_stored_auth();
-        Self {
+        let stored = read_stored_auth()?;
+        Ok(Self {
             token: None,
             key_id: stored
                 .as_ref()
@@ -257,7 +254,7 @@ impl Credentials {
             } else {
                 "none"
             },
-        }
+        })
     }
 
     fn secrets(&self) -> Secrets {
@@ -392,7 +389,7 @@ impl Request {
         if request.endpoint.name == "auth.token" {
             return Err(
                 BackendError::new("BAD_ARGS", "请使用 oapi auth check 验证密钥").with_hint(
-                    "运行 xbot-cli oapi auth login --ak <id> --sk <secret> 保存凭据,或设置 XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET",
+                    "运行 xbot-cli oapi auth login --ak <id> --sk-stdin 从 stdin 读取密钥并加密保存,或设置 XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET",
                 ),
             );
         }
@@ -581,7 +578,10 @@ impl Request {
         if let Some((name, bytes)) = &self.upload {
             value["arguments"]["file"] = json!({"name":name,"bytes":bytes.len()});
         }
-        Credentials::resolve().secrets().scrub(&mut value);
+        Credentials::resolve()
+            .unwrap_or_default()
+            .secrets()
+            .scrub(&mut value);
         value
     }
 }
@@ -636,7 +636,7 @@ impl PreparedPlatform {
             Operation::Offline(data) => data,
             Operation::Auth { check, timeout } => {
                 let mut client = Client::new(timeout)?;
-                let mut status = client.status();
+                let mut status = client.status()?;
                 if check {
                     client.authenticate()?;
                     status["verified"] = json!(client.expires_in.is_some());
@@ -650,7 +650,7 @@ impl PreparedPlatform {
                 base_url,
                 timeout,
             } => auth_login(key_id, key_secret, base_url, timeout)?,
-            Operation::Logout => auth_logout(),
+            Operation::Logout => auth_logout()?,
             Operation::Call {
                 request,
                 timeout,
@@ -721,18 +721,18 @@ fn auth_login(
     }))
 }
 
-fn auth_logout() -> Value {
+fn auth_logout() -> Res<Value> {
     let path = auth_file();
     let removed = path
-        .as_ref()
-        .filter(|p| p.exists())
-        .and_then(|p| fs::remove_file(p).ok())
-        .is_some();
-    json!({
+        .as_deref()
+        .map(crate::oapi_store::remove)
+        .transpose()?
+        .unwrap_or(false);
+    Ok(json!({
         "removed": removed,
         "auth_file": path.map(|p| p.display().to_string()),
         "note": "环境变量中的凭据不受影响;auth status 可查看生效来源",
-    })
+    }))
 }
 
 fn insert_optional(body: &mut Value, key: &str, value: Option<String>) {
@@ -818,11 +818,18 @@ pub fn prepare(sub: OapiSub) -> Res<PreparedPlatform> {
                 Some(AuthSub::Login {
                     ak,
                     sk,
+                    sk_stdin,
                     base_url,
                     http,
                 }) => Operation::Login {
                     key_id: ak,
-                    key_secret: sk,
+                    key_secret: if sk_stdin {
+                        core::read_file_or_stdin("-")?.trim().to_owned()
+                    } else {
+                        sk.ok_or_else(|| {
+                            BackendError::new("BAD_INPUT", "请提供 --sk 或使用 --sk-stdin")
+                        })?
+                    },
                     base_url,
                     timeout: http.timeout,
                 },
@@ -1424,7 +1431,7 @@ struct Client {
 
 impl Client {
     fn new(timeout: u64) -> Res<Self> {
-        Self::with_credentials(timeout, Credentials::resolve())
+        Self::with_credentials(timeout, Credentials::resolve()?)
     }
 
     fn with_credentials(timeout: u64, credentials: Credentials) -> Res<Self> {
@@ -1463,15 +1470,15 @@ impl Client {
         })
     }
 
-    fn status(&self) -> Value {
-        let credentials = Credentials::resolve();
+    fn status(&self) -> Res<Value> {
+        let credentials = Credentials::resolve()?;
         let file = auth_file();
         let cached = self
             .stored_token
             .as_ref()
             .map(|(_, expires_at)| *expires_at > now_epoch() + TOKEN_SKEW_SECS)
             .unwrap_or(false);
-        json!({
+        Ok(json!({
             "base_url":self.base.as_str(),
             "access_token_configured":self.token.is_some(),
             "access_key_id_configured":self.key_id.is_some(),
@@ -1483,8 +1490,8 @@ impl Client {
             "auth_file":file.as_ref().map(|p| p.display().to_string()),
             "auth_file_exists":file.is_some_and(|p| p.exists()),
             "verified":false,
-            "configuration":"XBOT_OAPI_BASE_URL / XBOT_OAPI_ACCESS_TOKEN / XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET(兼容 XBOT_PLATFORM_*),或 xbot-cli oapi auth <ak> <sk>",
-        })
+            "configuration":"XBOT_OAPI_BASE_URL / XBOT_OAPI_ACCESS_TOKEN / XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET(兼容 XBOT_PLATFORM_*),或 xbot-cli oapi auth login --ak <ak> --sk-stdin",
+        }))
     }
 
     fn remaining(&self) -> Res<Duration> {
@@ -1512,7 +1519,7 @@ impl Client {
         }
         let (Some(key_id), Some(key_secret)) = (&self.key_id, &self.key_secret) else {
             return Err(BackendError::new("PLATFORM_AUTH", "尚未配置平台 API 凭据")
-                .with_hint("运行 xbot-cli oapi auth <AccessKeyId> <AccessKeySecret> 保存凭据;或设置 XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET(兼容 XBOT_PLATFORM_*)"));
+                .with_hint("运行 xbot-cli oapi auth login --ak <AccessKeyId> --sk-stdin 从 stdin 读取密钥并加密保存;或设置 XBOT_OAPI_ACCESS_KEY_ID / XBOT_OAPI_ACCESS_KEY_SECRET(兼容 XBOT_PLATFORM_*)"));
         };
         let request = Request {
             endpoint: endpoint("auth.token")?,
@@ -1544,7 +1551,7 @@ impl Client {
         self.secrets.0.push(token.to_owned());
         // 密钥登录的 token 持久化到本地配置,过期前直接复用;写失败不影响本次调用。
         if self.source == "config_file" {
-            if let Some(mut stored) = read_stored_auth() {
+            if let Some(mut stored) = read_stored_auth()? {
                 stored["access_token"] = json!(token);
                 stored["token_expires_at"] = json!(now_epoch() + self.expires_in.unwrap_or(0));
                 let _ = write_stored_auth(&stored);
