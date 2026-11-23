@@ -1,4 +1,4 @@
 interface:
   display_name: "影刀开发与维护"
   short_description: "使用 xbot-cli 开发影刀应用与指令集，完成故障复现、定位修复和验收"
-  default_prompt: "使用 $xbot-app-dev 完成这项影刀开发或维护任务，先检查现状，再按授权实施并核验业务结果。"
+  default_prompt: "使用 $xbot-app-dev 完成这项影刀运行、开发或维护任务；新建、修改或验收时同时加载 $xbot-development-standards，先检查现状，再按授权实施并核验业务结果。"

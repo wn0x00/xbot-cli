@@ -1,6 +1,6 @@
 ---
 name: xbot-app-dev
-description: 使用 xbot-cli 开发、运行、验收和维护影刀应用及指令集；处理故障复现、流程参数、Web XPath 和 Windows UIA 定位问题。单纯运行只加载运行路径，不套用开发规范。
+description: 使用 xbot-cli 运行、开发、调试、验收或维护影刀应用及指令集；负责客户端操作、故障复现、流程参数和 Web/Windows 自动化。新建、修改或验收时同时加载 xbot-development-standards；单纯运行已有流程时不加载开发规范。
 metadata:
   version: "10"
 ---
@@ -40,4 +40,4 @@ metadata:
 - 企业用户明确选择开放 API 时，才读 [企业 API](references/oapi.md)，不作为客户端失败后的自动兜底。
 - 任务契约可用 [模板](templates/task-spec.md)；定位脚本与模板按平台模块加载，不能把 helper 当成 CLI 子命令。
 
-本包不内置旧版 CLI schema 或影刀原生二进制；现场 help/schema 决定命令可用性。旧版本缺能力时交付具体缺口，不自动升级或宣称已支持。Skill 版本标记保留 v10。
+本包只描述当前支持的操作路径，不内置旧版 CLI schema 或影刀原生二进制；现场 help/schema 决定命令可用性。当前安装缺少能力时交付具体缺口，不自动升级或宣称已支持。

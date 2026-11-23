@@ -33,9 +33,9 @@ xbot-cli install --skills --global --json  # 用户 ~/.agents/skills
 
 一次安装 `xbot-app-dev` 和 `xbot-development-standards` 两份 Skill。全部文件写入前统一检查冲突；已有 Skill 内容不同时不会静默覆盖，先查看差异，确认覆盖后追加 `--yes`。JSON 的 `data.skills` 按 Skill 返回 `name/path/files`；原 `data.path/files` 保留 `xbot-app-dev` 的含义以兼容旧调用。自动化调用下文的业务命令时均应显式添加 `--json`，示例中的 `<...>` 需替换为实际标识。
 
-当前源码安装 `xbot-app-dev` v10 的 57 个资源及 `xbot-development-standards` 的 13 个资源（规范、参考资料、检查脚本、测试和报告模板）。`guide development-standards` 提供开发规范入口；完整参考资料从安装目录按需读取，先区分普通应用与指令集。`guide mcp` 说明新旧客户端接口差异，`guide python-packages` 说明应用依赖管理；`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/skill-updates` 分别提供模块选择、Web、Windows、生成修复、用途、集合及更新指南。仅在企业版用户明确选择备用入口时读取 `guide oapi`。
+当前源码安装 `xbot-app-dev` 和 `xbot-development-standards` 的当前操作资源，包括规范、操作参考、检查脚本、测试和报告模板，不包含历史升级记录或版本实验资料。`guide development-standards` 提供开发规范入口；完整参考资料从安装目录按需读取，先区分普通应用与指令集。`guide mcp` 说明当前支持的客户端接口差异，`guide python-packages` 说明应用依赖管理；`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair` 分别提供模块选择、Web、Windows、生成修复、用途和集合指南。仅在企业版用户明确选择备用入口时读取 `guide oapi`。
 
-`locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；依赖与已验证边界见 [Skill v10 升级说明](skill-v10-upgrade.md)。
+`locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；当前用法与能力边界见 [Web 模块](../skills/xbot-app-dev/modules/web.md)和 [Windows 模块](../skills/xbot-app-dev/modules/win.md)。
 
 ## 当前客户端信息
 

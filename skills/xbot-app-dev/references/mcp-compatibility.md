@@ -1,7 +1,7 @@
 # 影刀 6.3 / 6.4 MCP 兼容
 
 先执行 `xbot-cli client info --json`，查看 `client.version`、`client.processes`、`shell_cli.backend` 及 `studio_mcp.connection.provider` 和实际端点；连接故障再运行 `doctor --json`。
-本次核对版本为 6.3.39、6.4.14；运行时以实际接口发现结果分流，不仅凭安装目录版本号。
+当前支持旧版 Studio MCP 和 6.4 Copilot MCP；运行时以实际接口发现结果分流，不仅凭安装目录版本号。
 `cli.version` 是 xbot-cli 版本；`client.version` 优先取运行进程的产品文件版本，目录推断会明确标注。后端文件可被环境变量覆盖，不能用其所在目录反推运行版本。查询外层成功不代表所有通道正常，须读取 `partial` 和各通道 `ok/error`。不自动升级或强制切换客户端。
 
 | 项目 | 旧版 Studio MCP | 6.4 Copilot MCP |
@@ -74,7 +74,7 @@ xbot-cli tool studio call xbot-bash @command.json --expect-app <app-id> --json
 ```
 
 通过同一路径调用 `xbot-bash flow create --help`、`api get --help`、`run variables --help` 等读取当前契约。
-6.4.14 当前提供 46 个命令，覆盖流程、参数、运行、API 定义、自定义指令、图像、资源、变量和 Python 包。
+6.4 的命令目录由客户端提供，可能覆盖流程、参数、运行、API 定义、自定义指令、图像、资源、变量和 Python 包；以当前 `tool studio list/schema` 和 `xbot-bash --help` 为准，不假定固定命令数量。
 也支持直接传递 `execute_cell`，参数以现场 schema 为准；返回的图像等非文本块在 `mcp_content` 中保留。
 `execute_cell` 额外依赖客户端绑定的工作区与探索会话，通用端点可能返回 `session_unavailable` 和缺少 workspace root；工具列出不代表运行时就绪。需要此能力时，使用客户端生成的已绑定地址设置 `XBOT_MCP_ENDPOINT`，核对当前应用；CLI 不猜测工作区，也不保证不同 CLI 进程共享 Python 状态。常规源码编辑、参数修改及 Studio 流程运行不依赖探索运行时。
 这两个工具属于客户端工具接口，`xbot-bash` 命令文本不交给 PowerShell/cmd 执行。

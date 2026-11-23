@@ -11,7 +11,6 @@ use crate::core::{BackendError, Res};
 const SKILL: &str = include_str!("../skills/xbot-app-dev/SKILL.md");
 const WEB_MODULE: &str = include_str!("../skills/xbot-app-dev/modules/web.md");
 const WIN_MODULE: &str = include_str!("../skills/xbot-app-dev/modules/win.md");
-const SKILL_UPDATES: &str = include_str!("../skills/xbot-app-dev/UPDATE-RECORD.md");
 const AUTOMATION_ROUTING: &str =
     include_str!("../skills/xbot-app-dev/references/automation-routing.md");
 const WIN_SNAPSHOT: &str = include_str!("../skills/xbot-app-dev/scripts/win32/snapshot.py");
@@ -90,11 +89,7 @@ const TOPICS: &[(&str, &str, &str)] = &[
         "按失败步骤识别 Web/Windows 业务目标并选择模块",
         AUTOMATION_ROUTING,
     ),
-    (
-        "web-module",
-        "Web 自动化模块与既有 v10 能力路由",
-        WEB_MODULE,
-    ),
+    ("web-module", "Web 自动化、定位修复与能力路由", WEB_MODULE),
     (
         "win-design",
         "Windows 窗口、元素树激活、快照动作与修复边界",
@@ -104,11 +99,6 @@ const TOPICS: &[(&str, &str, &str)] = &[
         "win-repair",
         "Python Windows 单控件修复、流程调用和动作对账",
         WIN_REPAIR,
-    ),
-    (
-        "skill-updates",
-        "Skill v10 功能更新与能力边界",
-        SKILL_UPDATES,
     ),
     (
         "cli-contract",
@@ -237,7 +227,6 @@ fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
         ),
         (root.join("modules").join("web.md"), WEB_MODULE),
         (root.join("modules").join("win.md"), WIN_MODULE),
-        (root.join("UPDATE-RECORD.md"), SKILL_UPDATES),
         (
             root.join("references").join("automation-routing.md"),
             AUTOMATION_ROUTING,
@@ -457,10 +446,6 @@ fn development_standards_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
         (
             root.join("references/metadata-delivery.md"),
             include_str!("../skills/xbot-development-standards/references/metadata-delivery.md"),
-        ),
-        (
-            root.join("references/version-evidence.md"),
-            include_str!("../skills/xbot-development-standards/references/version-evidence.md"),
         ),
         (
             root.join("scripts/check_metadata.py"),

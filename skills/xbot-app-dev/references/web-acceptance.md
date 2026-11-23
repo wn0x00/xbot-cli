@@ -2,16 +2,17 @@
 
 当需要证明网页自动化“能用”“修复完成”或“可以交付”时读取本文。
 
-## 验收层级
+## 验收状态
 
-按下面顺序报告，不能跳级：
+分别记录探索、写入、静态、运行和业务五个检查面，不用低层证据代替高层结论，也不把它们合并成一个必须依次晋升的总状态：
 
-1. **已探索**：读取了页面、元素和业务路径。
-2. **已写入**：CLI/MCP 返回了修改成功。
-3. **静态通过**：`flow check` 返回空的 `static_errors`。
-4. **运行通过**：`flow verify` 或同一次运行的 `flow wait` 成功。
-5. **业务通过**：页面、Out 或任务结果满足任务契约中的成功条件。
-6. **未验证**：客户端、登录态、权限或真实后端尚未确认。
+1. **探索**：是否读取了页面、元素和业务路径。
+2. **写入**：CLI/MCP 是否返回修改成功，回读是否确认实际变更。
+3. **静态**：`flow check` 是否返回空的 `static_errors`。
+4. **运行**：`flow verify` 或同一次运行的 `flow wait` 是否到达成功终态。
+5. **业务**：页面、Out 或任务结果是否满足任务契约中的成功条件。
+
+每个检查面分别标记 `passed / failed / not_run / blocked / unknown`。客户端、登录态、权限或真实后端尚未确认时，只将受影响的检查面标为未执行、受阻或未知，并说明原因；不能用其他层面的通过覆盖这些缺口。
 
 `--dry-run` 只能证明输入可解析，不能计入静态通过或运行通过。
 
@@ -77,7 +78,12 @@ run_id/task_id:
 期望:
 实际:
 快照或日志证据:
-结论: business_pass / runtime_pass / static_pass / not_verified
+探索状态: passed / failed / not_run / blocked / unknown
+写入状态: passed / failed / not_run / blocked / unknown
+静态状态: passed / failed / not_run / blocked / unknown
+运行状态: passed / failed / not_run / blocked / unknown
+业务状态: passed / failed / not_run / blocked / unknown
+限制与未验证项:
 ```
 
 输入摘要应隐藏密码、Token、Cookie、验证码和无关个人数据。报告只保留能证明结论的最小证据。

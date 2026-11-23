@@ -56,7 +56,7 @@ node <skill目录>/scripts/locator-repair.cjs propose --asset <资产.json> --us
 node <skill目录>/scripts/locator-repair.cjs revalidate --asset <资产.json> --usage-analysis <用途receipt.json> --plan <提议.json> --robula-source <已核验的index.ts> --out <新复核.json>
 ```
 
-命令是 Skill 内的 Node helper，不是现有 `xbot-cli repair` 子命令。输出文件只允许新建，不覆盖。脚本只调用 `status`、`flow get`、`web snapshot` 和只读 `web_evaluate_playwright`，不会点击、建库、改流程或提交资产。`propose/revalidate` 必须提供用途 receipt；旧 v10 资产可继续诊断，但提议前须补用途分析。`--cli` 可指定实际 CLI 原生可执行文件；客户端路径使用既有 `XBOT_SHELL_CLI/XBOT_LAUNCHER` 环境变量。操作前脚本核对当前 app_id 与资产，跨应用拒绝。
+命令是 Skill 内的 Node helper，不是现有 `xbot-cli repair` 子命令。输出文件只允许新建，不覆盖。脚本只调用 `status`、`flow get`、`web snapshot` 和只读 `web_evaluate_playwright`，不会点击、建库、改流程或提交资产。`propose/revalidate` 必须提供用途 receipt；资产缺少用途分析时先补齐，再生成提议。`--cli` 可指定实际 CLI 原生可执行文件；客户端路径使用既有 `XBOT_SHELL_CLI/XBOT_LAUNCHER` 环境变量。操作前脚本核对当前 app_id 与资产，跨应用拒绝。
 
 `capture` 要求明确选择 `data-contract-v1`：页面使用 `data-app/data-page-id/data-record-id/data-page-state`，目标使用 `data-business-key`，作用域使用 `data-region/data-record-id/data-workflow-key/data-dialog-id`，frame/host 使用 `data-frame-key/data-host-key`。默认业务 query 键为 `record`，hash 整体参与身份。它是受控页面参考实现，不能直接宣称适配任意网页。
 
@@ -101,7 +101,7 @@ iframe 用路径数组，每段进入下一文档；open ShadowRoot 用段内 `/
 
 普通 DOM 优先 `find_by_xpath`；CLI 新生成的复杂上下文路径见 [浏览器契约](browser.md)，按 Selector 分段协议并用影刀运行验证。既有修复 helper 的上下文适配范围更窄：closed ShadowRoot 和 ShadowRoot 内 iframe 不支持，不能拿 CLI 生成能力冒充 helper 已通过。确需元素库时先发现可用持久化工具及 schema，--name 不建库。
 
-路径生成与执行通道分开验收。曾实测嵌套 open Shadow 的路径有效，而 `web click ref` 后端报 `xpathSegments`；同一路径建库后原生执行成功。遇到此类错误先确认零动作，再按 schema 验证支持的 Selector 通道，不无条件重放原动作。
+路径生成与执行通道分开验收。复杂上下文路径不能仅凭生成成功就认定 `web click ref` 或元素库通道可执行；遇到 `xpathSegments` 等通道错误先确认零动作，再按当前 schema 验证支持的 Selector 通道，不无条件重放原动作。
 
 ## 验收与剩余风险
 

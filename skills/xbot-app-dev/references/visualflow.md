@@ -2,7 +2,7 @@
 
 ## 先确认 MCP
 
-先看 `xbot-cli doctor --json` 的 `studio_mcp.connection.provider`。6.4 的 copilot 与旧版 legacy 使用不同编辑接口，详见 [MCP 兼容](mcp-compatibility.md)。
+先用 `xbot-cli client info --json` 查看 `studio_mcp.connection.provider`；连接异常或信息不足再查 `xbot-cli doctor --json`。6.4 的 copilot 与旧版 legacy 使用不同编辑接口，详见 [MCP 兼容](mcp-compatibility.md)。
 
 6.4 使用源码入口：
 
@@ -73,7 +73,7 @@ xbot-cli flow visual list report --detail
 - 流程 In/Out 使用 `flow params list/set`；Visual Out 的产出块输出须与参数同名。
 - `type` 使用 `flow params types` 的真实 ID，列表/字典/对象不再改成 `any`。
   legacy 后端整批校验并仅写参数区域，必要时先保存已有编辑，再 reload 一次并回读；
-  无变化不写入或 reload，不 sync、不关闭编辑器。用户不要直接编辑应用目录。
+  无变化不写入或 reload，不 sync、不关闭编辑器。不要直接编辑应用目录。
   计算型 Out 省略 `value`，客户端回读的空表达式不表示空字符串初值。
   对象的 `None` 默认值不创建真实对象；类型目录的 scope 与未知类型限制见 CodeFlow 指南。
   写入、reload、回读和实际运行分开报告，失败后不整批重试。

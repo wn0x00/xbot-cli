@@ -3,7 +3,7 @@
 ## 工作流
 
 Studio 命令建议追加 `--expect-app <app-id>`，它核对当前应用而不切换应用。以下流程名称应替换为实际返回的 `flow_id`。
-旧版与 6.4 均保留 `flow code` 命令；统一源码分页入口为 `flow source read`。协议及参数差异先看 [MCP 兼容](mcp-compatibility.md)，由 doctor 的实际 provider 判断。
+旧版与 6.4 均保留 `flow code` 命令；统一源码分页入口为 `flow source read`。先用 `client info --json` 读取实际 provider，连接异常或信息不足再查 `doctor --json`；协议及参数差异见 [MCP 兼容](mcp-compatibility.md)。
 
 ```bash
 xbot-cli status
@@ -37,8 +37,8 @@ xbot-cli flow verify hello --timeout 600
 
 `type` 使用 `flow params types` 返回的真实 ID，支持列表、字典及网页/Excel/窗口等对象，
 不再降级为 `any`。静态目录不保证包含扩展或动态类型，CLI 保留声明的 scope；
-文件路径、文件夹路径标注主流程用途，但 6.3.39 子流程实测可用，因此允许并给出 warning，
-不据此保证编辑器可选性或跨版本兼容。对象默认 `None` 只是空占位，不会创建对象。
+文件路径、文件夹路径标注主流程用途；CLI 允许子流程声明但给出 warning，
+不据此保证当前编辑器可选性或跨版本兼容。对象默认 `None` 只是空占位，不会创建对象。
 
 legacy 后端的 `flow params set` 使用 CLI 本地元数据适配器，不是扩展原生 MCP 的六类型接口：
 整批校验，必要时先保存已有编辑，仅写参数区域，调用一次 reload 后回读。
@@ -113,17 +113,15 @@ candidates = browser.find_all_by_xpath(verified_xpath, timeout=10)
 
 ## 第三方依赖
 
-依赖只装进应用 venv。legacy 调用：
+依赖只装进目标应用的工作区，统一使用 `python package`，由 CLI 自动适配当前 MCP：
 
 ```bash
-xbot-cli tool studio call python_pip @pip.json
+xbot-cli python package list --expect-app <app-id> --json
+xbot-cli python package install "requests==2.32.3" --expect-app <app-id> --dry-run --json
+xbot-cli python package install "requests==2.32.3" --expect-app <app-id> --json
 ```
 
-```json
-{"operation":"install","packages":[{"package_name":"requests","version":"2.32.3"}]}
-```
-
-6.4 通过 `tool studio call xbot-bash @command.json` 调用；先以 `{"command":"xbot-bash python package install --help","explanation":"核对依赖安装参数"}` 读取当前契约，再执行已授权的安装。
+安装或卸载失败、超时后先读取依赖状态和部分结果，不整批重放，不改用系统 pip。完整参数见 [依赖管理](python-packages.md)。
 
 ## 验收
 

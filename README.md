@@ -152,7 +152,6 @@ xbot-cli oapi job logs <jobUuid> --json
 - [CLI 参考](docs/cli-reference.md)：完整命令、参数语义、输出契约与设计依据
 - [流程参数使用文档](docs/flow-parameters.md)：真实类型 ID、批量增改删、默认值及 reload 回读
 - [MCP 兼容指南](skills/xbot-app-dev/references/mcp-compatibility.md)：6.3/6.4 自动分流、源码编辑、动态工具和配置
-- [Skill v10 升级说明](docs/skill-v10-upgrade.md)：Skill 模块、依赖与限制
 - [平台指南](skills/xbot-app-dev/references/oapi.md)：开放 API 的配置、概念与排障
 - [发布说明](docs/releasing.md)：版本同步与发布流程
 

@@ -1,6 +1,6 @@
 # Web 自动化模块
 
-状态：保持 v10 和既有脚本、模板路径；CLI 新增 Python 输出、`web xpath` 与分层上下文生成，详见 [浏览器契约](../references/browser.md)。这些定位提议不替代既有修复验收链路。共享操作和授权规则继承 [SKILL.md](../SKILL.md)。
+本文描述当前 Web 自动化与修复路径。Python 输出、`web xpath` 和分层上下文的使用见 [浏览器契约](../references/browser.md)；定位提议不替代修复验收链路。共享操作和授权规则继承 [SKILL.md](../SKILL.md)。
 
 ## 进入条件
 

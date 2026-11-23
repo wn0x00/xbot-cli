@@ -197,7 +197,6 @@ try {
     ['locator-repair', 'references/locator-repair.md'],
     ['locator-usage', 'references/locator-usage.md'],
     ['collection-repair', 'references/collection-repair.md'],
-    ['skill-updates', 'UPDATE-RECORD.md'],
     ['maintenance', 'maintenance/workflow.md'],
     ['element-preconditions', 'maintenance/element-preconditions.md'],
     ['run-existing', 'references/run-existing.md'],
