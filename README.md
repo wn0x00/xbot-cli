@@ -1,6 +1,6 @@
 # xbot-cli
 
-面向 AI Agent 的影刀（ShadowBot）RPA 命令行工具。
+面向 AI Agent 的影刀（ShadowBot）RPA 命令行工具，支持应用与指令集开发维护、流程运行和 Web/Windows 自动化。
 
 [![npm 版本](https://img.shields.io/npm/v/%40guanzhu.me%2Fxbot-cli?label=npm&color=blue)](https://www.npmjs.com/package/@guanzhu.me/xbot-cli)
 [![CI](https://github.com/wn0x00/xbot-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/wn0x00/xbot-cli/actions/workflows/ci.yml)
@@ -11,7 +11,7 @@
 
 ## 什么是 xbot-cli
 
-xbot-cli 通过影刀客户端内置通道管理应用、编辑流程、运行验证和浏览器自动化。Agent 可以逐层查询帮助和参数 schema，通过稳定的 JSON 结果判断下一步，并安装随包提供的开发 Skill。CLI 使用 Rust 实现，通过 npm 分发预编译程序。
+xbot-cli 通过影刀客户端内置通道管理应用与指令集、编辑流程、运行验证，并操作网页和 Windows 控件。Agent 可以逐层查询 help/schema，通过稳定的 JSON 结果判断下一步。随包内置 `xbot-cli-doc`、`xbot-activity-dev`、`xbot-activity-fix` 三份 Skill，分别提供 CLI 用法、指令开发规范及模板、既有指令维护流程。CLI 使用 Rust 实现，通过 npm 分发 Windows x64 预编译程序。
 
 ## 核心特性
 
@@ -123,7 +123,7 @@ xbot-cli web open example.com --browser ziniaobrowser --json
 5. 发布、回收等不可逆操作必须经我明确授权，未经确认不要执行。
 ```
 
-本次源码改版将原两份 Skill 归档到 [备份目录](backups/skills/2026-11-26/)，不作为活动 Skill 打包。新版安装器检测到原两份已安装目录时，会保留原文及用户定制并移入 `.agents/skill-backups/`，返回 `data.backups`；重复安装不重复备份。新版安装入口以本次源码构建为准，已发布 npm 包仍以其内置清单为准。
+从 `0.12.0` 起，三份新 Skill 替代原来的两份，原文件归档到 [备份目录](backups/skills/2026-11-26/)。新版安装器检测到原两份已安装目录时，会保留原文及用户定制并移入 `.agents/skill-backups/`，返回 `data.backups`；重复安装不重复备份。旧版 CLI 请先运行 `xbot-cli update`，再运行 `xbot-cli install --skills --json`。安装结果中的 `data.path/files` 现在对应 `xbot-cli-doc`，自动化调用方应按 `data.skills[].name` 选择。
 
 完整的 Agent 工作指令、输出契约、退出码和 Skill 能力边界见 [CLI 参考](docs/cli-reference.md)。
 

@@ -1,6 +1,6 @@
 # xbot-cli 命令与行为参考
 
-面向 AI Agent 的影刀（ShadowBot）RPA CLI。默认通过内置 shell-cli、studio-mcp 和 Chrome Bridge 命名管道操作和运行应用；网页命令全部采用管道协议，不依赖 browser-use-mcp。`oapi` 仅是企业版用户明确选择时的开放 API 备用入口。实验性 Windows UIA 观察使用独立 Python 提供器，不是影刀原生 Selector 引擎。
+面向 AI Agent 的影刀（ShadowBot）RPA CLI，支持应用与指令集开发维护、流程运行和 Web/Windows 自动化，内置 CLI 文档、指令开发、指令维护三份 Skill。默认通过内置 shell-cli、studio-mcp 和 Chrome Bridge 命名管道操作和运行应用；网页命令全部采用管道协议，不依赖 browser-use-mcp。`oapi` 仅是企业版用户明确选择时的开放 API 备用入口。Windows 快照和控件操作使用相应原生或 UIA 提供器；CLI 快照 ref 与影刀持久 Selector 不可互换。
 
 命令按所操作的资源组织：
 

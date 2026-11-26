@@ -9,8 +9,9 @@ pub(crate) const MAX_TIMEOUT_SECS: u64 = 86_400;
     name = "xbot-cli",
     version,
     disable_help_subcommand = true,
-    about = "影刀 RPA CLI:应用、流程、任务与工具",
-    after_help = "示例:\n  xbot-cli status\n  xbot-cli app open <app-id>\n  xbot-cli flow verify <flow-id>\n  xbot-cli schema flow verify"
+    about = "影刀 RPA CLI：应用与指令集开发维护、流程运行和 Web/Windows 自动化",
+    long_about = "面向 AI Agent 的影刀（ShadowBot）RPA 命令行工具。\n支持应用与指令集开发维护、流程运行、Web/Windows 自动化，提供 JSON 输出、help/schema 和离线指南。\n内置 xbot-cli-doc、xbot-activity-dev、xbot-activity-fix 三份 Skill，分别负责 CLI 用法、指令开发和指令维护。",
+    after_help = "示例:\n  xbot-cli status\n  xbot-cli app open <app-id>\n  xbot-cli flow verify <flow-id>\n  xbot-cli schema flow verify\n  xbot-cli install --skills --json\n  xbot-cli guide cli-doc"
 )]
 pub(crate) struct Cli {
     #[command(subcommand)]
@@ -83,9 +84,9 @@ pub(crate) enum Group {
         #[arg(num_args = 0..)]
         path: Vec<String>,
     },
-    /// 按需阅读内置开发与排障指南
+    /// 按需阅读 CLI 用法、指令开发与维护指南
     Guide { topic: Option<String> },
-    /// 安装应用开发与开发规范两份 Agent Skill 及配套资源
+    /// 安装 CLI 文档、指令开发与维护三份 Agent Skill 及配套资源
     Install {
         /// 安装 xbot-cli-doc、xbot-activity-dev 和 xbot-activity-fix
         #[arg(long)]
