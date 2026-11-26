@@ -3,7 +3,7 @@
 适用于 xbot-cli 0.9.3 及以上版本。CodeFlow 和 VisualFlow 使用同一套参数命令。
 完整文档也内置于 `xbot-cli guide flow-parameters`。
 
-当前兼容实现会按实际 MCP 分流：旧版 legacy 保留本地元数据适配，6.4 copilot 使用客户端原生参数接口。先用 `doctor --json` 查看 provider；连接配置见 [MCP 兼容](../skills/xbot-app-dev/references/mcp-compatibility.md)（`guide mcp`）。
+当前兼容实现会按实际 MCP 分流：旧版 legacy 保留本地元数据适配，6.4 copilot 使用客户端原生参数接口。先用 `doctor --json` 查看 provider；连接配置见 [MCP 兼容](../skills/xbot-cli-doc/references/operations.md#mcp)（`guide mcp`）。
 
 ## 6.4 原生参数路径
 

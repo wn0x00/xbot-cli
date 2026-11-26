@@ -87,7 +87,7 @@ pub(crate) enum Group {
     Guide { topic: Option<String> },
     /// 安装应用开发与开发规范两份 Agent Skill 及配套资源
     Install {
-        /// 同时安装 xbot-app-dev 和 xbot-development-standards
+        /// 安装 xbot-cli-doc、xbot-activity-dev 和 xbot-activity-fix
         #[arg(long)]
         skills: bool,
         /// 安装到 ~/.agents;缺省安装到当前工作区 .agents

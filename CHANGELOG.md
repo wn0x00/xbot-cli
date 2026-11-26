@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- 将活动 Skill 改为 `xbot-cli-doc`、`xbot-activity-dev`、`xbot-activity-fix`：分别提供 CLI 用法、指令开发与维护，包含 sync 关闭说明、开发/维护任务清单，以及文案、启用禁用和分组操作步骤。活动资源压缩为 7 个 Markdown。
+- 原两份 Skill 的 68 个文件完整备份至 `backups/skills/2026-11-26/`，不再嵌入活动安装清单。安装器将目标范围内的旧目录整体移入 `.agents/skill-backups/`，保留定制与附加文件；先统一检查冲突，安装失败时尝试恢复，`--dry-run` 不写入或迁移。
+- 安装结果增加 `data.backups`；`data.path/files` 现指向第一份 `xbot-cli-doc`，原先依赖旧路径的调用方需改按 `data.skills[].name` 选择。增加四个新 guide 主题，保留旧主题作为合并资料的兼容入口。
+- 同步 CLI 内嵌资源、Win32 worker 路径、文档、CI 与验包测试；修复安装备份文件被占用时回滚可能删除原文件的问题，并覆盖目录迁移、冲突和失败恢复。
+
 ## [0.11.5](https://github.com/wn0x00/xbot-cli/compare/v0.11.4...v0.11.5) (2026-11-23)
 
 v0.11.5 — 安全边界、传输治理与交付可靠性

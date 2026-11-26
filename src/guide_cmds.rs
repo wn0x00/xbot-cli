@@ -8,143 +8,62 @@ use serde_json::{json, Value};
 use crate::app_cmds::CmdOut;
 use crate::core::{BackendError, Res};
 
-const SKILL: &str = include_str!("../skills/xbot-app-dev/SKILL.md");
-const WEB_MODULE: &str = include_str!("../skills/xbot-app-dev/modules/web.md");
-const WIN_MODULE: &str = include_str!("../skills/xbot-app-dev/modules/win.md");
-const AUTOMATION_ROUTING: &str =
-    include_str!("../skills/xbot-app-dev/references/automation-routing.md");
-const WIN_SNAPSHOT: &str = include_str!("../skills/xbot-app-dev/scripts/win32/snapshot.py");
-const WIN_ACTIONS: &str = include_str!("../skills/xbot-app-dev/scripts/win32/actions.py");
-const WIN_LOCATOR: &str = include_str!("../skills/xbot-app-dev/scripts/win32/locator.cjs");
-const WIN_UIA_RUNTIME: &str = include_str!("../skills/xbot-app-dev/scripts/win32/uia_runtime.py");
-const WIN_UIA_RUNNER: &str = include_str!("../skills/xbot-app-dev/scripts/win32/run_uia.py");
-const WIN_REPAIR: &str = include_str!("../skills/xbot-app-dev/references/win-repair.md");
-const CLI_CONTRACT: &str = include_str!("../skills/xbot-app-dev/references/cli-contract.md");
-const OAPI: &str = include_str!("../skills/xbot-app-dev/references/oapi.md");
-const CODEFLOW: &str = include_str!("../skills/xbot-app-dev/references/codeflow.md");
-const MCP_COMPATIBILITY: &str =
-    include_str!("../skills/xbot-app-dev/references/mcp-compatibility.md");
-const PYTHON_PACKAGES: &str = include_str!("../skills/xbot-app-dev/references/python-packages.md");
-const VISUALFLOW: &str = include_str!("../skills/xbot-app-dev/references/visualflow.md");
+const CLI_DOC: &str = include_str!("../skills/xbot-cli-doc/SKILL.md");
+const ACTIVITY_DEV: &str = include_str!("../skills/xbot-activity-dev/SKILL.md");
+const ACTIVITY_FIX: &str = include_str!("../skills/xbot-activity-fix/SKILL.md");
+const OPERATIONS: &str = include_str!("../skills/xbot-cli-doc/references/operations.md");
+const METADATA: &str = include_str!("../skills/xbot-activity-dev/references/metadata.md");
+const WEB_REPAIR: &str = include_str!("../skills/xbot-activity-fix/references/web-repair.md");
+const WINDOWS_REPAIR: &str =
+    include_str!("../skills/xbot-activity-fix/references/windows-repair.md");
 const FLOW_PARAMETERS: &str = include_str!("../docs/flow-parameters.md");
-const BROWSER: &str = include_str!("../skills/xbot-app-dev/references/browser.md");
-const RECOVERY: &str = include_str!("../skills/xbot-app-dev/references/recovery.md");
-const PROJECT_CONVENTIONS: &str =
-    include_str!("../skills/xbot-app-dev/references/project-conventions.md");
-const WEB_LIFECYCLE: &str = include_str!("../skills/xbot-app-dev/references/web-lifecycle.md");
-const WEB_MAINTENANCE: &str = include_str!("../skills/xbot-app-dev/references/web-maintenance.md");
-const WEB_ACCEPTANCE: &str = include_str!("../skills/xbot-app-dev/references/web-acceptance.md");
-const WEB_RISK: &str = include_str!("../skills/xbot-app-dev/references/web-risk.md");
-const TASK_SPEC: &str = include_str!("../skills/xbot-app-dev/templates/task-spec.md");
-const LOCATOR_REGISTRY: &str =
-    include_str!("../skills/xbot-app-dev/templates/locator-registry.json");
-const ACCEPTANCE_CASE: &str = include_str!("../skills/xbot-app-dev/templates/acceptance-case.json");
-const LOCATOR_REPAIR: &str = include_str!("../skills/xbot-app-dev/references/locator-repair.md");
-const REPAIR_CONTRACT: &str = include_str!("../skills/xbot-app-dev/templates/repair-contract.json");
-const REPAIR_PLAN: &str = include_str!("../skills/xbot-app-dev/templates/repair-plan.json");
-const REPAIR_SCRIPT: &str = include_str!("../skills/xbot-app-dev/scripts/locator-repair.cjs");
-const REPAIR_GUARD: &str = include_str!("../skills/xbot-app-dev/scripts/locator/guarded-core.js");
-const REPAIR_HYBRID: &str = include_str!("../skills/xbot-app-dev/scripts/locator/hybrid-core.js");
-const REPAIR_WEIGHTED: &str = include_str!("../skills/xbot-app-dev/scripts/locator/weighted.js");
-const REPAIR_ROBULA_ADAPTER: &str =
-    include_str!("../skills/xbot-app-dev/scripts/locator/robula-adapter.js");
-const LOCATOR_USAGE: &str = include_str!("../skills/xbot-app-dev/references/locator-usage.md");
-const USAGE_SCRIPT: &str = include_str!("../skills/xbot-app-dev/scripts/locator-usage.cjs");
-const USAGE_AST: &str = include_str!("../skills/xbot-app-dev/scripts/locator/usage-ast.py");
-const USAGE_ANALYSIS: &str = include_str!("../skills/xbot-app-dev/templates/usage-analysis.json");
-const COLLECTION_REPAIR: &str =
-    include_str!("../skills/xbot-app-dev/references/collection-repair.md");
-const COLLECTION_COMPAT: &str = include_str!("../skills/xbot-app-dev/scripts/collection-compat.py");
-const COLLECTION_ANALYSIS: &str =
-    include_str!("../skills/xbot-app-dev/templates/collection-analysis.json");
-const DEVELOPMENT_STANDARDS: &str = include_str!("../skills/xbot-development-standards/SKILL.md");
-const MAINTENANCE: &str = include_str!("../skills/xbot-app-dev/maintenance/workflow.md");
-const ELEMENT_PRECONDITIONS: &str =
-    include_str!("../skills/xbot-app-dev/maintenance/element-preconditions.md");
-const RUN_EXISTING: &str = include_str!("../skills/xbot-app-dev/references/run-existing.md");
 
 const TOPICS: &[(&str, &str, &str)] = &[
+    ("cli-doc", "xbot-cli 使用方式、功能与注意事项", CLI_DOC),
+    ("activity-dev", "指令开发规范、任务清单与模板", ACTIVITY_DEV),
+    ("activity-fix", "指令维护规范、任务清单与操作", ACTIVITY_FIX),
     (
-        "maintenance",
-        "故障复现、前置重建、最小修复与恢复交付",
-        MAINTENANCE,
+        "activity-metadata",
+        "文案、公开状态与模块分组的修改步骤",
+        METADATA,
     ),
+    ("maintenance", "维护流程与恢复交付", ACTIVITY_FIX),
     (
         "element-preconditions",
-        "元素出现条件、调用链与实际界面状态核对",
-        ELEMENT_PRECONDITIONS,
+        "原调用、对象来源与前置核对",
+        ACTIVITY_FIX,
     ),
-    (
-        "run-existing",
-        "运行已有应用、原运行续查与结果核验",
-        RUN_EXISTING,
-    ),
+    ("run-existing", "运行已有流程与结果续查", OPERATIONS),
     (
         "development-standards",
-        "影刀指令集与普通应用的开发规范及参考资料索引",
-        DEVELOPMENT_STANDARDS,
+        "activity-dev 的兼容别名",
+        ACTIVITY_DEV,
     ),
     (
         "automation-routing",
-        "按失败步骤识别 Web/Windows 业务目标并选择模块",
-        AUTOMATION_ROUTING,
+        "按失败调用选择 Web 或 Windows",
+        ACTIVITY_FIX,
     ),
-    ("web-module", "Web 自动化、定位修复与能力路由", WEB_MODULE),
-    (
-        "win-design",
-        "Windows 窗口、元素树激活、快照动作与修复边界",
-        WIN_MODULE,
-    ),
-    (
-        "win-repair",
-        "Python Windows 单控件修复、流程调用和动作对账",
-        WIN_REPAIR,
-    ),
-    (
-        "cli-contract",
-        "命令层、JSON、退出码、dry-run 与确认门禁",
-        CLI_CONTRACT,
-    ),
-    ("codeflow", "CodeFlow 开发、维护、参数和验收", CODEFLOW),
-    (
-        "python-packages",
-        "应用 Python 依赖查询、安装、卸载与新旧 MCP",
-        PYTHON_PACKAGES,
-    ),
-    ("visualflow", "VisualFlow 块、参数、快照和验收", VISUALFLOW),
-    (
-        "mcp",
-        "影刀 6.3/6.4 MCP 自动分流、源码编辑与能力边界",
-        MCP_COMPATIBILITY,
-    ),
+    ("web-module", "Web 自动化与定位修复", WEB_REPAIR),
+    ("win-design", "Windows 窗口、控件与动作边界", WINDOWS_REPAIR),
+    ("win-repair", "Windows 单控件修复与动作对账", WINDOWS_REPAIR),
+    ("cli-contract", "命令、JSON、退出码与输入文件", OPERATIONS),
+    ("codeflow", "CodeFlow 入口、业务实现与验收", ACTIVITY_DEV),
+    ("python-packages", "应用 Python 依赖管理", OPERATIONS),
+    ("visualflow", "VisualFlow 源码、块与参数", OPERATIONS),
+    ("mcp", "MCP 兼容与能力发现", OPERATIONS),
     (
         "flow-parameters",
-        "流程参数类型、批量增改删、默认值和 reload",
+        "流程 In/Out 参数与默认值",
         FLOW_PARAMETERS,
     ),
-    ("browser", "浏览器快照、交互、选择器和专用工具", BROWSER),
-    ("recovery", "维护、排障、发布与回收边界", RECOVERY),
-    (
-        "locator-repair",
-        "XPath 零匹配、强身份校验、组合生成器和只读修复提议",
-        LOCATOR_REPAIR,
-    ),
-    (
-        "locator-usage",
-        "修复前 AI 分析单元素/集合用途、源码证据和交接校验",
-        LOCATOR_USAGE,
-    ),
-    (
-        "collection-repair",
-        "相似元素契约、旧新父子定位兼容和隔离修复验收",
-        COLLECTION_REPAIR,
-    ),
-    (
-        "oapi",
-        "开放平台 Open API:授权、机器人、原子调度与调度日志",
-        OAPI,
-    ),
-    ("platform", "oapi 主题的兼容别名", OAPI),
+    ("browser", "Web 浏览器命令与能力边界", OPERATIONS),
+    ("recovery", "故障调查、恢复与交付边界", ACTIVITY_FIX),
+    ("locator-repair", "XPath 单元素修复提议", WEB_REPAIR),
+    ("locator-usage", "定位用途分析与证据交接", WEB_REPAIR),
+    ("collection-repair", "集合定位契约与修复验收", WEB_REPAIR),
+    ("oapi", "企业 API 的发现、认证与使用边界", OPERATIONS),
+    ("platform", "oapi 主题的兼容别名", OPERATIONS),
 ];
 
 pub fn cmd_guide(topic: Option<&str>) -> Res<CmdOut> {
@@ -233,13 +152,13 @@ fn install_atomically(files: &[(PathBuf, &str)], fail_at: Option<usize>) -> Res<
             std::process::id()
         ));
         let result = (|| -> Res<()> {
-            writes[index].touched = true;
             if writes[index].target.exists() {
                 fs::rename(&writes[index].target, &backup).map_err(|error| {
                     BackendError::new("FILE_WRITE", format!("备份失败: {error}"))
                 })?;
                 writes[index].backup = Some(backup);
             }
+            writes[index].touched = true;
             fs::rename(&writes[index].temp, &writes[index].target)
                 .map_err(|error| BackendError::new("FILE_WRITE", format!("替换失败: {error}")))?;
             Ok(())
@@ -265,10 +184,14 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
     };
     let root = base.join(".agents").join("skills");
     let bundles = [
-        ("xbot-app-dev", skill_files(&root.join("xbot-app-dev"))),
+        ("xbot-cli-doc", cli_doc_files(&root.join("xbot-cli-doc"))),
         (
-            "xbot-development-standards",
-            development_standards_files(&root.join("xbot-development-standards")),
+            "xbot-activity-dev",
+            activity_dev_files(&root.join("xbot-activity-dev")),
+        ),
+        (
+            "xbot-activity-fix",
+            activity_fix_files(&root.join("xbot-activity-fix")),
         ),
     ];
     let files: Vec<(PathBuf, &str)> = bundles
@@ -286,7 +209,7 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
             .with_hint("确认覆盖后,在原命令末尾追加 --yes"));
         }
     }
-    install_atomically(&files, None)?;
+    let backups = install_with_legacy_backup(&root, &files, None)?;
     let skills: Vec<Value> = bundles
         .iter()
         .map(|(name, files)| {
@@ -294,254 +217,245 @@ pub fn install_skills(global: bool, overwrite: bool) -> Res<CmdOut> {
             json!({"name": name, "path": root.join(name), "files": paths})
         })
         .collect();
-    // Keep the original single-skill fields for existing callers.
+    // Keep the single-skill response shape; it now identifies the first bundle.
     Ok((
         json!({
             "installed": true,
             "path": skills[0]["path"],
             "files": skills[0]["files"],
             "skills": skills,
+            "backups": backups,
         }),
         vec![],
     ))
 }
 
-fn skill_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
+fn install_with_legacy_backup(
+    root: &Path,
+    files: &[(PathBuf, &str)],
+    fail_at: Option<usize>,
+) -> Res<Vec<Value>> {
+    let mut legacy = Vec::new();
+    for name in ["xbot-app-dev", "xbot-development-standards"] {
+        let path = root.join(name);
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+                legacy.push(path);
+            }
+            Ok(_) => {
+                return Err(BackendError::new(
+                    "FILE_WRITE",
+                    format!("旧 Skill 不是普通目录，请先检查: {}", path.display()),
+                ));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(BackendError::new(
+                    "FILE_WRITE",
+                    format!("{}: {error}", path.display()),
+                ));
+            }
+        }
+    }
+    if legacy.is_empty() {
+        install_atomically(files, fail_at)?;
+        return Ok(vec![]);
+    }
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let backup_root = root
+        .parent()
+        .ok_or_else(|| BackendError::new("FILE_WRITE", "Skill 目录缺少父目录"))?
+        .join("skill-backups");
+    fs::create_dir_all(&backup_root)
+        .map_err(|error| BackendError::new("FILE_WRITE", error.to_string()))?;
+    let batch = backup_root.join(format!("legacy-{}-{nonce}", std::process::id()));
+    fs::create_dir(&batch).map_err(|error| BackendError::new("FILE_WRITE", error.to_string()))?;
+    let mut moved = Vec::new();
+    let result = (|| -> Res<()> {
+        for source in legacy {
+            let target = batch.join(source.file_name().unwrap());
+            fs::rename(&source, &target).map_err(|error| {
+                BackendError::new(
+                    "FILE_WRITE",
+                    format!("备份 {} 失败: {error}", source.display()),
+                )
+            })?;
+            moved.push((source, target));
+        }
+        install_atomically(files, fail_at)
+    })();
+    if let Err(error) = result {
+        let mut pending = Vec::new();
+        for (source, target) in moved.iter().rev() {
+            if let Err(restore_error) = fs::rename(target, source) {
+                pending.push(
+                    json!({"original": source, "path": target, "error": restore_error.to_string()}),
+                );
+            }
+        }
+        let _ = fs::remove_dir(&batch);
+        return Err(error.with_data(json!({"pending_backups": pending})));
+    }
+    Ok(moved
+        .iter()
+        .map(|(source, target)| json!({"name": source.file_name().unwrap().to_string_lossy(), "original": source, "path": target}))
+        .collect())
+}
+
+fn cli_doc_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
     vec![
-        (root.join("SKILL.md"), SKILL),
         (
             root.join("agents/openai.yaml"),
-            include_str!("../skills/xbot-app-dev/agents/openai.yaml"),
-        ),
-        (root.join("modules").join("web.md"), WEB_MODULE),
-        (root.join("modules").join("win.md"), WIN_MODULE),
-        (
-            root.join("references").join("automation-routing.md"),
-            AUTOMATION_ROUTING,
+            include_str!("../skills/xbot-cli-doc/agents/openai.yaml"),
         ),
         (
-            root.join("scripts").join("win32").join("snapshot.py"),
-            WIN_SNAPSHOT,
+            root.join("references/operations.md"),
+            include_str!("../skills/xbot-cli-doc/references/operations.md"),
         ),
         (
-            root.join("scripts").join("win32").join("actions.py"),
-            WIN_ACTIONS,
-        ),
-        (
-            root.join("scripts").join("win32").join("locator.cjs"),
-            WIN_LOCATOR,
-        ),
-        (
-            root.join("scripts").join("win32").join("uia_runtime.py"),
-            WIN_UIA_RUNTIME,
-        ),
-        (
-            root.join("scripts").join("win32").join("run_uia.py"),
-            WIN_UIA_RUNNER,
-        ),
-        (root.join("references").join("win-repair.md"), WIN_REPAIR),
-        (root.join("references").join("oapi.md"), OAPI),
-        (
-            root.join("references").join("cli-contract.md"),
-            CLI_CONTRACT,
-        ),
-        (root.join("references").join("codeflow.md"), CODEFLOW),
-        (
-            root.join("references").join("python-packages.md"),
-            PYTHON_PACKAGES,
-        ),
-        (root.join("references").join("visualflow.md"), VISUALFLOW),
-        (
-            root.join("references").join("mcp-compatibility.md"),
-            MCP_COMPATIBILITY,
-        ),
-        (root.join("references").join("browser.md"), BROWSER),
-        (root.join("references").join("recovery.md"), RECOVERY),
-        (
-            root.join("references").join("project-conventions.md"),
-            PROJECT_CONVENTIONS,
-        ),
-        (
-            root.join("references").join("web-lifecycle.md"),
-            WEB_LIFECYCLE,
-        ),
-        (
-            root.join("references").join("web-maintenance.md"),
-            WEB_MAINTENANCE,
-        ),
-        (
-            root.join("references").join("web-acceptance.md"),
-            WEB_ACCEPTANCE,
-        ),
-        (root.join("references").join("web-risk.md"), WEB_RISK),
-        (root.join("templates").join("task-spec.md"), TASK_SPEC),
-        (
-            root.join("templates").join("locator-registry.json"),
-            LOCATOR_REGISTRY,
-        ),
-        (
-            root.join("templates").join("acceptance-case.json"),
-            ACCEPTANCE_CASE,
-        ),
-        (
-            root.join("references").join("locator-repair.md"),
-            LOCATOR_REPAIR,
-        ),
-        (
-            root.join("templates").join("repair-contract.json"),
-            REPAIR_CONTRACT,
-        ),
-        (root.join("templates").join("repair-plan.json"), REPAIR_PLAN),
-        (
-            root.join("scripts").join("locator-repair.cjs"),
-            REPAIR_SCRIPT,
-        ),
-        (
-            root.join("scripts").join("locator").join("guarded-core.js"),
-            REPAIR_GUARD,
-        ),
-        (
-            root.join("scripts").join("locator").join("hybrid-core.js"),
-            REPAIR_HYBRID,
-        ),
-        (
-            root.join("scripts").join("locator").join("weighted.js"),
-            REPAIR_WEIGHTED,
-        ),
-        (
-            root.join("scripts")
-                .join("locator")
-                .join("robula-adapter.js"),
-            REPAIR_ROBULA_ADAPTER,
-        ),
-        (
-            root.join("references").join("locator-usage.md"),
-            LOCATOR_USAGE,
-        ),
-        (root.join("scripts").join("locator-usage.cjs"), USAGE_SCRIPT),
-        (
-            root.join("scripts").join("locator").join("usage-ast.py"),
-            USAGE_AST,
-        ),
-        (
-            root.join("templates").join("usage-analysis.json"),
-            USAGE_ANALYSIS,
-        ),
-        (
-            root.join("references").join("collection-repair.md"),
-            COLLECTION_REPAIR,
-        ),
-        (
-            root.join("scripts").join("collection-compat.py"),
-            COLLECTION_COMPAT,
-        ),
-        (
-            root.join("templates").join("collection-analysis.json"),
-            COLLECTION_ANALYSIS,
-        ),
-        (root.join("references/run-existing.md"), RUN_EXISTING),
-        (root.join("maintenance/workflow.md"), MAINTENANCE),
-        (
-            root.join("maintenance/element-preconditions.md"),
-            ELEMENT_PRECONDITIONS,
-        ),
-        (
-            root.join("maintenance/application-git-backup.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/application-git-backup.md"),
-        ),
-        (
-            root.join("maintenance/asset-types.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/asset-types.md"),
-        ),
-        (
-            root.join("maintenance/browser-policy.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/browser-policy.md"),
-        ),
-        (
-            root.join("maintenance/cli-contract.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/cli-contract.md"),
-        ),
-        (
-            root.join("maintenance/cli-operation-playbooks.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/cli-operation-playbooks.md"),
-        ),
-        (
-            root.join("maintenance/environment-and-paths.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/environment-and-paths.md"),
-        ),
-        (
-            root.join("maintenance/operating-rules.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/operating-rules.md"),
-        ),
-        (
-            root.join("maintenance/report-contract.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/report-contract.md"),
-        ),
-        (
-            root.join("maintenance/scenarios.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/scenarios.md"),
-        ),
-        (
-            root.join("maintenance/temporary-values.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/temporary-values.md"),
-        ),
-        (
-            root.join("maintenance/validation-and-delivery.md"),
-            include_str!("../skills/xbot-app-dev/maintenance/validation-and-delivery.md"),
+            root.join("SKILL.md"),
+            include_str!("../skills/xbot-cli-doc/SKILL.md"),
         ),
     ]
 }
 
-fn development_standards_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
+fn activity_dev_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
     vec![
-        (root.join("SKILL.md"), DEVELOPMENT_STANDARDS),
         (
             root.join("agents/openai.yaml"),
-            include_str!("../skills/xbot-development-standards/agents/openai.yaml"),
+            include_str!("../skills/xbot-activity-dev/agents/openai.yaml"),
         ),
         (
-            root.join("assets/acceptance-report.md"),
-            include_str!("../skills/xbot-development-standards/assets/acceptance-report.md"),
+            root.join("assets/activity-entry.py"),
+            include_str!("../skills/xbot-activity-dev/assets/activity-entry.py"),
+        ),
+        (
+            root.join("assets/activity-test.py"),
+            include_str!("../skills/xbot-activity-dev/assets/activity-test.py"),
+        ),
+        (
+            root.join("assets/flow-params.example.json"),
+            include_str!("../skills/xbot-activity-dev/assets/flow-params.example.json"),
         ),
         (
             root.join("assets/metadata-policy.example.json"),
-            include_str!(
-                "../skills/xbot-development-standards/assets/metadata-policy.example.json"
-            ),
+            include_str!("../skills/xbot-activity-dev/assets/metadata-policy.example.json"),
         ),
         (
-            root.join("references/acceptance.md"),
-            include_str!("../skills/xbot-development-standards/references/acceptance.md"),
-        ),
-        (
-            root.join("references/application-development.md"),
-            include_str!(
-                "../skills/xbot-development-standards/references/application-development.md"
-            ),
-        ),
-        (
-            root.join("references/code-execution.md"),
-            include_str!("../skills/xbot-development-standards/references/code-execution.md"),
-        ),
-        (
-            root.join("references/contract-ui.md"),
-            include_str!("../skills/xbot-development-standards/references/contract-ui.md"),
-        ),
-        (
-            root.join("references/metadata-checker.md"),
-            include_str!("../skills/xbot-development-standards/references/metadata-checker.md"),
-        ),
-        (
-            root.join("references/metadata-delivery.md"),
-            include_str!("../skills/xbot-development-standards/references/metadata-delivery.md"),
+            root.join("references/metadata.md"),
+            include_str!("../skills/xbot-activity-dev/references/metadata.md"),
         ),
         (
             root.join("scripts/check_metadata.py"),
-            include_str!("../skills/xbot-development-standards/scripts/check_metadata.py"),
+            include_str!("../skills/xbot-activity-dev/scripts/check_metadata.py"),
         ),
         (
             root.join("scripts/test_check_metadata.py"),
-            include_str!("../skills/xbot-development-standards/scripts/test_check_metadata.py"),
+            include_str!("../skills/xbot-activity-dev/scripts/test_check_metadata.py"),
+        ),
+        (
+            root.join("SKILL.md"),
+            include_str!("../skills/xbot-activity-dev/SKILL.md"),
+        ),
+    ]
+}
+
+fn activity_fix_files(root: &Path) -> Vec<(PathBuf, &'static str)> {
+    vec![
+        (
+            root.join("agents/openai.yaml"),
+            include_str!("../skills/xbot-activity-fix/agents/openai.yaml"),
+        ),
+        (
+            root.join("assets/acceptance-case.json"),
+            include_str!("../skills/xbot-activity-fix/assets/acceptance-case.json"),
+        ),
+        (
+            root.join("assets/collection-analysis.json"),
+            include_str!("../skills/xbot-activity-fix/assets/collection-analysis.json"),
+        ),
+        (
+            root.join("assets/locator-registry.json"),
+            include_str!("../skills/xbot-activity-fix/assets/locator-registry.json"),
+        ),
+        (
+            root.join("assets/repair-contract.json"),
+            include_str!("../skills/xbot-activity-fix/assets/repair-contract.json"),
+        ),
+        (
+            root.join("assets/repair-plan.json"),
+            include_str!("../skills/xbot-activity-fix/assets/repair-plan.json"),
+        ),
+        (
+            root.join("assets/usage-analysis.json"),
+            include_str!("../skills/xbot-activity-fix/assets/usage-analysis.json"),
+        ),
+        (
+            root.join("references/web-repair.md"),
+            include_str!("../skills/xbot-activity-fix/references/web-repair.md"),
+        ),
+        (
+            root.join("references/windows-repair.md"),
+            include_str!("../skills/xbot-activity-fix/references/windows-repair.md"),
+        ),
+        (
+            root.join("scripts/collection-compat.py"),
+            include_str!("../skills/xbot-activity-fix/scripts/collection-compat.py"),
+        ),
+        (
+            root.join("scripts/locator/guarded-core.js"),
+            include_str!("../skills/xbot-activity-fix/scripts/locator/guarded-core.js"),
+        ),
+        (
+            root.join("scripts/locator/hybrid-core.js"),
+            include_str!("../skills/xbot-activity-fix/scripts/locator/hybrid-core.js"),
+        ),
+        (
+            root.join("scripts/locator/robula-adapter.js"),
+            include_str!("../skills/xbot-activity-fix/scripts/locator/robula-adapter.js"),
+        ),
+        (
+            root.join("scripts/locator/usage-ast.py"),
+            include_str!("../skills/xbot-activity-fix/scripts/locator/usage-ast.py"),
+        ),
+        (
+            root.join("scripts/locator/weighted.js"),
+            include_str!("../skills/xbot-activity-fix/scripts/locator/weighted.js"),
+        ),
+        (
+            root.join("scripts/locator-repair.cjs"),
+            include_str!("../skills/xbot-activity-fix/scripts/locator-repair.cjs"),
+        ),
+        (
+            root.join("scripts/locator-usage.cjs"),
+            include_str!("../skills/xbot-activity-fix/scripts/locator-usage.cjs"),
+        ),
+        (
+            root.join("scripts/win32/actions.py"),
+            include_str!("../skills/xbot-activity-fix/scripts/win32/actions.py"),
+        ),
+        (
+            root.join("scripts/win32/locator.cjs"),
+            include_str!("../skills/xbot-activity-fix/scripts/win32/locator.cjs"),
+        ),
+        (
+            root.join("scripts/win32/run_uia.py"),
+            include_str!("../skills/xbot-activity-fix/scripts/win32/run_uia.py"),
+        ),
+        (
+            root.join("scripts/win32/snapshot.py"),
+            include_str!("../skills/xbot-activity-fix/scripts/win32/snapshot.py"),
+        ),
+        (
+            root.join("scripts/win32/uia_runtime.py"),
+            include_str!("../skills/xbot-activity-fix/scripts/win32/uia_runtime.py"),
+        ),
+        (
+            root.join("SKILL.md"),
+            include_str!("../skills/xbot-activity-fix/SKILL.md"),
         ),
     ]
 }
@@ -556,6 +470,67 @@ fn home_dir() -> Res<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(windows)]
+    fn failed_file_backup_does_not_delete_the_original() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let root = std::env::temp_dir().join(format!(
+            "xbot-skill-locked-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&root).unwrap();
+        let target = root.join("SKILL.md");
+        fs::write(&target, "original").unwrap();
+        let locked = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&target)
+            .unwrap();
+        install_atomically(&[(target.clone(), "replacement")], None).unwrap_err();
+        drop(locked);
+        assert_eq!(fs::read_to_string(&target).unwrap(), "original");
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_install_restores_archived_legacy_skills() {
+        let root = std::env::temp_dir().join(format!(
+            "xbot-skill-migration-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let skills = root.join(".agents/skills");
+        for name in ["xbot-app-dev", "xbot-development-standards"] {
+            fs::create_dir_all(skills.join(name)).unwrap();
+            fs::write(skills.join(name).join("SKILL.md"), name).unwrap();
+        }
+        let files = vec![(skills.join("xbot-cli-doc/SKILL.md"), "new")];
+        install_with_legacy_backup(&skills, &files, Some(0)).unwrap_err();
+        for name in ["xbot-app-dev", "xbot-development-standards"] {
+            assert_eq!(
+                fs::read_to_string(skills.join(name).join("SKILL.md")).unwrap(),
+                name
+            );
+        }
+        assert!(!files[0].0.exists());
+        assert_eq!(
+            fs::read_dir(root.join(".agents/skill-backups"))
+                .unwrap()
+                .count(),
+            0
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn skill_file_commit_rolls_back_without_touching_uncommitted_targets() {

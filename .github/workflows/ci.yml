@@ -69,8 +69,11 @@ jobs:
       - name: Test native provider faults without UI access
         run: npm run test:win32-faults
 
-      - name: Test development standards metadata checker
-        run: python -B skills/xbot-development-standards/scripts/test_check_metadata.py
+      - name: Test development Skill checker and template
+        run: |
+          python -B skills/xbot-activity-dev/scripts/test_check_metadata.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B skills/xbot-activity-dev/assets/activity-test.py -v
 
       - name: Test UIA tree traversal without live providers
         run: python -B tests/win32_snapshot_collect.py

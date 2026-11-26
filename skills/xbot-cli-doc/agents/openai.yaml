@@ -1,0 +1,4 @@
+interface:
+  display_name: "xbot-cli 使用手册"
+  short_description: "查询 CLI 功能与命令、输出契约和客户端兼容，指导同步及关闭设计器"
+  default_prompt: "使用 $xbot-cli-doc 查询并完成本次 CLI 操作，先确认现场命令、参数与结果契约。"

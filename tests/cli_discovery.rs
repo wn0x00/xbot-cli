@@ -297,7 +297,7 @@ fn development_standards_guide_is_available_offline() {
     assert_eq!(value["data"]["topic"], "development-standards");
     assert_eq!(
         value["data"]["markdown"],
-        include_str!("../skills/xbot-development-standards/SKILL.md")
+        include_str!("../skills/xbot-activity-dev/SKILL.md")
     );
     let markdown = stdout(&invoke(&["guide", "development-standards"]));
     assert_eq!(

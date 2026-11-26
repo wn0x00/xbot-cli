@@ -1,0 +1,4 @@
+interface:
+  display_name: "影刀指令开发规范"
+  short_description: "新建或扩展影刀指令，先安排任务清单，跟踪参数、实现、平台配置与验收交付"
+  default_prompt: "使用 $xbot-activity-dev 开发这项影刀指令，先安排任务清单，持续更新实现、配置、验证与收尾状态。"

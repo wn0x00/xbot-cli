@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "template_kind": "design_contract_not_runtime_asset",
+  "note": "描述需采集的业务证据，不是脚本输入资产；runtime asset 必须由 capture 生成。null 为未采集，不能视为匹配通配符。",
+  "asset_version": 1,
+  "app_id": null,
+  "profile_id": null,
+  "page": {
+    "origin": null,
+    "path": null,
+    "semantic_query_keys": [],
+    "semantic_query_values": {},
+    "hash_identity": null,
+    "page_id": null,
+    "record_id": null,
+    "ready_evidence": null,
+    "blocked_state_evidence": []
+  },
+  "target": {
+    "business_key": null,
+    "tag": null,
+    "role": null,
+    "approved_action_names": [],
+    "record_scope": [],
+    "active_dialog": null
+  },
+  "frames": [],
+  "shadow_hosts": [],
+  "locators": [],
+  "references": [],
+  "action": {
+    "effect": null,
+    "authorized_scope": null,
+    "checkpoint": null,
+    "idempotency_key_source": null,
+    "success_assertion": null,
+    "outcome_unknown_policy": "reconcile_without_replay"
+  },
+  "auto_adopt_allowed": false,
+  "last_business_verified": null
+}

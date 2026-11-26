@@ -1,0 +1,20 @@
+[
+  {
+    "op": "upsert",
+    "name": "text",
+    "direction": "In",
+    "type": "str",
+    "kind": "Text",
+    "value": "",
+    "description": "待去除首尾空白的文本；正式默认值为空字符串，空串输出空串；不接受 None 或其他类型。"
+  },
+  {
+    "op": "upsert",
+    "name": "result",
+    "direction": "Out",
+    "type": "str",
+    "kind": "Text",
+    "value": "",
+    "description": "已去除首尾空白的文本；保留中间空白。"
+  }
+]

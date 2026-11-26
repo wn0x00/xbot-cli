@@ -7,7 +7,7 @@ import unittest
 
 sys.dont_write_bytecode=True
 
-spec=importlib.util.spec_from_file_location('snapshot',Path(__file__).resolve().parents[1]/'skills/xbot-app-dev/scripts/win32/snapshot.py')
+spec=importlib.util.spec_from_file_location('snapshot',Path(__file__).resolve().parents[1]/'skills/xbot-activity-fix/scripts/win32/snapshot.py')
 snapshot=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(snapshot)
 

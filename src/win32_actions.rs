@@ -5,7 +5,7 @@ use crate::app_cmds::CmdOut;
 use crate::cli::{Win32Sub, Win32Target};
 use crate::core::{self, BackendError, Res};
 
-const ACTION_WORKER: &str = include_str!("../skills/xbot-app-dev/scripts/win32/actions.py");
+const ACTION_WORKER: &str = include_str!("../skills/xbot-activity-fix/scripts/win32/actions.py");
 
 pub(crate) struct PreparedAction {
     action: &'static str,

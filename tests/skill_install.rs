@@ -45,7 +45,7 @@ impl Scratch {
 
     fn skill_root(&self, global: bool) -> PathBuf {
         let base = if global { &self.home } else { &self.workspace };
-        base.join(".agents").join("skills").join("xbot-app-dev")
+        base.join(".agents").join("skills").join("xbot-cli-doc")
     }
 }
 
@@ -91,13 +91,14 @@ fn assert_complete(output: Output, installed: &Path) {
     assert_eq!(result["ok"], true);
     assert_eq!(result["data"]["installed"], true);
     assert_eq!(result["data"]["path"], installed.to_string_lossy().as_ref());
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("skills/xbot-app-dev");
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("skills/xbot-cli-doc");
     assert_resources(&result["data"], &source, installed);
     let skills = result["data"]["skills"].as_array().unwrap();
-    assert_eq!(skills.len(), 2);
-    for (entry, name) in skills
-        .iter()
-        .zip(["xbot-app-dev", "xbot-development-standards"])
+    assert_eq!(skills.len(), 3);
+    for (entry, name) in
+        skills
+            .iter()
+            .zip(["xbot-cli-doc", "xbot-activity-dev", "xbot-activity-fix"])
     {
         let source = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("skills")
@@ -169,7 +170,10 @@ fn template_conflict_is_detected_before_any_write_and_explicit_overwrite_restore
     );
     let missing = installed.join("SKILL.md");
     fs::remove_file(&missing).unwrap();
-    let customized = installed.join("templates/locator-registry.json");
+    let customized = installed
+        .parent()
+        .unwrap()
+        .join("xbot-activity-fix/assets/locator-registry.json");
     let local_content = b"local template customization\n";
     fs::write(&customized, local_content).unwrap();
 
@@ -190,13 +194,10 @@ fn template_conflict_is_detected_before_any_write_and_explicit_overwrite_restore
 }
 
 #[test]
-fn standards_conflict_prevents_writes_to_either_skill() {
+fn development_conflict_prevents_writes_to_any_skill() {
     let scratch = Scratch::new();
     let installed = scratch.skill_root(false);
-    let standards = installed
-        .parent()
-        .unwrap()
-        .join("xbot-development-standards");
+    let standards = installed.parent().unwrap().join("xbot-activity-dev");
     let customized = standards.join("scripts/check_metadata.py");
     fs::create_dir_all(customized.parent().unwrap()).unwrap();
     let local_content = b"# local checker customization\n";
@@ -218,7 +219,7 @@ fn standards_conflict_prevents_writes_to_either_skill() {
 }
 
 #[test]
-fn skill_install_preview_does_not_create_either_skill() {
+fn skill_install_preview_does_not_create_any_skill() {
     let scratch = Scratch::new();
     let output = scratch.invoke(&["install", "--skills", "--dry-run", "--json"]);
     assert!(output.status.success());
@@ -228,4 +229,89 @@ fn skill_install_preview_does_not_create_either_skill() {
     assert_eq!(result["data"]["action"], "install.skills");
     assert!(!scratch.workspace.join(".agents").exists());
     assert!(!scratch.home.join(".agents").exists());
+}
+
+#[test]
+fn migration_preserves_legacy_customizations_outside_discovery_and_is_repeatable() {
+    for global in [false, true] {
+        let scratch = Scratch::new();
+        let installed = scratch.skill_root(global);
+        let skills_root = installed.parent().unwrap();
+        for name in ["xbot-app-dev", "xbot-development-standards"] {
+            let original = skills_root.join(name);
+            fs::create_dir_all(original.join("custom")).unwrap();
+            fs::write(original.join("SKILL.md"), name).unwrap();
+            fs::write(original.join("custom/local.bin"), [0, 255, 42]).unwrap();
+        }
+        let mut args = vec!["install", "--skills", "--json"];
+        if global {
+            args.push("--global");
+        }
+        let mut preview = args.clone();
+        preview.push("--dry-run");
+        assert!(scratch.invoke(&preview).status.success());
+        assert!(skills_root.join("xbot-app-dev").exists());
+        assert!(!skills_root.parent().unwrap().join("skill-backups").exists());
+
+        let output = scratch.invoke(&args);
+        let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+        let backups = result["data"]["backups"].as_array().unwrap();
+        assert_eq!(backups.len(), 2);
+        for backup in backups {
+            let original = Path::new(backup["original"].as_str().unwrap());
+            let archived = Path::new(backup["path"].as_str().unwrap());
+            assert!(!original.exists());
+            assert!(archived.starts_with(skills_root.parent().unwrap().join("skill-backups")));
+            assert_eq!(
+                fs::read_to_string(archived.join("SKILL.md")).unwrap(),
+                backup["name"].as_str().unwrap()
+            );
+            assert_eq!(
+                fs::read(archived.join("custom/local.bin")).unwrap(),
+                [0, 255, 42]
+            );
+        }
+        assert_complete(output, &installed);
+        let repeated = scratch.invoke(&args);
+        let result: Value = serde_json::from_slice(&repeated.stdout).unwrap();
+        assert_eq!(result["data"]["backups"], serde_json::json!([]));
+        assert_complete(repeated, &installed);
+    }
+}
+
+#[test]
+fn new_skill_conflict_leaves_legacy_directories_in_place() {
+    let scratch = Scratch::new();
+    let installed = scratch.skill_root(false);
+    let old = installed.parent().unwrap().join("xbot-app-dev");
+    fs::create_dir_all(&old).unwrap();
+    fs::write(old.join("SKILL.md"), "legacy customization").unwrap();
+    fs::create_dir_all(&installed).unwrap();
+    fs::write(installed.join("SKILL.md"), "new customization").unwrap();
+    let output = scratch.invoke(&["install", "--skills", "--json"]);
+    assert_eq!(output.status.code(), Some(5));
+    assert_eq!(
+        fs::read_to_string(old.join("SKILL.md")).unwrap(),
+        "legacy customization"
+    );
+    assert!(!installed
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("skill-backups")
+        .exists());
+}
+
+#[test]
+fn non_directory_legacy_path_is_preserved_without_installing_new_skills() {
+    let scratch = Scratch::new();
+    let installed = scratch.skill_root(false);
+    fs::create_dir_all(installed.parent().unwrap()).unwrap();
+    let old = installed.parent().unwrap().join("xbot-app-dev");
+    fs::write(&old, "user file").unwrap();
+    let output = scratch.invoke(&["install", "--skills", "--yes", "--json"]);
+    assert!(!output.status.success());
+    assert_eq!(fs::read_to_string(&old).unwrap(), "user file");
+    assert!(!installed.exists());
 }

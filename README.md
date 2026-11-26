@@ -24,7 +24,7 @@ xbot-cli 通过影刀客户端内置通道管理应用、编辑流程、运行�
 - **安装环境自动发现。** 支持识别非默认影刀安装目录，诊断失败时显示实际后端路径和针对性修复建议。
 - **Windows 自动化。** `win32 list --title "咚咚"` 搜索窗口并表格显示 PID/HWND；`win32 activate` 自动适配 x86 企业微信，其他目标按架构调用本机影刀组件，支持 Windows x64 上的 x86/x64 应用。`win32 snapshot` 展示树并保存快照，`inspect/click/fill/type/press/check/select/scroll` 等命令校验和操作实时控件；click 默认物理点击，`--method invoke` 可选，结果返回实际方法和坐标，动作后返回新树。
 - **开放平台 Open API。** `oapi` 一条命令保存 AccessKey，token 自动刷新；应用、机器人、调度、日志、队列、企业账号全覆盖。
-- **内置 Agent Skill。** `xbot-cli install --skills` 同时安装 `xbot-app-dev` 和 `xbot-development-standards`，包含应用/指令集开发规范、故障前置分析、临时测试恢复及 Web/Windows 修复辅助；按仅运行、开发和维护任务读取对应资料。
+- **内置 Agent Skill。** `xbot-cli install --skills` 安装 `xbot-cli-doc`、`xbot-activity-dev`、`xbot-activity-fix`，分别提供 CLI 用法、指令开发和指令维护；开发与维护含任务清单，按需读取元数据、Web/Windows 修复资料。
 
 ## 安装
 
@@ -117,11 +117,13 @@ xbot-cli web open example.com --browser ziniaobrowser --json
 ```text
 请使用 xbot-cli 帮我操作影刀 RPA。步骤：
 1. 全局安装：npm install -g '@guanzhu.me/xbot-cli'（需要 Windows x64、Node.js 22+，且本机影刀客户端已启动登录）；
-2. 在我的项目目录运行 xbot-cli install --skills --json 安装两份 Skill，并阅读生成的 .agents/skills/xbot-app-dev/SKILL.md 和 .agents/skills/xbot-development-standards/SKILL.md，先区分应用与指令集，再按对应规范工作；
+2. 在我的项目目录运行 xbot-cli install --skills --json 安装三份 Skill；先读 .agents/skills/xbot-cli-doc/SKILL.md，开发指令读 xbot-activity-dev/SKILL.md，维护已有指令读 xbot-activity-fix/SKILL.md，并安排相应任务清单；
 3. 先运行 xbot-cli status --json 确认环境，用 xbot-cli help <path> / schema <path> / guide <topic> 逐层了解命令；
 4. 解析结果一律显式加 --json；修改前先读现状，写入前先用 --dry-run 预览；
 5. 发布、回收等不可逆操作必须经我明确授权，未经确认不要执行。
 ```
+
+本次源码改版将原两份 Skill 归档到 [备份目录](backups/skills/2026-11-26/)，不作为活动 Skill 打包。新版安装器检测到原两份已安装目录时，会保留原文及用户定制并移入 `.agents/skill-backups/`，返回 `data.backups`；重复安装不重复备份。新版安装入口以本次源码构建为准，已发布 npm 包仍以其内置清单为准。
 
 完整的 Agent 工作指令、输出契约、退出码和 Skill 能力边界见 [CLI 参考](docs/cli-reference.md)。
 
@@ -141,7 +143,7 @@ xbot-cli oapi job start --app <appId> --robot <账号> --yes --json
 xbot-cli oapi job logs <jobUuid> --json
 ```
 
-凭据也可用环境变量 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET` 提供（兼容 `XBOT_PLATFORM_*`）；专有云设置 `XBOT_OAPI_BASE_URL`。`oapi` 覆盖应用、机器人、原子调度、常规任务、工作队列、企业账号和日志接口；`oapi api list/schema/call` 提供全部 44 个接口的离线契约与通用调用，`platform` 是兼容别名。正常开发仍默认使用客户端通道，凭据存在也不会自动切换。详见 [平台指南](skills/xbot-app-dev/references/oapi.md)。
+凭据也可用环境变量 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET` 提供（兼容 `XBOT_PLATFORM_*`）；专有云设置 `XBOT_OAPI_BASE_URL`。`oapi` 覆盖应用、机器人、原子调度、常规任务、工作队列、企业账号和日志接口；`oapi api list/schema/call` 提供全部 44 个接口的离线契约与通用调用，`platform` 是兼容别名。正常开发仍默认使用客户端通道，凭据存在也不会自动切换。详见 [平台指南](skills/xbot-cli-doc/references/operations.md#environment)。
 
 ## 文档
 
@@ -151,8 +153,8 @@ xbot-cli oapi job logs <jobUuid> --json
 - [0.9.1 更新说明](docs/updates/2026-10-30-web-python-xpath.md)：Web Python、XPath、安装环境发现及验证范围
 - [CLI 参考](docs/cli-reference.md)：完整命令、参数语义、输出契约与设计依据
 - [流程参数使用文档](docs/flow-parameters.md)：真实类型 ID、批量增改删、默认值及 reload 回读
-- [MCP 兼容指南](skills/xbot-app-dev/references/mcp-compatibility.md)：6.3/6.4 自动分流、源码编辑、动态工具和配置
-- [平台指南](skills/xbot-app-dev/references/oapi.md)：开放 API 的配置、概念与排障
+- [MCP 兼容指南](skills/xbot-cli-doc/references/operations.md#mcp)：6.3/6.4 自动分流、源码编辑、动态工具和配置
+- [平台指南](skills/xbot-cli-doc/references/operations.md#environment)：开放 API 的配置、概念与排障
 - [发布说明](docs/releasing.md)：版本同步与发布流程
 
 ## 本地开发

@@ -31,11 +31,11 @@ xbot-cli install --skills --json           # 当前工作区 .agents/skills
 xbot-cli install --skills --global --json  # 用户 ~/.agents/skills
 ```
 
-一次安装 `xbot-app-dev` 和 `xbot-development-standards` 两份 Skill。全部文件写入前统一检查冲突；已有 Skill 内容不同时不会静默覆盖，先查看差异，确认覆盖后追加 `--yes`。JSON 的 `data.skills` 按 Skill 返回 `name/path/files`；原 `data.path/files` 保留 `xbot-app-dev` 的含义以兼容旧调用。自动化调用下文的业务命令时均应显式添加 `--json`，示例中的 `<...>` 需替换为实际标识。
+一次安装 `xbot-cli-doc`、`xbot-activity-dev`、`xbot-activity-fix` 三份 Skill。全部文件写入前统一检查冲突；内容不同时先查看差异，明确覆盖时追加 `--yes`。JSON 的 `data.skills` 按 Skill 返回 `name/path/files`；`data.path/files` 对应第一份 `xbot-cli-doc`，依赖旧名称的调用方应按 `data.skills[].name` 选择。旧版两份已安装目录在冲突检查通过后整体移入 `.agents/skill-backups/<唯一批次>/`，完整保留定制与附加文件；`data.backups` 返回原路径与备份路径，失败会尝试恢复并返回未恢复路径。重复安装不重复备份，`--dry-run` 不迁移或写入。自动化业务命令显式加 `--json`，替换示例标识。
 
-当前源码安装 `xbot-app-dev` 和 `xbot-development-standards` 的当前操作资源，包括规范、操作参考、检查脚本、测试和报告模板，不包含历史升级记录或版本实验资料。`guide development-standards` 提供开发规范入口；完整参考资料从安装目录按需读取，先区分普通应用与指令集。`guide mcp` 说明当前支持的客户端接口差异，`guide python-packages` 说明应用依赖管理；`guide automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair` 分别提供模块选择、Web、Windows、生成修复、用途和集合指南。仅在企业版用户明确选择备用入口时读取 `guide oapi`。
+CLI 文档、开发和维护三份 Skill 同级安装，跨目录引用随包提供。`guide cli-doc/activity-dev/activity-fix/activity-metadata` 提供新入口；原 `guide development-standards/maintenance/run-existing/mcp/python-packages/automation-routing/web-module/win-design/win-repair/locator-repair/locator-usage/collection-repair/oapi` 等主题保留为对应新资料的入口，可能返回合并参考，按章节查阅。企业 API 仅在任务明确选择时使用。
 
-`locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；当前用法与能力边界见 [Web 模块](../skills/xbot-app-dev/modules/web.md)和 [Windows 模块](../skills/xbot-app-dev/modules/win.md)。
+`locator-repair.cjs`、`locator-usage.cjs` 和 Python UIA helper 属于安装后的 Skill 脚本，不是 `xbot-cli repair` 子命令。普通 DOM XPath、影刀分段 Selector 和 UIA 资产不能互换；当前用法与能力边界见 [Web 模块](../skills/xbot-activity-fix/references/web-repair.md)和 [Windows 模块](../skills/xbot-activity-fix/references/windows-repair.md)。
 
 ## 当前客户端信息
 
@@ -214,7 +214,7 @@ xbot-cli flow visual snapshots report --expect-app <app-id>
 
 `flow check` 检查整个应用的静态诊断（`scope: app`），传入流程时先核验目标，不启动流程。`flow verify` 解析目标并检查后实际运行，再读取 Out；失败时附日志尾部，用户暂停或停止则立即返回。修改操作成功、静态检查通过和实际运行成功是不同的结果，不应混为一谈。
 
-MCP 通过只读发现自动选择旧版 Studio 接口或 6.4 Copilot 会话接口；`doctor --json` 返回实际 provider/endpoint。原 `flow get/read` 保留，6.4 返回源码；`flow code` 在两种后端均可用。`flow source` 在旧版仅支持 CodeFlow，在 6.4 也支持 VisualFlow；`--block-nos` 为指令编号而非旧 block_id，不能与源码 offset/limit 混用。详见 [MCP 兼容指南](../skills/xbot-app-dev/references/mcp-compatibility.md) 或 `xbot-cli guide mcp`。
+MCP 通过只读发现自动选择旧版 Studio 接口或 6.4 Copilot 会话接口；`doctor --json` 返回实际 provider/endpoint。原 `flow get/read` 保留，6.4 返回源码；`flow code` 在两种后端均可用。`flow source` 在旧版仅支持 CodeFlow，在 6.4 也支持 VisualFlow；`--block-nos` 为指令编号而非旧 block_id，不能与源码 offset/limit 混用。详见 [MCP 兼容指南](../skills/xbot-cli-doc/references/operations.md#mcp) 或 `xbot-cli guide mcp`。
 
 ### 流程参数类型与写入
 
@@ -295,7 +295,7 @@ xbot-cli task stop <task-id>
 token 过期前复用、过期后自动刷新，`oapi auth logout` 清除当前授权；也可用环境变量
 `XBOT_OAPI_ACCESS_KEY_ID` / `XBOT_OAPI_ACCESS_KEY_SECRET`（兼容 `XBOT_PLATFORM_*`），
 专有云设置 `XBOT_OAPI_BASE_URL`。旧版双位置参数和 `--sk` 仍兼容，但新脚本不应使用。
-接口范围、调度标识关系、分页和异步日志恢复详见[平台指南](../skills/xbot-app-dev/references/oapi.md)，
+接口范围、调度标识关系、分页和异步日志恢复详见[平台指南](../skills/xbot-cli-doc/references/operations.md#environment)，
 也可离线运行 `xbot-cli guide oapi`。
 
 ```powershell
@@ -458,7 +458,7 @@ xbot-cli web xpath e4 e5
 
 `web xpath <ref...>` 只读生成至多 5 组候选：单 ref 返回同一元素的备选 XPath，多 ref 返回覆盖所选同类元素的共同规则。iframe 返回按外层到内层排序的 `Selector.xpath.segments` 列表，open ShadowRoot 输出影刀语法并提示需在影刀验证；closed ShadowRoot 明确拒绝生成。类型不一致、上下文不兼容或缺少可靠规则时给出原因，歧义候选为 `needs_review`，不能用于未经复核的单元素点击。
 
-全部网页命令均通过影刀 Chrome Bridge 命名管道和 CDP 执行，命令形式参考最新 Playwright CLI。`--name` 仅为旧调用保留兼容参数，不会写入影刀元素库。`eval` 保持注入 `activePage` 的只读异步函数体语法。完整参数见 `xbot-cli web --help` 和 [浏览器指南](../skills/xbot-app-dev/references/browser.md)。
+全部网页命令均通过影刀 Chrome Bridge 命名管道和 CDP 执行，命令形式参考最新 Playwright CLI。`--name` 仅为旧调用保留兼容参数，不会写入影刀元素库。`eval` 保持注入 `activePage` 的只读异步函数体语法。完整参数见 `xbot-cli web --help` 和 [浏览器指南](../skills/xbot-cli-doc/references/operations.md#web)。
 
 `web open/active` 将后续命令绑定到同一调用端的管道及标签页，切换活动标签不会暗中换页；`web active` 显式重新绑定。可用 `XBOT_WEB_PIPE`、`XBOT_WEB_TAB_ID` 指定上下文，多进程脚本可设置独立的 `XBOT_WEB_SESSION` 名称；这不是独立浏览器 profile。管道前缀不作为浏览器产品身份判据。快照失败保留已执行动作的证据，不自动重试。
 
@@ -555,4 +555,4 @@ npm pack
 
 源码位于仓库根目录的 `src/`，集成测试位于 `tests/`。`npm run build` 将 Rust release 程序放入 `native/win32-x64/xbot-cli.exe`；`bin/xbot-cli.cjs` 是 npm 命令入口。`npm pack` 仅生成本地包，正式发布步骤见[发布说明](releasing.md)。
 
-Skill 源码位于 `skills/xbot-app-dev/` 和 `skills/xbot-development-standards/`，由构建嵌入 CLI，随 npm 包中的可执行文件提供，无需从维护者桌面读取。保留两个原有名称：前者按仅运行、开发、维护及元素故障分流，后者提供应用与指令集开发规范；维护资料及跨 Skill 引用随 `install --skills` 一起安装。新增离线指南 `guide maintenance`、`guide element-preconditions` 与 `guide run-existing`。Agent 应遵守当前工作区 `AGENTS.md`、用户授权及项目实际提供的开发规范；不假定存在某个团队服务。已发布指令的名称、参数和调用契约不得擅自改变。
+活动 Skill 源码位于 `skills/xbot-cli-doc/`、`skills/xbot-activity-dev/`、`skills/xbot-activity-fix/`，构建时嵌入 CLI，随 npm 包中的可执行文件提供。原 `xbot-app-dev` 和 `xbot-development-standards` 原样保留在 [备份目录](../backups/skills/2026-11-26/)，不嵌入活动安装清单。开发和维护先安排实际任务、跟踪状态与证据；标题、label、说明、业务展示、指令/动作描述、启用禁用及分组步骤集中在 [元数据参考](../skills/xbot-activity-dev/references/metadata.md)。Agent 遵守用户授权与项目规范；已发布指令的公开身份和调用契约保持兼容。

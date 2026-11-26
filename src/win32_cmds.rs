@@ -11,7 +11,7 @@ use crate::cli::Win32Sub;
 use crate::core::{BackendError, Res};
 
 pub(crate) const SNAPSHOT_WORKER: &str =
-    include_str!("../skills/xbot-app-dev/scripts/win32/snapshot.py");
+    include_str!("../skills/xbot-activity-fix/scripts/win32/snapshot.py");
 const OUTPUT_LIMIT: u64 = 16 * 1024 * 1024;
 
 pub(crate) fn parse_hwnd(value: &str) -> Res<u64> {

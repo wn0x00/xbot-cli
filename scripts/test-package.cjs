@@ -152,8 +152,8 @@ try {
   }
   const skill = invoke(['install', '--skills', '--json']);
   assert.equal(skill.status, 0, skill.stderr);
-  const skillRoot = join(workdir, '.agents', 'skills', 'xbot-app-dev');
-  const sourceSkillRoot = join(root, 'skills', 'xbot-app-dev');
+  const skillRoot = join(workdir, '.agents', 'skills', 'xbot-cli-doc');
+  const sourceSkillRoot = join(root, 'skills', 'xbot-cli-doc');
   function skillFiles(directory, prefix = '') {
     return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
       const path = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -169,7 +169,7 @@ try {
       `Installed Skill resource differs: ${file}`);
   }
   const bundledSkills = JSON.parse(skill.stdout).data.skills;
-  assert.deepEqual(bundledSkills.map(skill => skill.name), ['xbot-app-dev', 'xbot-development-standards']);
+  assert.deepEqual(bundledSkills.map(skill => skill.name), ['xbot-cli-doc', 'xbot-activity-dev', 'xbot-activity-fix']);
   for (const bundled of bundledSkills) {
     const installedRoot = join(workdir, '.agents', 'skills', bundled.name);
     const sourceRoot = join(root, 'skills', bundled.name);
@@ -186,27 +186,39 @@ try {
   const standardsGuide = invoke(['guide', 'development-standards', '--json']);
   assert.equal(standardsGuide.status, 0, standardsGuide.stderr);
   assert.equal(JSON.parse(standardsGuide.stdout).data.markdown,
-    readFileSync(join(root, 'skills', 'xbot-development-standards', 'SKILL.md'), 'utf8'));
+    readFileSync(join(root, 'skills', 'xbot-activity-dev', 'SKILL.md'), 'utf8'));
   assert.match(invoke(['guide', 'cli-contract']).stdout, /^# /);
   for (const [topic, resource] of [
-    ['mcp', 'references/mcp-compatibility.md'],
-    ['python-packages', 'references/python-packages.md'],
-    ['oapi', 'references/oapi.md'],
-    ['automation-routing', 'references/automation-routing.md'],
-    ['web-module', 'modules/web.md'],
-    ['win-design', 'modules/win.md'],
-    ['win-repair', 'references/win-repair.md'],
-    ['locator-repair', 'references/locator-repair.md'],
-    ['locator-usage', 'references/locator-usage.md'],
-    ['collection-repair', 'references/collection-repair.md'],
-    ['maintenance', 'maintenance/workflow.md'],
-    ['element-preconditions', 'maintenance/element-preconditions.md'],
-    ['run-existing', 'references/run-existing.md'],
+    ['cli-doc', 'skills/xbot-cli-doc/SKILL.md'],
+    ['activity-dev', 'skills/xbot-activity-dev/SKILL.md'],
+    ['activity-fix', 'skills/xbot-activity-fix/SKILL.md'],
+    ['activity-metadata', 'skills/xbot-activity-dev/references/metadata.md'],
+    ['maintenance', 'skills/xbot-activity-fix/SKILL.md'],
+    ['element-preconditions', 'skills/xbot-activity-fix/SKILL.md'],
+    ['run-existing', 'skills/xbot-cli-doc/references/operations.md'],
+    ['development-standards', 'skills/xbot-activity-dev/SKILL.md'],
+    ['automation-routing', 'skills/xbot-activity-fix/SKILL.md'],
+    ['web-module', 'skills/xbot-activity-fix/references/web-repair.md'],
+    ['win-design', 'skills/xbot-activity-fix/references/windows-repair.md'],
+    ['win-repair', 'skills/xbot-activity-fix/references/windows-repair.md'],
+    ['cli-contract', 'skills/xbot-cli-doc/references/operations.md'],
+    ['codeflow', 'skills/xbot-activity-dev/SKILL.md'],
+    ['python-packages', 'skills/xbot-cli-doc/references/operations.md'],
+    ['visualflow', 'skills/xbot-cli-doc/references/operations.md'],
+    ['mcp', 'skills/xbot-cli-doc/references/operations.md'],
+    ['flow-parameters', 'docs/flow-parameters.md'],
+    ['browser', 'skills/xbot-cli-doc/references/operations.md'],
+    ['recovery', 'skills/xbot-activity-fix/SKILL.md'],
+    ['locator-repair', 'skills/xbot-activity-fix/references/web-repair.md'],
+    ['locator-usage', 'skills/xbot-activity-fix/references/web-repair.md'],
+    ['collection-repair', 'skills/xbot-activity-fix/references/web-repair.md'],
+    ['oapi', 'skills/xbot-cli-doc/references/operations.md'],
+    ['platform', 'skills/xbot-cli-doc/references/operations.md'],
   ]) {
     const result = invoke(['guide', topic, '--json']);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(JSON.parse(result.stdout).data.markdown,
-      readFileSync(join(sourceSkillRoot, resource), 'utf8'), `Stale embedded guide: ${topic}`);
+      readFileSync(join(root, resource), 'utf8'), `Stale embedded guide: ${topic}`);
   }
   const nativeSchema = invoke(['schema', 'win32', 'snapshot']);
   assert.equal(nativeSchema.status, 0, nativeSchema.stderr);
